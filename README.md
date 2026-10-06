@@ -1,24 +1,4 @@
-# AI 控制台助手（ai_console.py）
 
-无 GUI 的命令行 AI 助手，类似 OpenClaw 的无 GUI 版：在 PowerShell 窗口里选择模型对话，
-AI 可以在你指定的"工作区"目录里执行命令（需确认或完全自动，取决于访问模式）。
-
-## 快速启动
-
-**双击 `启动.bat`** 即可打开 PowerShell 窗口运行。
-
-或命令行手动运行：
-
-```bat
-cd /d C:\Users\Administrator\Documents\达令
-.venv\Scripts\python.exe ai_console.py
-```
-
-依赖安装（首次）：
-
-```bat
-.venv\Scripts\pip install -r requirements.txt
-```
 
 ## 功能
 
