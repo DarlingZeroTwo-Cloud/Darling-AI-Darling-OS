@@ -1,0 +1,305 @@
+{
+  "providers": [
+    {
+      "id": "fake",
+      "name": "Fake",
+      "base_url": "http://127.0.0.1:8765/v1",
+      "api_key": "",
+      "full_endpoint": false
+    }
+  ],
+  "models": [
+    {
+      "id": "m1",
+      "provider_id": "fake",
+      "name": "fake-model-1",
+      "display": "Fake - fake-model-1"
+    }
+  ],
+  "settings": {
+    "access_mode": "on_demand",
+    "temperature": 0.7,
+    "max_tokens": 999,
+    "reasoning_effort": "off",
+    "top_p": 1.0,
+    "connect_timeout": 15,
+    "api_retries": 1,
+    "use_proxy": false,
+    "system_prompt": "你是运行在用户电脑上的命令行 AI 助手，通过终端与用户交流。\n你拥有在用户指定的\"工作区\"目录里执行命令的能力。当你需要查看文件、运行程序、处理数据等实际操作时，请输出如下格式的命令块：\n[[CMD]]在这里写要执行的命令[[/CMD]]\n命令会在用户电脑上真实执行，请务必小心谨慎，不要执行任何可能造成破坏或危险的命令。执行结果会自动返回给你，你可以根据结果继续工作。如果不需要执行命令，直接正常回答用户即可。",
+    "workspace": "C:\\Users\\Administrator\\Documents\\达令\\darling-ai-gui"
+  },
+  "histories": {
+    "m1": [
+      {
+        "role": "user",
+        "content": "你好"
+      },
+      {
+        "role": "assistant",
+        "content": "你好！"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n1. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …\n2. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n5. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n\n(结果已存入数据库；如需深入阅读可输出 [[DSEARCH]]同关键词[[/DSEARCH]] 或 [[FETCH]]URL[[/FETCH]])"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      }
+    ],
+    "m2": [
+      {
+        "role": "user",
+        "content": "你好"
+      },
+      {
+        "role": "assistant",
+        "content": "你好！"
+      }
+    ],
+    "m-fake": [
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      },
+      {
+        "role": "user",
+        "content": "查一下今天的新闻"
+      },
+      {
+        "role": "assistant",
+        "content": "我来搜索一下最新信息：\n"
+      },
+      {
+        "role": "user",
+        "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+      },
+      {
+        "role": "assistant",
+        "content": "插件执行完成，任务结束。"
+      }
+    ]
+  },
+  "conversations": [
+    {
+      "id": "c1",
+      "title": "测试会话",
+      "hist": [
+        {
+          "role": "user",
+          "content": "你好"
+        },
+        {
+          "role": "assistant",
+          "content": "你好！"
+        },
+        {
+          "role": "user",
+          "content": "查一下今天的新闻"
+        },
+        {
+          "role": "user",
+          "content": "查一下今天的新闻"
+        },
+        {
+          "role": "assistant",
+          "content": "我来搜索一下最新信息：\n"
+        },
+        {
+          "role": "user",
+          "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n1. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …\n2. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n5. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n\n(结果已存入数据库；如需深入阅读可输出 [[DSEARCH]]同关键词[[/DSEARCH]] 或 [[FETCH]]URL[[/FETCH]])"
+        },
+        {
+          "role": "assistant",
+          "content": "插件执行完成，任务结束。"
+        },
+        {
+          "role": "user",
+          "content": "查一下今天的新闻"
+        },
+        {
+          "role": "assistant",
+          "content": "我来搜索一下最新信息：\n"
+        },
+        {
+          "role": "user",
+          "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+        },
+        {
+          "role": "assistant",
+          "content": "插件执行完成，任务结束。"
+        },
+        {
+          "role": "user",
+          "content": "查一下今天的新闻"
+        },
+        {
+          "role": "assistant",
+          "content": "我来搜索一下最新信息：\n"
+        },
+        {
+          "role": "user",
+          "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+        },
+        {
+          "role": "assistant",
+          "content": "插件执行完成，任务结束。"
+        },
+        {
+          "role": "user",
+          "content": "查一下今天的新闻"
+        },
+        {
+          "role": "assistant",
+          "content": "我来搜索一下最新信息：\n"
+        },
+        {
+          "role": "user",
+          "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+        },
+        {
+          "role": "assistant",
+          "content": "插件执行完成，任务结束。"
+        },
+        {
+          "role": "user",
+          "content": "查一下今天的新闻"
+        },
+        {
+          "role": "assistant",
+          "content": "我来搜索一下最新信息：\n"
+        },
+        {
+          "role": "user",
+          "content": "[插件执行结果]\n插件: 联网搜索\n工具: search\n状态: 成功\n结果:\n(命中缓存)\n\n1. 人民网_网上的人民日报\n   https://www.people.com.cn/\n   1997年1月1日&ensp; &ensp;人民网，是世界十大报纸之一《人民日报》建设的以新闻为主的大型网上信息发布平台，也是互联网上最大的中文和多 …\n2. 新闻 频道_央视网 (cctv.com)\n   https://news.cctv.com/news/\n   央视网 (cctv.com)新闻频道是面向全球，多语种，多终端的立体化新闻信息共享平台。 以视听与互动为核心，24小时不间断提供最快 …\n3. 中国 新闻 _央视网 (cctv.com)\n   https://news.cctv.com/china/?hspmw/\n   2026年“外媒看中国”采访走进7省区市 由国务院新闻办举行的2026年“外媒看中国”系列主题采访活动日前结束，多国媒体记者走进北京 …\n4. 今日 热榜\n   https://tophub.today/c/news\n   2026年9月22日&ensp; &ensp;今日头条 头条热榜 1 有10万民警赴中缅边境打击涉我犯罪 3704.0万 2 今日全国高速有44个路段易发拥堵 1839.4万 3 …\n5. 今日 头条\n   https://www.toutiao.com/\n   1 天前&ensp; &ensp;界面新闻记者｜蒋习被称为“史上最强火箭”的SpaceX星舰，于北京时间9月28日20时48分，从得克萨斯州星舰基地发射升空， …"
+        },
+        {
+          "role": "assistant",
+          "content": "插件执行完成，任务结束。"
+        }
+      ],
+      "model_id": "m1"
+    }
+  ],
+  "active_conv": "c1"
+}

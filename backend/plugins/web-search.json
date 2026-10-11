@@ -1,0 +1,33 @@
+{
+  "id": "web-search",
+  "name": "联网搜索",
+  "version": "1.1.0",
+  "description": "让 AI 联网搜索实时信息（必应），结果自动存数据库",
+  "author": "darling",
+  "tools": [
+    {
+      "name": "search",
+      "description": "快速搜索：在回复中输出 [[SEARCH]]要搜索的内容[[/SEARCH]]。返回标题+URL+摘要。",
+      "pattern": "[[SEARCH]]",
+      "close": "[[/SEARCH]]",
+      "handler": "web_search",
+      "enabled": true
+    },
+    {
+      "name": "deep_search",
+      "description": "深度搜索：在回复中输出 [[DSEARCH]]要搜索的内容[[/DSEARCH]]。自动打开前几条结果网页抓正文，返回带正文的详细结果。需要深入了解某主题时用这个。",
+      "pattern": "[[DSEARCH]]",
+      "close": "[[/DSEARCH]]",
+      "handler": "web_search_deep",
+      "enabled": true
+    },
+    {
+      "name": "fetch",
+      "description": "抓取指定网页正文：在回复中输出 [[FETCH]]完整URL[[/FETCH]]。返回该网页的正文文本。",
+      "pattern": "[[FETCH]]",
+      "close": "[[/FETCH]]",
+      "handler": "fetch_page",
+      "enabled": true
+    }
+  ]
+}

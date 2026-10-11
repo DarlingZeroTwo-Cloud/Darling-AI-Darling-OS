@@ -1,0 +1,17 @@
+{
+  "id": "make-plugin",
+  "name": "插件工坊",
+  "version": "1.0.0",
+  "description": "让 AI 自己编写并自动安装新插件",
+  "author": "darling",
+  "tools": [
+    {
+      "name": "make_plugin",
+      "description": "根据用户需求编写新插件。把符合插件格式的 JSON 放在 [[MAKE_PLUGIN]] 和 [[/MAKE_PLUGIN]] 之间，程序会校验并自动安装",
+      "pattern": "[[MAKE_PLUGIN]]",
+      "close": "[[/MAKE_PLUGIN]]",
+      "handler": "make_plugin",
+      "enabled": true
+    }
+  ]
+}

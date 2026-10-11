@@ -1,60 +1,38 @@
+# darling-ai
 
+本地 AI 工作台：Flutter GUI（Material 3）+ Python 核心（本地 HTTP 服务）。
+多供应商对话、插件系统、命令执行工作区、本地模型运行时，支持 Windows 与 Linux。
 
-## 功能
+## 特性
 
-- **1. 连接已有模型**
-  - 模型列表显示每个模型的历史条数
-  - 有历史时可选 **继续上次对话**（自动打印最近几轮）或 **新建对话**
-  - 对话前可选择工作区（当前目录 / 文件夹选择窗口 / 手动输入路径），对话中 `/workspace` 随时切换
-- **2. 添加供应商**
-  - 内置供应商（自带 API 地址）：OpenAI、DeepSeek、通义千问、智谱 GLM、Moonshot Kimi、硅基流动、Ollama（本地）
-  - 自定义供应商：填名称 + API 地址 + API Key，可选择地址是否已是完整接口地址（含 `/chat/completions`，否则自动补全）
-  - 添加后自动拉取模型列表（`/models`），选择要添加的模型；拉取失败可手动输入模型名
-  - 供应商和模型都可以反复添加
-- **3. 设置**
-  - AI 访问模式：**完全访问**（AI 执行命令无需确认） / **按需访问**（每次询问）
-  - 温度、最大回复 tokens、系统提示词、默认工作区
-  - 管理供应商和模型（查看/删除）、清除对话历史
+- **双 UI 模式**：精简（opencode 风格居中输入框）/ 经典（Zed 风格侧边栏，抽屉式可收起）
+- **多模型共用一个对话**：所有模型共享同一会话，可随时切换模型，记忆按对话保存
+- **多供应商**：内置 OpenAI / Anthropic / 智谱等预设，支持自定义供应商（API 地址 + Key）
+- **插件系统**：`plugins/*.json` 声明式插件，AI 可调用，也支持 AI 自写插件（写好自动加载）
+  - 内置：联网搜索（Bing）、插件工坊（AI 写插件）
+- **本地模型**：内置轻量本地 AI 框架，模型市场可下载 GGUF 模型接入对话（可选 GPU 加速）
+- **安全模式**：完全访问 / 按需访问（每次操作前确认）
+- **外观**：跟随系统深浅色，可自定义背景图片与不透明度
 
-## 界面特性
+## 目录结构
 
-- **按系统深浅主题自动配色**：深色系统用亮色文字，浅色系统用深色文字
-- **菜单切换自动清屏**：每个界面干净独立，不堆叠历史
-- **请求时显示"等待服务器响应..."转圈**，不再误以为程序卡死
-- **友好错误提示**：超时、网络不通、Key 无效都会有明确中文提示
-- **流式输出**：AI 回复逐字打印，流畅不卡顿
-
-## 工作区与命令执行
-
-- 默认工作区 = 程序所在目录；AI 执行命令时在该目录运行
-- 系统提示词指示 AI：需要实际操作时输出 `[[CMD]]命令[[/CMD]]` 命令块
-- 程序提取后执行，把结果回传给 AI，AI 可据此继续工作（单次最多连续执行 8 轮）
-- **完全访问模式会真实执行 AI 给出的任意命令，请谨慎使用。**
-
-## 配置
-
-- 配置文件 `config.json` 自动生成在程序同目录
-- 可用环境变量 `AI_CONSOLE_CONFIG` 指定其他配置文件路径
-- 对话历史按模型自动保存（每个模型最近 60 条消息）
-
-## 对话指令
-
-| 指令 | 作用 |
-| --- | --- |
-| `/exit` | 退出对话，返回模型列表 |
-| `/new` | 开启新对话（清空当前模型历史） |
-| `/clear` | 清屏 |
-| `/workspace` | 切换工作区 |
-| `/model` | 返回模型列表重新选择 |
-| `/help` | 显示帮助 |
-
-## 本地测试（可选）
-
-`tests/fake_api_server.py` 是一个假的 OpenAI 兼容 API 服务，可在不联网时验证全流程：
-
-```bat
-.venv\Scripts\python.exe tests\fake_api_server.py --port 8765
+```
+app_src/                 Flutter 源码（lib/ + pubspec.yaml）
+app/                     Flutter 发布工程（build 用）
+backend/                 Python 核心（bridge_server.py 等，PyInstaller 打包）
+  plugins/               内置插件 JSON
+build/                   构建脚本（Windows Inno / Linux tar+deb）
+assets/icon/             图标
 ```
 
-然后在"添加供应商"里添加自定义供应商：地址填 `http://127.0.0.1:8765/v1`，
-API Key 留空，即可拉取 `fake-model-1`、`fake-model-2` 两个测试模型。
+## 运行
+
+- Windows：安装 `darling-ai-2.0.0-setup.exe`，或解压免安装版后运行 `darling_ai.exe`
+- Linux：安装 `darling-ai_2.0.0_amd64.deb`，或解压 `darling-ai-2.0.0-linux-x64.tar.gz` 后运行 `./run.sh`
+
+GUI 启动后会自动拉起本地后端（`127.0.0.1:19730`）。
+
+## 从源码构建
+
+- Windows：`build/build_windows_v2.py`（需 Flutter SDK 与 Inno Setup）
+- Linux：WSL/Ubuntu 下 `flutter build linux --release` + PyInstaller 打 backend，参考 `build/pack_linux_v2.sh`
