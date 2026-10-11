@@ -278,35 +278,56 @@ class _ComposerState extends State<_Composer> {
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                 child: Row(
                   children: [
-                    // 当前模型（点击弹出选择，opencode 风格）
-                    InkWell(
-                      onTap: () async {
-                        final picked = await showDialog<String>(
-                          context: context,
-                          builder: (_) => ModelPickerDialog(state: widget.state),
-                        );
-                        if (picked != null) widget.state.setModel(picked);
-                      },
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              widget.state.currentModelId == null
-                                  ? '选择模型'
-                                  : (widget.state.model(widget.state.currentModelId)?['display'] ??
-                                      widget.state.currentModelId.toString()),
-                              style: TextStyle(fontSize: 13, color: cs.onSurface),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Icon(Icons.arrow_drop_down,
-                                size: 16, color: cs.onSurfaceVariant),
-                          ],
-                        ),
+                    // 当前模型（点击展开下拉面板，opencode 风格）
+                    MenuAnchor(
+                      alignmentOffset: const Offset(0, 8),
+                      style: MenuStyle(
+                        backgroundColor: WidgetStatePropertyAll(
+                            dark ? const Color(0xFF1D2027) : const Color(0xFFFFFFFF)),
+                        surfaceTintColor:
+                            WidgetStatePropertyAll(Colors.transparent),
+                        elevation: WidgetStatePropertyAll(10),
+                        shadowColor: WidgetStatePropertyAll(Colors.black26),
+                        side: WidgetStatePropertyAll(
+                            BorderSide(color: cs.outlineVariant)),
+                        shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14))),
+                        padding: WidgetStatePropertyAll(EdgeInsets.zero),
                       ),
+                      menuChildren: [
+                        ModelPickerPanel(state: widget.state),
+                      ],
+                      builder: (context, controller, child) {
+                        return InkWell(
+                          onTap: () => controller.isOpen
+                              ? controller.close()
+                              : controller.open(),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.state.currentModelId == null
+                                      ? '选择模型'
+                                      : (widget.state.model(widget.state
+                                              .currentModelId)?['display'] ??
+                                          widget.state.currentModelId.toString()),
+                                  style: TextStyle(
+                                      fontSize: 13, color: cs.onSurface),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Icon(Icons.arrow_drop_down,
+                                    size: 16, color: cs.onSurfaceVariant),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const Spacer(),
                     SizedBox(
