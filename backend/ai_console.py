@@ -183,9 +183,9 @@ DEFAULT_SETTINGS = {
     "use_proxy": False,          # 是否使用系统代理（默认关，避免代理残留导致卡死）
     "system_prompt": DEFAULT_SYSTEM_PROMPT,
     "workspace": None,           # 首次运行时自动设为程序所在目录
-    "memory_enabled": True,       # 跨会话长期记忆
+    "memory_enabled": False,      # 跨会话长期记忆（默认关，设置中可开启）
     "task_mode": False,           # 任务模式：AI 多步自动执行
-    "mcp_servers": {},            # MCP server 配置
+    "mcp_servers": {},            # MCP server 配置（默认空，设置中添加）
 }
 
 
