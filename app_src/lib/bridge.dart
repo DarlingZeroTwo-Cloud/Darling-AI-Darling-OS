@@ -48,7 +48,7 @@ class BridgeClient {
   }
 
   /// 流式对话：POST /api/chat 拿 job，再 GET /api/stream 逐事件回调。
-  /// onJob 在拿到 job id 后立即回调（供按需确认回传 decision）。
+  /// SSE 断线自动重连（最多 3 次，每次间隔 1 秒）。
   Future<void> chat(
     String modelId,
     String text,
@@ -58,23 +58,45 @@ class BridgeClient {
     final start = await postJson('/api/chat', {'model_id': modelId, 'text': text});
     final job = start['job'] as String;
     onJob?.call(job);
-    final req = http.Request('GET', Uri.parse('$base/api/stream?job=$job'));
-    final resp = await _client.send(req).timeout(const Duration(seconds: 30));
-    if (resp.statusCode != 200) {
-      throw Exception('SSE 连接失败: ${resp.statusCode}');
-    }
-    final stream = resp.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
-    await for (final line in stream) {
-      final s = line.trim();
-      if (!s.startsWith('data: ')) continue;
-      final payload = s.substring(6);
-      if (payload == '[DONE]') break;
+
+    var reconnects = 0;
+    const maxReconnects = 3;
+    while (true) {
       try {
-        final ev = jsonDecode(payload) as Map<String, dynamic>;
-        onEvent(ev);
-      } catch (_) {}
+        final req = http.Request('GET', Uri.parse('$base/api/stream?job=$job'));
+        final resp = await _client.send(req).timeout(const Duration(seconds: 30));
+        if (resp.statusCode != 200) {
+          throw Exception('SSE 连接失败: ${resp.statusCode}');
+        }
+        var done = false;
+        final stream = resp.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter());
+        await for (final line in stream) {
+          final s = line.trim();
+          if (!s.startsWith('data: ')) continue;
+          final payload = s.substring(6);
+          if (payload == '[DONE]') {
+            done = true;
+            break;
+          }
+          try {
+            final ev = jsonDecode(payload) as Map<String, dynamic>;
+            onEvent(ev);
+          } catch (_) {}
+        }
+        if (done) return;
+        // 流结束但没收到 DONE → 断线，尝试重连
+        if (reconnects >= maxReconnects) return;
+        reconnects++;
+        onEvent({'type': 'state', 'text': '连接中断，正在重连 ($reconnects/$maxReconnects)…'});
+        await Future.delayed(const Duration(seconds: 1));
+      } catch (_) {
+        if (reconnects >= maxReconnects) rethrow;
+        reconnects++;
+        onEvent({'type': 'state', 'text': '连接中断，正在重连 ($reconnects/$maxReconnects)…'});
+        await Future.delayed(const Duration(seconds: 1));
+      }
     }
   }
 

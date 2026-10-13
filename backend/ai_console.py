@@ -145,7 +145,7 @@ def clear_screen():
 
 # ==================== 常量 ====================
 APP_NAME = "AI 控制台助手"
-APP_VERSION = "0.3.0"
+APP_VERSION = "2.1.0"
 MAX_AGENT_STEPS = 8          # 一次用户提问后，AI 最多连续执行的命令轮数
 MAX_OUTPUT_CHARS = 20000     # 命令输出回传给 AI 的最大字符数
 HISTORY_LIMIT = 60           # 每个模型保存的历史消息条数上限
@@ -183,6 +183,9 @@ DEFAULT_SETTINGS = {
     "use_proxy": False,          # 是否使用系统代理（默认关，避免代理残留导致卡死）
     "system_prompt": DEFAULT_SYSTEM_PROMPT,
     "workspace": None,           # 首次运行时自动设为程序所在目录
+    "memory_enabled": True,       # 跨会话长期记忆
+    "task_mode": False,           # 任务模式：AI 多步自动执行
+    "mcp_servers": {},            # MCP server 配置
 }
 
 
@@ -1046,19 +1049,84 @@ def choose_workspace(current):
 
 
 # ==================== 对话 ====================
+_mcp_markers_cache = {"ts": 0.0, "val": []}
+
+
+def _estimate_tokens(messages):
+    total = 0
+    for m in messages:
+        c = m.get("content", "")
+        if isinstance(c, str):
+            total += len(c)
+    return max(1, int(total / 1.8))
+
+
+def _compress_history(history, max_tokens):
+    if not history:
+        return history, False
+    if _estimate_tokens(history) <= max_tokens:
+        return history, False
+    head = history[:1]
+    rest = history[1:]
+    budget = max_tokens - _estimate_tokens(head) - 200
+    kept = []
+    for m in reversed(rest):
+        kept.insert(0, m)
+        if _estimate_tokens(head + kept) > budget:
+            kept.pop(0)
+            break
+    return head + kept, True
+
+
 def build_messages(cfg, model_id):
-    """构造消息列表：系统提示词 + 插件工具说明 + 历史。"""
-    system = cfg.data["settings"]["system_prompt"]
+    """构造消息列表：系统提示词 + 插件/MCP工具 + 长期记忆 + 历史(自动压缩)。"""
+    settings = cfg.data["settings"]
+    system = settings["system_prompt"]
     markers = enabled_plugin_markers()
+
+    # MCP 工具标记（30秒缓存）
+    try:
+        import mcp_client
+        servers = settings.get("mcp_servers") or {}
+        if servers:
+            now = time.time()
+            if now - _mcp_markers_cache["ts"] > 30:
+                _mcp_markers_cache["val"] = mcp_client.all_markers(settings)
+                _mcp_markers_cache["ts"] = now
+            markers = markers + _mcp_markers_cache["val"]
+    except Exception:
+        pass
+
     if markers:
-        lines = [system, "", "## 可用工具（由已安装插件提供）", "需要真实信息或执行插件功能时，在回复中输出对应的开标记+内容+闭标记，程序会执行并把结果回传给你。"]
+        lines = [system, "", "## 可用工具", "需要真实信息或执行工具功能时，在回复中输出对应的开标记+内容+闭标记，程序会执行并把结果回传给你。"]
         for pname, tname, opn, clo, desc in markers:
             lines.append(f"- [{tname}] {desc}  (标记: {opn}内容{clo})")
         lines.append("")
         lines.append(PLUGIN_FORMAT_DOC)
         system = "\n".join(lines)
+
+    # 长期记忆注入
+    if settings.get("memory_enabled", True):
+        try:
+            import memory as _memory
+            mems = _memory.load_memories()
+            if mems:
+                mem_lines = ["", "## 关于用户的长期记忆（上次会话沉淀，供参考）"]
+                for m in mems:
+                    mem_lines.append(f"- [{m['tag']}] {m['content'][:150]}")
+                system += "\n".join(mem_lines)
+        except Exception:
+            pass
+
     messages = [{"role": "system", "content": system}]
-    messages += cfg.history(model_id)[-HISTORY_LIMIT:]
+    history = list(cfg.history(model_id))[-HISTORY_LIMIT:]
+
+    max_tok = int(settings.get("max_tokens", 4096) or 4096)
+    history, compressed = _compress_history(history, max_tok)
+    if compressed:
+        messages.append({"role": "system",
+                         "content": "(注：历史过长，已自动压缩早期内容以节省上下文。)"})
+    messages += history
     return messages
 
 
@@ -1275,8 +1343,29 @@ def chat_loop(cfg, model):
                         history.append(messages[-1])
                         ran_any = True
                     else:
-                        # ---- 插件调用块: (插件名, 工具名, 内容) ----
+                        # ---- 插件/MCP 调用块: (插件名, 工具名, 内容) ----
                         pname, tname, content = blk
+                        # MCP 块
+                        if pname.startswith("MCP::"):
+                            server_name = pname[5:]
+                            print(col(f"\n→ 调用 MCP [{server_name}] {tname}", C.MAGENTA))
+                            try:
+                                import mcp_client, json as _json
+                                try:
+                                    args = _json.loads(content) if content.strip().startswith("{") else {"query": content}
+                                except Exception:
+                                    args = {"query": content}
+                                ok, out = mcp_client.call_tool(cfg.data["settings"], server_name, tname, args)
+                            except Exception as e:
+                                ok, out = False, f"(MCP 异常: {e})"
+                            status = "成功" if ok else "失败"
+                            print(col(f"  [{status}]", C.DIM))
+                            if out: print(col(out, C.DIM))
+                            result_note = f"[插件执行结果]\n插件: {pname}\n工具: {tname}\n状态: {status}\n结果:\n{out}"
+                            messages.append({"role": "user", "content": result_note})
+                            history.append(messages[-1])
+                            ran_any = True
+                            continue
                         print(col(f"\n→ 调用插件 [{pname}] {tname}", C.MAGENTA))
                         handler_fn = None
                         for p in load_plugins():
@@ -1327,6 +1416,14 @@ def chat_loop(cfg, model):
                 pass
 
         print(col("-" * 60, C.BLUE))
+
+    # 对话结束：沉淀长期记忆
+    try:
+        if cfg.data["settings"].get("memory_enabled", True) and history:
+            import memory as _memory
+            _memory.save_memories(_memory.summarize_history(history[-30:]))
+    except Exception:
+        pass
 
 
 # ==================== 主菜单 ====================
