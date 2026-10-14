@@ -41,7 +41,6 @@ class _SettingsPageState extends State<SettingsPage> {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
         alignment: 0.0,
-        duration: const Duration(milliseconds: 250),
       );
     }
   }
