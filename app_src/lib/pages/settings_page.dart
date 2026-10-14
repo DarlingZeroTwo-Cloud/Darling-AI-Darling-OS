@@ -601,7 +601,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _pickWorkspace(BuildContext context) async {
     final ctl = TextEditingController(
-        text: (state.settings['workspace'] ?? '').toString());
+        text: (widget.state.settings['workspace'] ?? '').toString());
     final val = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -624,8 +624,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (val != null && val.trim().isNotEmpty) {
-      state.settings['workspace'] = val.trim();
-      await state.saveSettings();
+      widget.state.settings['workspace'] = val.trim();
+      await widget.state.saveSettings();
     }
   }
 
@@ -649,12 +649,12 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (ok == true) {
-      await state.api.postJson('/api/config', {
+      await widget.state.api.postJson('/api/config', {
         'histories': <String, dynamic>{},
         'conversations': <dynamic>[],
         'active_conv': null,
       });
-      await state.reload();
+      await widget.state.reload();
     }
   }
 }
