@@ -172,6 +172,100 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _Card(
+                    title: '高级功能',
+                    children: [
+                      _Row(
+                        label: 'MCP 客户端',
+                        desc: '连接外部 MCP server（stdio JSON-RPC）。开启后才加载。',
+                        trailing: Switch(
+                          value: s['mcp_enabled'] == true,
+                          onChanged: (v) {
+                            state.settings['mcp_enabled'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '长期记忆',
+                        desc: '跨会话 SQLite 记忆，对话结束自动沉淀。',
+                        trailing: Switch(
+                          value: s['memory_enabled'] == true,
+                          onChanged: (v) {
+                            state.settings['memory_enabled'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '任务模式',
+                        desc: 'AI 多步自动执行（连续调用工具直到完成）。',
+                        trailing: Switch(
+                          value: s['task_mode'] == true,
+                          onChanged: (v) {
+                            state.settings['task_mode'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '文件 / Git 工具',
+                        desc: 'AI 可读写文件、执行 git 命令。',
+                        trailing: Switch(
+                          value: s['file_git_enabled'] == true,
+                          onChanged: (v) {
+                            state.settings['file_git_enabled'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '内置浏览器',
+                        desc: 'AI 可打开网页、提取内容。开启后加载 WebView。',
+                        trailing: Switch(
+                          value: s['browser_enabled'] == true,
+                          onChanged: (v) {
+                            state.settings['browser_enabled'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '多模态图片输入',
+                        desc: '对话中可粘贴/选择图片发送给支持视觉的模型。',
+                        trailing: Switch(
+                          value: s['image_input_enabled'] == true,
+                          onChanged: (v) {
+                            state.settings['image_input_enabled'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '对话导出',
+                        desc: '对话界面出现导出按钮，可保存为 Markdown。',
+                        trailing: Switch(
+                          value: s['export_enabled'] == true,
+                          onChanged: (v) {
+                            state.settings['export_enabled'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '容器工作区',
+                        desc: 'WSL (Windows) 或 Docker (Linux) 隔离环境，自动配置国内镜像。',
+                        trailing: Switch(
+                          value: s['container_enabled'] == true,
+                          onChanged: (v) {
+                            state.settings['container_enabled'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _Card(
                     title: '本地推理',
                     children: [
                       _Row(
