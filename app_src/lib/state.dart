@@ -129,9 +129,12 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> deleteConversation(String convId) async {
-    await api.postJson('/api/convo/delete', {'conv_id': convId});
+    try {
+      await api.postJson('/api/convo/delete', {'conv_id': convId});
+    } catch (_) {}
     if (activeConvId == convId) {
       activeConvId = null;
+      messages.clear();
     }
     await reload();
     _renderFromHist();

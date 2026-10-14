@@ -69,6 +69,7 @@ class BridgeClient {
           throw Exception('SSE 连接失败: ${resp.statusCode}');
         }
         var done = false;
+        var gotTokens = false;
         final stream = resp.stream
             .transform(utf8.decoder)
             .transform(const LineSplitter());
@@ -82,17 +83,19 @@ class BridgeClient {
           }
           try {
             final ev = jsonDecode(payload) as Map<String, dynamic>;
+            if (ev['type'] == 'token') gotTokens = true;
             onEvent(ev);
           } catch (_) {}
         }
-        if (done) return;
-        // 流结束但没收到 DONE → 断线，尝试重连
+        // 正常结束：收到 DONE，或已经收到 token 后流自然关闭
+        if (done || gotTokens) return;
+        // 流关闭但没收到任何内容 → 真断线，重连
         if (reconnects >= maxReconnects) return;
         reconnects++;
         onEvent({'type': 'state', 'text': '连接中断，正在重连 ($reconnects/$maxReconnects)…'});
         await Future.delayed(const Duration(seconds: 1));
       } catch (_) {
-        if (reconnects >= maxReconnects) rethrow;
+        if (reconnects >= maxReconnects) return;
         reconnects++;
         onEvent({'type': 'state', 'text': '连接中断，正在重连 ($reconnects/$maxReconnects)…'});
         await Future.delayed(const Duration(seconds: 1));

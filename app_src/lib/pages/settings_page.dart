@@ -6,42 +6,77 @@ import '../state.dart';
 import '../dialogs/prompt_dialog.dart';
 import '../widgets/spin_field.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   final AppState state;
   const SettingsPage({super.key, required this.state});
 
   @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final _scroll = ScrollController();
+  int _nav = 0;
+
+  static const _sections = [
+    ('对话', Icons.chat_bubble_outline),
+    ('网络', Icons.public),
+    ('权限', Icons.shield_outlined),
+    ('高级功能', Icons.auto_awesome),
+    ('本地推理', Icons.memory),
+    ('服务', Icons.dns_outlined),
+    ('个性化', Icons.palette_outlined),
+  ];
+
+  final _keys = List.generate(_sections.length, (_) => GlobalKey());
+
+  void _jump(int i) {
+    setState(() => _nav = i);
+    final ctx = _keys[i].currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.05);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: state,
+      listenable: widget.state,
       builder: (context, _) {
+        final state = widget.state;
         final s = state.settings;
-        return Column(
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+            // 侧边栏导航
+            Container(
+              width: 180,
+              margin: const EdgeInsets.fromLTRB(16, 20, 0, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('设置',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface)),
-                  const SizedBox(height: 2),
-                  Text('调整 AI 行为与网络参数',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Text('设置', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
+                  ),
+                  for (int i = 0; i < _sections.length; i++)
+                    _NavItem(
+                      icon: _sections[i].$2,
+                      label: _sections[i].$1,
+                      selected: _nav == i,
+                      onTap: () => _jump(i),
+                    ),
                 ],
               ),
             ),
+            // 内容区
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                controller: _scroll,
+                padding: const EdgeInsets.fromLTRB(16, 20, 24, 24),
                 children: [
                   _Card(
+                    key: _keys[0],
                     title: '对话',
                     children: [
                       _Row(
@@ -98,6 +133,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _Card(
+                    key: _keys[1],
                     title: '网络',
                     children: [
                       _Row(
@@ -143,6 +179,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _Card(
+                    key: _keys[2],
                     title: '访问权限',
                     children: [
                       _Row(
@@ -172,6 +209,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _Card(
+                    key: _keys[3],
                     title: '高级功能',
                     children: [
                       _Row(
@@ -262,10 +300,43 @@ class SettingsPage extends StatelessWidget {
                           },
                         ),
                       ),
+                      if (s['container_enabled'] == true) ...[
+                        _Row(
+                          label: '容器类型',
+                          desc: 'Windows 选 WSL，Linux 选 Docker。',
+                          trailing: SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(value: 'wsl', label: Text('WSL')),
+                              ButtonSegment(value: 'docker', label: Text('Docker')),
+                            ],
+                            selected: {s['container_type'] ?? 'wsl'},
+                            onSelectionChanged: (sel) {
+                              state.settings['container_type'] = sel.first;
+                              state.saveSettings();
+                            },
+                          ),
+                        ),
+                        _Row(
+                          label: '发行版',
+                          desc: 'WSL 发行版名称（如 Ubuntu-22.04）或 Docker 镜像（如 ubuntu:22.04）。',
+                          trailing: SizedBox(
+                            width: 220,
+                            child: TextField(
+                              controller: TextEditingController(text: (s['container_distro'] ?? 'Ubuntu-22.04').toString()),
+                              decoration: const InputDecoration(isDense: true, hintText: 'Ubuntu-22.04'),
+                              onSubmitted: (v) {
+                                state.settings['container_distro'] = v.trim();
+                                state.saveSettings();
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 14),
                   _Card(
+                    key: _keys[4],
                     title: '本地推理',
                     children: [
                       _Row(
@@ -343,6 +414,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _Card(
+                    key: _keys[5],
                     title: '服务监听',
                     children: [
                       _Row(
@@ -383,6 +455,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   _Card(
+                    key: _keys[6],
                     title: '外观',
                     children: [
                       _Row(
@@ -586,10 +659,44 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _NavItem({required this.icon, required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? cs.secondaryContainer : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: selected ? cs.onSecondaryContainer : cs.onSurfaceVariant),
+              const SizedBox(width: 10),
+              Text(label, style: TextStyle(fontSize: 13.5, fontWeight: selected ? FontWeight.w600 : FontWeight.w400, color: selected ? cs.onSecondaryContainer : cs.onSurface)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Card extends StatelessWidget {
   final String title;
   final List<Widget> children;
-  const _Card({required this.title, required this.children});
+  const _Card({super.key, required this.title, required this.children});
 
   @override
   Widget build(BuildContext context) {
