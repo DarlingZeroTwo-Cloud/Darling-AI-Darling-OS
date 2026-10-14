@@ -33,15 +33,18 @@ class _SettingsPageState extends State<SettingsPage> {
   void _jump(int i) {
     setState(() => _nav = i);
     final ctx = _keys[i].currentContext;
-    if (ctx != null) {
-      // 停止正在进行的动画，立即跳
-      _scroll.jumpTo(_scroll.offset);
-      Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-        alignment: 0.0,
-      );
+    if (ctx != null && _scroll.hasClients) {
+      final box = ctx.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final target = _scroll.position.minScrollExtent +
+            box.localToGlobal(Offset.zero).dy -
+            _scroll.position.viewportDimension * 0.1;
+        _scroll.animateTo(
+          target.clamp(_scroll.position.minScrollExtent, _scroll.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     }
   }
 
