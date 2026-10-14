@@ -134,11 +134,32 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
     if (activeConvId == convId) {
       activeConvId = null;
-      messages.clear();
+      messages = [];
     }
     await reload();
     _renderFromHist();
     notifyListeners();
+  }
+
+  Future<void> confirmDeleteConversation(BuildContext context, String convId, String title) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除对话'),
+        content: Text('确定删除"${title.isEmpty ? '新对话' : title}"？此操作不可恢复。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await deleteConversation(convId);
+    }
   }
 
   void setModel(String? modelId) {

@@ -34,7 +34,15 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _nav = i);
     final ctx = _keys[i].currentContext;
     if (ctx != null) {
-      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.05);
+      // 停止正在进行的动画，立即跳
+      _scroll.jumpTo(_scroll.offset);
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        alignment: 0.0,
+        duration: const Duration(milliseconds: 250),
+      );
     }
   }
 
@@ -129,6 +137,83 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: const Text('查看 / 编辑'),
                         ),
                       ),
+                      _Row(
+                        label: '流式输出',
+                        desc: '逐字显示 AI 回复。关闭则等全部生成完再显示。',
+                        trailing: Switch(
+                          value: s['stream'] != false,
+                          onChanged: (v) {
+                            state.settings['stream'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '自动滚动到底部',
+                        desc: '新消息自动滚动到最新内容。',
+                        trailing: Switch(
+                          value: s['auto_scroll'] != false,
+                          onChanged: (v) {
+                            state.settings['auto_scroll'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '显示 token 用量',
+                        desc: '每条回复后显示消耗的 token 数。',
+                        trailing: Switch(
+                          value: s['show_tokens'] == true,
+                          onChanged: (v) {
+                            state.settings['show_tokens'] = v;
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '对话字体大小',
+                        desc: '聊天内容的字号（12 ~ 20）。',
+                        trailing: SpinField(
+                          min: 12,
+                          max: 20,
+                          value: (s['chat_font_size'] as num? ?? 14).toDouble(),
+                          step: 1,
+                          decimals: 0,
+                          onChanged: (v) {
+                            state.settings['chat_font_size'] = v.toInt();
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '历史消息保留条数',
+                        desc: '发给 AI 的最近消息数（越大越占 token，默认 20）。',
+                        trailing: SpinField(
+                          min: 4,
+                          max: 100,
+                          value: (s['history_limit'] as num? ?? 20).toDouble(),
+                          step: 2,
+                          decimals: 0,
+                          onChanged: (v) {
+                            state.settings['history_limit'] = v.toInt();
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '自动压缩阈值',
+                        desc: '历史 token 超过此值时自动压缩（默认 60000）。',
+                        trailing: SpinField(
+                          min: 4000,
+                          max: 200000,
+                          value: (s['context_compress_threshold'] as num? ?? 60000).toDouble(),
+                          step: 2000,
+                          onChanged: (v) {
+                            state.settings['context_compress_threshold'] = v.toInt();
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -173,6 +258,45 @@ class _SettingsPageState extends State<SettingsPage> {
                             state.settings['use_proxy'] = v;
                             state.saveSettings();
                           },
+                        ),
+                      ),
+                      _Row(
+                        label: 'SSE 断线重连次数',
+                        desc: '流式断开后自动重连次数（0 ~ 10）。',
+                        trailing: SpinField(
+                          min: 0,
+                          max: 10,
+                          value: (s['sse_reconnects'] as num? ?? 3).toDouble(),
+                          step: 1,
+                          decimals: 0,
+                          onChanged: (v) {
+                            state.settings['sse_reconnects'] = v.toInt();
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '请求间隔（毫秒）',
+                        desc: '连续请求之间的等待，避免触发限流。',
+                        trailing: SpinField(
+                          min: 0,
+                          max: 5000,
+                          value: (s['request_delay_ms'] as num? ?? 0).toDouble(),
+                          step: 100,
+                          onChanged: (v) {
+                            state.settings['request_delay_ms'] = v.toInt();
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '自定义 CA 证书',
+                        desc: '企业代理环境下的自定义根证书（留空用系统证书）。',
+                        trailing: OutlinedButton(
+                          onPressed: () async {
+                            // TODO: file picker
+                          },
+                          child: const Text('选择…'),
                         ),
                       ),
                     ],
@@ -303,13 +427,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       if (s['container_enabled'] == true) ...[
                         _Row(
                           label: '容器类型',
-                          desc: 'Windows 选 WSL，Linux 选 Docker。',
+                          desc: '自动检测当前系统可用的容器环境。',
                           trailing: SegmentedButton<String>(
                             segments: const [
+                              ButtonSegment(value: 'auto', label: Text('自动')),
                               ButtonSegment(value: 'wsl', label: Text('WSL')),
                               ButtonSegment(value: 'docker', label: Text('Docker')),
                             ],
-                            selected: {s['container_type'] ?? 'wsl'},
+                            selected: {s['container_type'] ?? 'auto'},
                             onSelectionChanged: (sel) {
                               state.settings['container_type'] = sel.first;
                               state.saveSettings();
@@ -317,18 +442,89 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                         _Row(
-                          label: '发行版',
-                          desc: 'WSL 发行版名称（如 Ubuntu-22.04）或 Docker 镜像（如 ubuntu:22.04）。',
+                          label: '发行版 / 镜像',
+                          desc: '自动检测时留空即可；手动指定如 Ubuntu-22.04 或 ubuntu:22.04。',
                           trailing: SizedBox(
                             width: 220,
                             child: TextField(
-                              controller: TextEditingController(text: (s['container_distro'] ?? 'Ubuntu-22.04').toString()),
-                              decoration: const InputDecoration(isDense: true, hintText: 'Ubuntu-22.04'),
+                              controller: TextEditingController(text: (s['container_distro'] ?? '').toString()),
+                              decoration: const InputDecoration(isDense: true, hintText: '自动检测'),
                               onSubmitted: (v) {
                                 state.settings['container_distro'] = v.trim();
                                 state.saveSettings();
                               },
                             ),
+                          ),
+                        ),
+                        _Row(
+                          label: '自动配置国内镜像',
+                          desc: '容器内自动配置 apt/pip 国内源加速。',
+                          trailing: Switch(
+                            value: s['container_mirror'] != false,
+                            onChanged: (v) {
+                              state.settings['container_mirror'] = v;
+                              state.saveSettings();
+                            },
+                          ),
+                        ),
+                      ],
+                      if (s['mcp_enabled'] == true) ...[
+                        _Row(
+                          label: 'MCP Servers',
+                          desc: '配置 stdio MCP 服务器命令和参数。',
+                          trailing: OutlinedButton(
+                            onPressed: () => showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text('MCP Servers'),
+                                content: SizedBox(
+                                  width: 400,
+                                  child: TextField(
+                                    maxLines: 8,
+                                    controller: TextEditingController(text: (s['mcp_config'] ?? '').toString()),
+                                    decoration: const InputDecoration(hintText: '{"filesystem": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]}}'),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+                                  FilledButton(onPressed: () { state.saveSettings(); Navigator.pop(context); }, child: const Text('保存')),
+                                ],
+                              ),
+                            ),
+                            child: const Text('配置…'),
+                          ),
+                        ),
+                      ],
+                      if (s['memory_enabled'] == true) ...[
+                        _Row(
+                          label: '记忆容量（条）',
+                          desc: '长期记忆最多保存条数，超出自动删除最旧的。',
+                          trailing: SpinField(
+                            min: 10,
+                            max: 5000,
+                            value: (s['memory_capacity'] as num? ?? 500).toDouble(),
+                            step: 50,
+                            onChanged: (v) {
+                              state.settings['memory_capacity'] = v.toInt();
+                              state.saveSettings();
+                            },
+                          ),
+                        ),
+                      ],
+                      if (s['task_mode'] == true) ...[
+                        _Row(
+                          label: '最大任务步数',
+                          desc: 'AI 一次提问最多连续执行多少步（防止死循环）。',
+                          trailing: SpinField(
+                            min: 3,
+                            max: 50,
+                            value: (s['max_agent_steps'] as num? ?? 8).toDouble(),
+                            step: 1,
+                            decimals: 0,
+                            onChanged: (v) {
+                              state.settings['max_agent_steps'] = v.toInt();
+                              state.saveSettings();
+                            },
                           ),
                         ),
                       ],
@@ -488,8 +684,69 @@ class _SettingsPageState extends State<SettingsPage> {
                           },
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      // 个性化背景
+                      _Row(
+                        label: '强调色',
+                        desc: '按钮、高亮等强调色。',
+                        trailing: SizedBox(
+                          width: 200,
+                          child: Wrap(
+                            spacing: 8,
+                            children: [
+                              for (final c in [0xFF10A37F, 0xFF6750A4, 0xFFB3261E, 0xFF006A6A, 0xFF7C4D00])
+                                GestureDetector(
+                                  onTap: () {
+                                    state.settings['accent_color'] = c;
+                                    state.saveSettings();
+                                  },
+                                  child: Container(
+                                    width: 28, height: 28,
+                                    decoration: BoxDecoration(
+                                      color: Color(c),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: (s['accent_color'] as int? ?? 0xFF10A37F) == c
+                                            ? Colors.black : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _Row(
+                        label: '圆角大小',
+                        desc: '卡片和按钮的圆角半径（0 ~ 24）。',
+                        trailing: SpinField(
+                          min: 0,
+                          max: 24,
+                          value: (s['corner_radius'] as num? ?? 12).toDouble(),
+                          step: 2,
+                          decimals: 0,
+                          onChanged: (v) {
+                            state.settings['corner_radius'] = v.toInt();
+                            state.saveSettings();
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: '背景透明度',
+                        desc: '设置了背景图片时的不透明度（0.1 ~ 1.0）。',
+                        trailing: SizedBox(
+                          width: 200,
+                          child: Slider(
+                            value: (s['bg_opacity'] as num? ?? 0.9).toDouble().clamp(0.1, 1.0),
+                            min: 0.1, max: 1.0,
+                            divisions: 9,
+                            label: '${((s['bg_opacity'] as num? ?? 0.9) * 100).round()}%',
+                            onChanged: (v) {
+                              state.settings['bg_opacity'] = v;
+                              state.saveSettings();
+                            },
+                          ),
+                        ),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Row(

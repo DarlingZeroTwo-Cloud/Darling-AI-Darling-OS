@@ -139,7 +139,7 @@ class Sidebar extends StatelessWidget {
                               ),
                             ),
                             _DeleteBtn(
-                              onDelete: () => state.deleteConversation(id),
+                              onDelete: () => state.confirmDeleteConversation(context, id, title),
                             ),
                           ],
                         ),
