@@ -1,7 +1,7 @@
 name: darling_ai
-description: 鏈湴 AI 宸ヤ綔鍙?- Flutter GUI + Python 鏍稿績妗ユ帴
+description: 閺堫剙婀?AI 瀹搞儰缍旈崣?- Flutter GUI + Python 閺嶇绺惧銉﹀复
 publish_to: 'none'
-version: 3.0.2+1
+version: 3.0.3+1
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
