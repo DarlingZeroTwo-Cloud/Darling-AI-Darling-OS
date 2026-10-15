@@ -218,18 +218,109 @@ class _Composer extends StatefulWidget {
 
 class _ComposerState extends State<_Composer> {
   final TextEditingController _ctl = TextEditingController();
+  final FocusNode _focus = FocusNode();
+  bool _showSlash = false;
+  int _slashSel = 0;
+
+  static const _slashItems = [
+    ('/new', '新建对话', Icons.add_comment_outlined),
+    ('/rename', '重命名当前对话', Icons.edit_outlined),
+    ('/clear', '清空当前对话', Icons.delete_sweep_outlined),
+    ('/help', '查看所有命令', Icons.help_outline),
+    ('/model', '切换模型', Icons.model_training_outlined),
+    ('/export', '导出对话', Icons.file_download_outlined),
+  ];
 
   @override
   void dispose() {
     _ctl.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   void _send() {
     final text = _ctl.text;
     if (text.trim().isEmpty || widget.state.busy) return;
+    // 斜杠命令
+    if (text.startsWith('/')) {
+      _runCommand(text.trim());
+      return;
+    }
     _ctl.clear();
     widget.state.send(text);
+  }
+
+  void _runCommand(String text) {
+    final cmd = text.split(' ').first.toLowerCase();
+    final state = widget.state;
+    switch (cmd) {
+      case '/new':
+        state.newConversation();
+        _ctl.clear();
+        break;
+      case '/rename':
+        state.renameActiveConversation(context);
+        _ctl.clear();
+        break;
+      case '/clear':
+        state.clearActiveConversation();
+        _ctl.clear();
+        break;
+      case '/model':
+        state.switchModelDialog(context);
+        _ctl.clear();
+        break;
+      case '/export':
+        state.exportConversation();
+        _ctl.clear();
+        break;
+      case '/help':
+      default:
+        _showHelpDialog();
+        _ctl.clear();
+        break;
+    }
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('命令列表'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (cmd, desc, _) in _slashItems)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Text(cmd,
+                        style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(ctx).colorScheme.primary)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(desc)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+        ],
+      ),
+    );
+  }
+
+  void _onTextChanged(String v) {
+    if (v.startsWith('/') && !v.contains(' ') && widget.state.busy == false) {
+      if (!_showSlash) setState(() => _showSlash = true);
+    } else {
+      if (_showSlash) setState(() => _showSlash = false);
+    }
   }
 
   @override
@@ -258,11 +349,57 @@ class _ComposerState extends State<_Composer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 斜杠命令面板
+              if (_showSlash)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: dark ? const Color(0xFF1A1D24) : const Color(0xFFF7F8FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (int i = 0; i < _slashItems.length; i++)
+                        InkWell(
+                          onTap: () {
+                            _ctl.text = _slashItems[i].$1;
+                            _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+                            setState(() => _showSlash = false);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            child: Row(
+                              children: [
+                                Icon(_slashItems[i].$3, size: 15, color: cs.onSurfaceVariant),
+                                const SizedBox(width: 10),
+                                Text(_slashItems[i].$1,
+                                    style: TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontWeight: FontWeight.w700,
+                                        color: cs.primary,
+                                        fontSize: 13)),
+                                const SizedBox(width: 14),
+                                Text(_slashItems[i].$2,
+                                    style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               TextField(
                 controller: _ctl,
+                focusNode: _focus,
                 minLines: 1,
                 maxLines: 6,
                 enabled: !busy,
+                onChanged: _onTextChanged,
                 onSubmitted: (_) => _send(),
                 style: TextStyle(fontSize: 14, color: cs.onSurface),
                 decoration: InputDecoration(
@@ -330,19 +467,31 @@ class _ComposerState extends State<_Composer> {
                       },
                     ),
                     const Spacer(),
+                    // 停止 / 发送按钮
                     SizedBox(
                       width: 36,
                       height: 36,
-                      child: FilledButton(
-                        onPressed: busy ? null : _send,
-                        style: FilledButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Icon(Icons.arrow_upward, size: 18),
-                      ),
+                      child: busy
+                          ? IconButton.filled(
+                              onPressed: () => widget.state.stop(),
+                              style: IconButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                backgroundColor: cs.errorContainer,
+                                foregroundColor: cs.onErrorContainer,
+                              ),
+                              icon: const Icon(Icons.stop, size: 18),
+                              tooltip: '停止生成',
+                            )
+                          : FilledButton(
+                              onPressed: _send,
+                              style: FilledButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Icon(Icons.arrow_upward, size: 18),
+                            ),
                     ),
                   ],
                 ),

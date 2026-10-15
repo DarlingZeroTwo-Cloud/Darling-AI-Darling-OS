@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import 'bridge.dart';
+import 'dialogs/model_picker.dart';
 
 /// 渲染消息种类
 enum MsgKind { user, ai, tool, error, think }
@@ -165,7 +167,120 @@ class AppState extends ChangeNotifier {
   void setModel(String? modelId) {
     if (modelId == null) return;
     currentModelId = modelId;
+    // 持久化到当前会话
+    final cid = activeConvId;
+    if (cid != null) {
+      api.setConversationModel(cid, modelId);
+    }
     notifyListeners();
+  }
+
+  /// 停止当前生成
+  Future<void> stop() async {
+    final jobId = _jobId;
+    if (jobId == null) return;
+    await api.chatStop(jobId);
+  }
+
+  /// 重命名任意对话（对话框输入）
+  Future<void> renameActiveConversationFor(
+      BuildContext context, String convId, String curTitle) async {
+    final ctl = TextEditingController(text: curTitle);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名对话'),
+        content: TextField(
+          controller: ctl,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: '输入新名称'),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctl.text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (name != null && name.isNotEmpty) {
+      await api.renameConversation(convId, name);
+      await reload();
+      notifyListeners();
+    }
+  }
+
+  /// 重命名当前对话（对话框输入）
+  Future<void> renameActiveConversation(BuildContext context) async {
+    final cid = activeConvId;
+    if (cid == null) return;
+    final cur = activeConversation()?['title'] ?? '新对话';
+    await renameActiveConversationFor(context, cid, cur.toString());
+  }
+
+  /// 清空当前对话历史
+  Future<void> clearActiveConversation() async {
+    final cid = activeConvId;
+    if (cid == null) return;
+    await api.postJson('/api/convo/clear', {'conv_id': cid});
+    await reload();
+    messages = [];
+    notifyListeners();
+  }
+
+  /// 模型切换弹窗（斜杠命令 /model 用）
+  Future<void> switchModelDialog(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('切换模型'),
+        content: SizedBox(
+          width: 420,
+          height: 430,
+          child: ModelPickerPanel(state: this),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+        ],
+      ),
+    );
+  }
+
+  /// 导出当前对话为 Markdown
+  Future<void> exportConversation() async {
+    if (messages.isEmpty) return;
+    final buf = StringBuffer();
+    buf.writeln('# 对话导出');
+    buf.writeln();
+    for (final m in messages) {
+      switch (m.kind) {
+        case MsgKind.user:
+          buf.writeln('## 👤 用户\n\n${m.text}\n');
+          break;
+        case MsgKind.ai:
+          buf.writeln('## 🤖 AI\n\n${m.text}\n');
+          break;
+        case MsgKind.tool:
+          buf.writeln('### 🛠️ ${m.title}\n\n${m.text}\n');
+          break;
+        default:
+          break;
+      }
+    }
+    try {
+      final home = Platform.environment['USERPROFILE'] ??
+          Platform.environment['HOME'] ??
+          '.';
+      final dir = '$home/Documents';
+      if (!Directory(dir).existsSync()) {
+        Directory(dir).createSync(recursive: true);
+      }
+      final file = File(
+          '$dir/darling-ai-对话-${DateTime.now().millisecondsSinceEpoch}.md');
+      await file.writeAsString(buf.toString());
+    } catch (_) {}
   }
 
   /// 删除一个模型（保存配置；若删的是当前模型则回退到第一个）

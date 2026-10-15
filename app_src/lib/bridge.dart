@@ -105,6 +105,27 @@ class BridgeClient {
 
   void dispose() => _client.close();
 
+  /// 停止当前任务生成
+  Future<void> chatStop(String jobId) async {
+    try {
+      await postJson('/api/chat/stop', {'job': jobId});
+    } catch (_) {}
+  }
+
+  /// 重命名对话
+  Future<void> renameConversation(String convId, String title) async {
+    try {
+      await postJson('/api/convo/rename', {'conv_id': convId, 'title': title});
+    } catch (_) {}
+  }
+
+  /// 保存对话所用模型
+  Future<void> setConversationModel(String convId, String modelId) async {
+    try {
+      await postJson('/api/convo/model', {'conv_id': convId, 'model_id': modelId});
+    } catch (_) {}
+  }
+
   // ===== 本地模型 / 模型市场 =====
   Future<List<dynamic>> localCatalog() async =>
       (await getJson('/api/local/catalog'))['models'] as List<dynamic>;

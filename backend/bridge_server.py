@@ -143,6 +143,7 @@ class Job:
         self.decision_evt = threading.Event()
         self.decision_allow = None
         self.finished = threading.Event()
+        self.stop = threading.Event()
 
 
 def _emit(job, type_, **kw):
@@ -205,6 +206,9 @@ def stream_agent(job):
     ok_flag = True
     try:
         while steps < core.MAX_AGENT_STEPS:
+            if job.stop.is_set():
+                _emit(job, "state", text="已停止")
+                break
             steps += 1
             _emit(job, "state", text="正在思考…" if steps > 1 else "正在连接服务器…")
             reply, blocks = _chat_once_stream(job, messages, settings, provider)
@@ -487,6 +491,52 @@ class Handler(BaseHTTPRequestHandler):
                     return
             self._json(404, {"error": "conversation not found"})
             return
+        if p.path == "/api/convo/clear":
+            cfg = self._cfg()
+            conv_id = data.get("conv_id")
+            if not conv_id:
+                self._json(200, {"ok": False, "error": "缺少 conv_id"})
+                return
+            for c in cfg.data.setdefault("conversations", []):
+                if c["id"] == conv_id:
+                    c["hist"] = []
+                    if cfg.data.get("active_conv") == conv_id:
+                        _mirror_all(cfg, [])
+                    cfg.save()
+                    self._json(200, {"ok": True})
+                    return
+            self._json(200, {"ok": False, "error": "conversation not found"})
+            return
+        if p.path == "/api/convo/model":
+            cfg = self._cfg()
+            conv_id = data.get("conv_id")
+            mid = data.get("model_id")
+            if not conv_id or not mid:
+                self._json(200, {"ok": False, "error": "缺少参数"})
+                return
+            for c in cfg.data.setdefault("conversations", []):
+                if c["id"] == conv_id:
+                    c["model_id"] = mid
+                    cfg.save()
+                    self._json(200, {"ok": True})
+                    return
+            self._json(200, {"ok": False, "error": "conversation not found"})
+            return
+        if p.path == "/api/convo/rename":
+            cfg = self._cfg()
+            conv_id = data.get("conv_id")
+            title = (data.get("title") or "").strip()[:60]
+            if not conv_id or not title:
+                self._json(200, {"ok": False, "error": "缺少 conv_id 或 title"})
+                return
+            for c in cfg.data.setdefault("conversations", []):
+                if c["id"] == conv_id:
+                    c["title"] = title
+                    cfg.save()
+                    self._json(200, {"ok": True})
+                    return
+            self._json(200, {"ok": False, "error": "conversation not found"})
+            return
         if p.path == "/api/convo/delete":
             cfg = self._cfg()
             conv_id = data.get("conv_id")
@@ -509,6 +559,15 @@ class Handler(BaseHTTPRequestHandler):
                 JOBS[job.id] = job
             threading.Thread(target=stream_agent, args=(job,), daemon=True).start()
             self._json(200, {"job": job.id})
+            return
+        if p.path == "/api/chat/stop":
+            job_id = data.get("job")
+            with JOBS_LOCK:
+                job = JOBS.get(job_id)
+            if job:
+                job.stop.set()
+                _emit(job, "state", text="正在停止…")
+            self._json(200, {"ok": True})
             return
         if p.path == "/api/decision":
             job_id = data.get("job")

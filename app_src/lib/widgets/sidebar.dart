@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../state.dart';
 
-class Sidebar extends StatelessWidget {
+class Sidebar extends StatefulWidget {
   final AppState state;
   final int nav;
   final ValueChanged<int> onNav;
@@ -17,9 +17,25 @@ class Sidebar extends StatelessWidget {
   });
 
   @override
+  State<Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<Sidebar> {
+  String _q = '';
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
+
+    final all = widget.state.conversations.cast<Map<String, dynamic>>();
+    final q = _q.trim().toLowerCase();
+    final convs = q.isEmpty
+        ? all
+        : all.where((c) {
+            final title = (c['title'] ?? '').toString().toLowerCase();
+            return title.contains(q);
+          }).toList();
 
     return Container(
       width: 248,
@@ -70,7 +86,7 @@ class Sidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: FilledButton.icon(
-              onPressed: () => state.newConversation(),
+              onPressed: () => widget.state.newConversation(),
               icon: const Icon(Icons.add, size: 18),
               label: const Text('新建对话'),
               style: FilledButton.styleFrom(
@@ -82,9 +98,29 @@ class Sidebar extends StatelessWidget {
               ),
             ),
           ),
+          // 搜索对话
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
-            child: Text('对话',
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+            child: TextField(
+              onChanged: (v) => setState(() => _q = v),
+              decoration: InputDecoration(
+                hintText: '搜索对话',
+                prefixIcon: const Icon(Icons.search, size: 17),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                filled: true,
+                fillColor: dark ? const Color(0xFF262B34) : const Color(0xFFF0F2F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+            child: Text(q.isEmpty ? '对话' : '搜索结果 (${convs.length})',
                 style: TextStyle(
                     fontSize: 11,
                     color: cs.onSurfaceVariant,
@@ -92,63 +128,27 @@ class Sidebar extends StatelessWidget {
           ),
           // 会话列表
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 9),
-              itemCount: state.conversations.length,
-              itemBuilder: (context, i) {
-                final c = state.conversations[i] as Map<String, dynamic>;
-                final id = c['id'] as String? ?? '';
-                final sel = id == state.activeConvId;
-                final title = (c['title'] as String? ?? '新对话').trim();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Material(
-                    color: sel
-                        ? cs.secondaryContainer
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () => state.loadConversation(id),
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: sel
-                                ? cs.primary.withValues(alpha: 0.45)
-                                : Colors.transparent,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.chat_bubble_outline,
-                                size: 16,
-                                color: sel ? cs.primary : cs.onSurfaceVariant),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                title.isEmpty ? '新对话' : title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                                  color: sel ? cs.onSecondaryContainer : cs.onSurface,
-                                ),
-                              ),
-                            ),
-                            _DeleteBtn(
-                              onDelete: () => state.confirmDeleteConversation(context, id, title),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+            child: convs.isEmpty
+                ? Center(
+                    child: Text(q.isEmpty ? '暂无对话' : '没有匹配的对话',
+                        style: const TextStyle(color: Color(0xFF9AA1AC), fontSize: 12)))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 9),
+                    itemCount: convs.length,
+                    itemBuilder: (context, i) {
+                      final c = convs[i];
+                      final id = c['id'] as String? ?? '';
+                      final sel = id == widget.state.activeConvId;
+                      final title = (c['title'] as String? ?? '新对话').trim();
+                      return _ConvItem(
+                        title: title,
+                        sel: sel,
+                        onTap: () => widget.state.loadConversation(id),
+                        onRename: () => widget.state.renameActiveConversationFor(context, id, title),
+                        onDelete: () => widget.state.confirmDeleteConversation(context, id, title),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
           // 底部导航（MD3 NavigationRail 竖排）
           Container(
@@ -160,8 +160,8 @@ class Sidebar extends StatelessWidget {
                   color: dark ? const Color(0x33FFFFFF) : const Color(0x22000000)),
             ),
             child: NavigationRail(
-              selectedIndex: nav,
-              onDestinationSelected: onNav,
+              selectedIndex: widget.nav,
+              onDestinationSelected: widget.onNav,
               labelType: NavigationRailLabelType.all,
               minWidth: 220,
               backgroundColor: Colors.transparent,
@@ -173,7 +173,7 @@ class Sidebar extends StatelessWidget {
                   label: Text('对话',
                       style: TextStyle(
                           fontSize: 12.5,
-                          color: nav == 0 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
+                          color: widget.nav == 0 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.model_training_outlined, color: cs.onSurfaceVariant),
@@ -181,7 +181,7 @@ class Sidebar extends StatelessWidget {
                   label: Text('模型',
                       style: TextStyle(
                           fontSize: 12.5,
-                          color: nav == 1 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
+                          color: widget.nav == 1 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.extension_outlined, color: cs.onSurfaceVariant),
@@ -189,7 +189,7 @@ class Sidebar extends StatelessWidget {
                   label: Text('插件',
                       style: TextStyle(
                           fontSize: 12.5,
-                          color: nav == 2 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
+                          color: widget.nav == 2 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.settings_outlined, color: cs.onSurfaceVariant),
@@ -197,7 +197,7 @@ class Sidebar extends StatelessWidget {
                   label: Text('设置',
                       style: TextStyle(
                           fontSize: 12.5,
-                          color: nav == 3 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
+                          color: widget.nav == 3 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.smart_toy_outlined, color: cs.onSurfaceVariant),
@@ -205,7 +205,7 @@ class Sidebar extends StatelessWidget {
                   label: Text('本地',
                       style: TextStyle(
                           fontSize: 12.5,
-                          color: nav == 4 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
+                          color: widget.nav == 4 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
                 ),
               ],
             ),
@@ -216,21 +216,97 @@ class Sidebar extends StatelessWidget {
   }
 }
 
-class _DeleteBtn extends StatelessWidget {
+class _ConvItem extends StatefulWidget {
+  final String title;
+  final bool sel;
+  final VoidCallback onTap;
+  final VoidCallback onRename;
   final VoidCallback onDelete;
-  const _DeleteBtn({required this.onDelete});
+  const _ConvItem({
+    required this.title,
+    required this.sel,
+    required this.onTap,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  @override
+  State<_ConvItem> createState() => _ConvItemState();
+}
+
+class _ConvItemState extends State<_ConvItem> {
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onDelete,
-      icon: const Icon(Icons.close, size: 15),
-      visualDensity: VisualDensity.compact,
-      tooltip: '删除对话',
-      style: IconButton.styleFrom(
-        minimumSize: const Size(26, 26),
-        padding: EdgeInsets.zero,
-        foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: Material(
+          color: widget.sel ? cs.secondaryContainer : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: widget.onTap,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 9, 4, 9),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: widget.sel
+                      ? cs.primary.withValues(alpha: 0.45)
+                      : Colors.transparent,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.chat_bubble_outline,
+                      size: 16, color: widget.sel ? cs.primary : cs.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.title.isEmpty ? '新对话' : widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: widget.sel ? FontWeight.w600 : FontWeight.w400,
+                        color: widget.sel ? cs.onSecondaryContainer : cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  if (widget.sel || _hover) ...[
+                    IconButton(
+                      onPressed: widget.onRename,
+                      icon: const Icon(Icons.edit_outlined, size: 14),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: '重命名',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(24, 24),
+                        padding: EdgeInsets.zero,
+                        foregroundColor: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: widget.onDelete,
+                      icon: const Icon(Icons.close, size: 14),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: '删除对话',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(24, 24),
+                        padding: EdgeInsets.zero,
+                        foregroundColor: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
