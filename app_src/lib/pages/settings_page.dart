@@ -32,8 +32,9 @@ class _SettingsPageState extends State<SettingsPage> {
       listenable: widget.state,
       builder: (context, _) {
         final state = widget.state;
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return SizedBox.expand(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // 侧边栏导航
             Container(
@@ -64,6 +65,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ],
+        ),
         );
       },
     );
