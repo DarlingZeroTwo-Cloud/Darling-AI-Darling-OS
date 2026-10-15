@@ -180,7 +180,7 @@ class _MessageBubbleState extends State<MessageBubble> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: widget.text));
     setState(() => _copied = true);
-    await Future.delayed(const Duration(seconds: 1.5));
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (mounted) setState(() => _copied = false);
   }
 
