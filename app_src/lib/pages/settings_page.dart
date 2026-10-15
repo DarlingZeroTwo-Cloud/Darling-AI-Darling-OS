@@ -113,6 +113,11 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(label: 'SSE 断线重连次数', desc: '流式断开后自动重连次数（0 ~ 10）。', trailing: SpinField(min: 0, max: 10, value: (s['sse_reconnects'] as num? ?? 3).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['sse_reconnects'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '请求间隔（毫秒）', desc: '连续请求之间的等待，避免触发限流。', trailing: SpinField(min: 0, max: 5000, value: (s['request_delay_ms'] as num? ?? 0).toDouble(), step: 100, onChanged: (v) { state.settings['request_delay_ms'] = v.toInt(); state.saveSettings(); })),
       ]),
+      const SizedBox(height: 14),
+      _Card(title: '联网搜索', children: [
+        _Row(label: '搜索引擎', desc: 'DuckDuckGo 免费无需 Key；Tavily 更稳定需 API Key。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'duckduckgo', label: Text('DuckDuckGo')), ButtonSegment(value: 'tavily', label: Text('Tavily'))], selected: {s['websearch_engine'] ?? 'duckduckgo'}, onSelectionChanged: (sel) { state.settings['websearch_engine'] = sel.first; state.saveSettings(); })),
+        _Row(label: 'Tavily API Key', desc: '选择 Tavily 时必填。', trailing: SizedBox(width: 260, child: TextField(controller: TextEditingController(text: (s['tavily_api_key'] ?? '').toString()), obscureText: true, decoration: const InputDecoration(isDense: true, hintText: 'tvly-...'), onSubmitted: (v) { state.settings['tavily_api_key'] = v.trim(); state.saveSettings(); }))),
+      ]),
     ]);
   }
 
@@ -151,6 +156,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(label: '对话导出', desc: '对话界面出现导出按钮，保存为 Markdown。', trailing: Switch(value: s['export_enabled'] == true, onChanged: (v) { state.settings['export_enabled'] = v; state.saveSettings(); })),
         _Row(label: '容器工作区', desc: 'AI 在 WSL/Docker 隔离环境中执行命令。', trailing: Switch(value: s['container_enabled'] == true, onChanged: (v) { state.settings['container_enabled'] = v; state.saveSettings(); })),
         if (s['container_enabled'] == true) ...[
+          _ContainerDetectCard(state: state),
           _Row(label: '容器类型', desc: '自动检测当前系统可用的容器环境。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'wsl', label: Text('WSL')), ButtonSegment(value: 'docker', label: Text('Docker'))], selected: {s['container_type'] ?? 'auto'}, onSelectionChanged: (sel) { state.settings['container_type'] = sel.first; state.saveSettings(); })),
           _Row(label: '发行版 / 镜像', desc: '自动检测时留空；手动指定如 Ubuntu-22.04。', trailing: SizedBox(width: 220, child: TextField(controller: TextEditingController(text: (s['container_distro'] ?? '').toString()), decoration: const InputDecoration(isDense: true, hintText: '自动检测'), onSubmitted: (v) { state.settings['container_distro'] = v.trim(); state.saveSettings(); }))),
           _Row(label: '自动配置国内镜像', desc: '容器内自动配置 apt/pip 国内源加速。', trailing: Switch(value: s['container_mirror'] != false, onChanged: (v) { state.settings['container_mirror'] = v; state.saveSettings(); })),
@@ -316,6 +322,82 @@ class _TempSlider extends StatelessWidget {
         Expanded(child: Slider(value: t.clamp(0.0, 2.0), min: 0, max: 2, divisions: 20, label: t.toStringAsFixed(1), onChanged: (v) { state.settings['temperature'] = v; state.saveSettings(); })),
         SizedBox(width: 36, child: Text(t.toStringAsFixed(1), style: const TextStyle(fontSize: 13))),
       ]),
+    );
+  }
+}
+
+/// 容器环境自动检测结果卡片
+class _ContainerDetectCard extends StatefulWidget {
+  final AppState state;
+  const _ContainerDetectCard({required this.state});
+
+  @override
+  State<_ContainerDetectCard> createState() => _ContainerDetectCardState();
+}
+
+class _ContainerDetectCardState extends State<_ContainerDetectCard> {
+  Map<String, dynamic>? _info;
+  bool _loading = false;
+
+  Future<void> _detect() async {
+    setState(() => _loading = true);
+    final r = await widget.state.api.containerDetect();
+    if (mounted) setState(() {
+      _info = r;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final info = _info;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const SizedBox(width: 160),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _info == null
+                ? Text('尚未检测容器环境',
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        info!['platform'] == 'windows'
+                            ? (info['wsl_installed'] == true
+                                ? '已检测到 WSL，发行版：${(info['distros'] as List).join('、')}'
+                                : '未检测到 WSL（可到微软商店安装）')
+                            : (info['docker_installed'] == true
+                                ? '已检测到 Docker${info['docker_running'] == true ? '（运行中）' : '（未运行）'}'
+                                : '未检测到 Docker'),
+                        style: TextStyle(fontSize: 12.5, color: cs.onSurface),
+                      ),
+                      if ((info?['distros'] as List?)?.isNotEmpty == true ||
+                          (info?['docker_installed'] == true))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            info!['platform'] == 'windows'
+                                ? '在“发行版 / 镜像”留空即自动使用第一个发行版'
+                                : '在“发行版 / 镜像”可填镜像名如 ubuntu:22.04',
+                            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+          OutlinedButton.icon(
+            onPressed: _loading ? null : _detect,
+            icon: _loading
+                ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.refresh, size: 14),
+            label: Text(_loading ? '检测中…' : '重新检测'),
+          ),
+        ],
+      ),
     );
   }
 }

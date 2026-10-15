@@ -20,6 +20,7 @@ from urllib.parse import urlparse, parse_qs
 import ai_console as core
 import local_engine
 import downloader
+import websearch
 
 HOST, PORT = "127.0.0.1", 19730
 
@@ -144,6 +145,7 @@ class Job:
         self.decision_allow = None
         self.finished = threading.Event()
         self.stop = threading.Event()
+        self.web_results = []
 
 
 def _emit(job, type_, **kw):
@@ -198,6 +200,19 @@ def stream_agent(job):
 
     messages = core.build_messages(cfg, model["id"])
     history = messages[1:]
+    # 联网搜索结果注入
+    if job.web_results:
+        lines = []
+        for i, r in enumerate(job.web_results[:8], 1):
+            title = r.get("title", "")
+            url = r.get("url", "")
+            snip = r.get("snippet", "")
+            lines.append(f"[{i}] {title} ({url})\n{snip}")
+        web_ctx = ("以下是从互联网搜索到的相关信息，请优先参考它们回答用户的问题。\n\n"
+                   + "\n\n".join(lines))
+        messages.append({"role": "user", "content": web_ctx})
+        history.append(messages[-1])
+        _emit(job, "tool", title="联网搜索", content=f"已注入 {len(job.web_results)} 条搜索结果作为参考", ok=True)
     history.append({"role": "user", "content": user_text})
     messages.append(history[-1])
 
@@ -405,6 +420,18 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._json(200, {"tasks": downloader.all_status()})
             return
+        if p.path == "/api/websearch":
+            qs = parse_qs(p.query)
+            q = qs.get("q", [""])[0]
+            if not q.strip():
+                self._json(200, {"results": [], "engine": "none"})
+                return
+            results, engine = websearch.search(q, self._cfg().data.get("settings"))
+            self._json(200, {"results": results, "engine": engine})
+            return
+        if p.path == "/api/container/detect":
+            self._json(200, websearch.detect_container())
+            return
         if p.path == "/api/plugins":
             self._json(200, {"plugins": core.load_plugins()})
             return
@@ -555,6 +582,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"error": "model not found"})
                 return
             job = Job(cfg, model, data.get("text", ""))
+            wrs = data.get("web_results")
+            if isinstance(wrs, list):
+                job.web_results = wrs
             with JOBS_LOCK:
                 JOBS[job.id] = job
             threading.Thread(target=stream_agent, args=(job,), daemon=True).start()

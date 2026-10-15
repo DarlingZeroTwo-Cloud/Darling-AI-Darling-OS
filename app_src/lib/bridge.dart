@@ -54,8 +54,13 @@ class BridgeClient {
     String text,
     void Function(Map<String, dynamic> event) onEvent, {
     void Function(String jobId)? onJob,
+    List<Map<String, dynamic>> webResults = const [],
   }) async {
-    final start = await postJson('/api/chat', {'model_id': modelId, 'text': text});
+    final start = await postJson('/api/chat', {
+      'model_id': modelId,
+      'text': text,
+      if (webResults.isNotEmpty) 'web_results': webResults,
+    });
     final job = start['job'] as String;
     onJob?.call(job);
 
@@ -124,6 +129,31 @@ class BridgeClient {
     try {
       await postJson('/api/convo/model', {'conv_id': convId, 'model_id': modelId});
     } catch (_) {}
+  }
+
+  /// 联网搜索
+  Future<Map<String, dynamic>> webSearch(String q) async {
+    try {
+      final enc = Uri.encodeQueryComponent(q);
+      return await getJson('/api/websearch?q=$enc');
+    } catch (_) {
+      return {'results': <dynamic>[], 'engine': 'none'};
+    }
+  }
+
+  /// 容器环境自动检测
+  Future<Map<String, dynamic>> containerDetect() async {
+    try {
+      return await getJson('/api/container/detect');
+    } catch (_) {
+      return {
+        'wsl_installed': false,
+        'distros': <dynamic>[],
+        'docker_installed': false,
+        'docker_running': false,
+        'platform': 'unknown'
+      };
+    }
   }
 
   // ===== 本地模型 / 模型市场 =====

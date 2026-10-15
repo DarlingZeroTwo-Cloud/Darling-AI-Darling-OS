@@ -340,7 +340,13 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------- 对话 ----------------
-  Future<void> send(String text) async {
+  Future<void> send(String text) => _send(text, const []);
+
+  /// 带联网搜索结果的发送
+  Future<void> sendWithWeb(String text, List<Map<String, dynamic>> webResults) =>
+      _send(text, webResults);
+
+  Future<void> _send(String text, List<Map<String, dynamic>> webResults) async {
     final m = model(currentModelId);
     if (m == null || busy || text.trim().isEmpty) return;
     busy = true;
@@ -384,7 +390,7 @@ class AppState extends ChangeNotifier {
       }, onJob: (id) {
         jobId = id;
         _jobId = id;
-      });
+      }, webResults: webResults);
       // 完成：恢复默认 thinking（无流时占位）
       if (messages.isEmpty || messages.last.kind != MsgKind.ai) {
         messages.add(ChatMsg(MsgKind.think, ''));

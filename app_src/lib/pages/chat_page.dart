@@ -221,6 +221,8 @@ class _ComposerState extends State<_Composer> {
   final FocusNode _focus = FocusNode();
   bool _showSlash = false;
   int _slashSel = 0;
+  bool _webSearch = false;
+  bool _searching = false;
 
   static const _slashItems = [
     ('/new', '新建对话', Icons.add_comment_outlined),
@@ -238,7 +240,7 @@ class _ComposerState extends State<_Composer> {
     super.dispose();
   }
 
-  void _send() {
+  void _send() async {
     final text = _ctl.text;
     if (text.trim().isEmpty || widget.state.busy) return;
     // 斜杠命令
@@ -247,7 +249,21 @@ class _ComposerState extends State<_Composer> {
       return;
     }
     _ctl.clear();
-    widget.state.send(text);
+    if (_webSearch) {
+      setState(() => _searching = true);
+      try {
+        final r = await widget.state.api.webSearch(text);
+        final results = (r['results'] as List<dynamic>? ?? [])
+            .cast<Map<String, dynamic>>();
+        widget.state.sendWithWeb(text, results);
+      } catch (_) {
+        widget.state.send(text);
+      } finally {
+        if (mounted) setState(() => _searching = false);
+      }
+    } else {
+      widget.state.send(text);
+    }
   }
 
   void _runCommand(String text) {
@@ -282,8 +298,140 @@ class _ComposerState extends State<_Composer> {
     }
   }
 
-  void _showHelpDialog() {
+  static const _builtinPrompts = [
+    ('代码审查', '请帮我审查以下代码，指出潜在 bug、安全隐患和可优化之处，并给出修改建议：\n'),
+    ('写作文案', '请帮我把下面这段内容润色成更专业、更有吸引力的文案：\n'),
+    ('翻译', '请把下面这段内容翻译成简体中文，保持原意和语气：\n'),
+    ('总结', '请对下面这段内容做简洁总结，提取关键要点：\n'),
+    ('周报生成', '请根据下面我的工作内容，帮我生成一份结构清晰的周报：\n'),
+    ('头脑风暴', '请针对下面这个主题进行头脑风暴，给出 10 个有创意的想法：\n'),
+  ];
+
+  void _showPrompts() {
+    final state = widget.state;
+    final custom = (state.settings['prompts'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
     showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('提示词库'),
+        content: SizedBox(
+          width: 460,
+          height: 380,
+          child: ListView(
+            children: [
+              if (custom.isNotEmpty) ...[
+                Text('自定义',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+                for (final p in custom)
+                  _PromptRow(
+                    title: (p['title'] ?? '').toString(),
+                    desc: (p['text'] ?? '').toString(),
+                    onTap: () {
+                      final cur = _ctl.text;
+                      final t = (p['text'] ?? '').toString();
+                      _ctl.text = cur.isEmpty ? t : '$cur\n$t';
+                      _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+                      Navigator.pop(ctx);
+                    },
+                    onDelete: () {
+                      state.settings['prompts'] = custom
+                          .where((x) => x['title'] != p['title'])
+                          .toList();
+                      state.saveSettings();
+                      Navigator.pop(ctx);
+                      _showPrompts();
+                    },
+                  ),
+              ],
+              Text('内置',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+              for (final (t, txt) in _builtinPrompts)
+                _PromptRow(
+                  title: t,
+                  desc: txt,
+                  onTap: () {
+                    final cur = _ctl.text;
+                    _ctl.text = cur.isEmpty ? txt : '$cur\n$txt';
+                    _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _addPromptDialog();
+            },
+            child: const Text('新建提示词'),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+        ],
+      ),
+    );
+  }
+
+  void _addPromptDialog() {
+    final state = widget.state;
+    final tCtl = TextEditingController();
+    final bCtl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建提示词'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: tCtl,
+                decoration: const InputDecoration(hintText: '名称（如：代码审查）', isDense: true),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: bCtl,
+                maxLines: 4,
+                decoration: const InputDecoration(hintText: '提示词内容（可包含 {{输入}} 占位）', isDense: true),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () {
+              final t = tCtl.text.trim();
+              final b = bCtl.text.trim();
+              if (t.isEmpty || b.isEmpty) {
+                Navigator.pop(ctx);
+                return;
+              }
+              final list = (state.settings['prompts'] as List<dynamic>? ?? [])
+                  .cast<Map<String, dynamic>>()
+                  .toList();
+              list.add({'title': t, 'text': b});
+              state.settings['prompts'] = list;
+              state.saveSettings();
+              Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelpDialog() {    showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('命令列表'),
@@ -467,6 +615,48 @@ class _ComposerState extends State<_Composer> {
                       },
                     ),
                     const Spacer(),
+                    // 提示词库
+                    Tooltip(
+                      message: '提示词库',
+                      child: InkWell(
+                        onTap: () => _showPrompts(),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.lightbulb_outline,
+                              size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // 联网搜索开关（地球）
+                    Tooltip(
+                      message: _webSearch ? '联网搜索已开启' : '开启联网搜索',
+                      child: InkWell(
+                        onTap: busy
+                            ? null
+                            : () => setState(() => _webSearch = !_webSearch),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: _searching
+                              ? SizedBox(
+                                  width: 15,
+                                  height: 15,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: cs.primary),
+                                )
+                              : Icon(
+                                  Icons.public,
+                                  size: 17,
+                                  color: _webSearch
+                                      ? cs.primary
+                                      : cs.onSurfaceVariant,
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     // 停止 / 发送按钮
                     SizedBox(
                       width: 36,
@@ -497,6 +687,74 @@ class _ComposerState extends State<_Composer> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PromptRow extends StatelessWidget {
+  final String title;
+  final String desc;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+  const _PromptRow({
+    required this.title,
+    required this.desc,
+    required this.onTap,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
+            child: Row(
+              children: [
+                Icon(Icons.bolt_outlined, size: 15, color: cs.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface)),
+                      const SizedBox(height: 1),
+                      Text(desc,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11, color: cs.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                if (onDelete != null)
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline, size: 14),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: '删除',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(24, 24),
+                      padding: EdgeInsets.zero,
+                      foregroundColor: cs.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
