@@ -155,7 +155,6 @@ class _SidebarContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -204,38 +203,15 @@ class _SidebarContent extends StatelessWidget {
                   final c = convs[i] as Map<String, dynamic>;
                   final id = c['id'] as String?;
                   final active = id == state.activeConvId;
-                  return InkWell(
+                  return _ClassicConvItem(
+                    id: id,
+                    title: (c['title'] ?? '未命名').toString(),
+                    active: active,
                     onTap: () => state.loadConversation(id!),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? (dark ? const Color(0xFF163A36) : const Color(0xFFE2F3F1))
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.forum_outlined,
-                              size: 15,
-                              color: active ? cs.primary : cs.onSurfaceVariant),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              (c['title'] ?? '未命名').toString(),
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: active ? cs.primary : cs.onSurface,
-                                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    onRename: () => state.renameActiveConversationFor(
+                        context, id!, (c['title'] ?? '未命名').toString()),
+                    onDelete: () => state.confirmDeleteConversation(
+                        context, id!, (c['title'] ?? '未命名').toString()),
                   );
                 },
               );
@@ -316,8 +292,102 @@ class _SidebarEntry extends StatelessWidget {
   }
 }
 
-// ==================== 独立窗口（全屏浮层，仿新窗口） ====================
-class _WindowDialog extends StatelessWidget {
+// 经典模式对话项（hover 显示重命名/删除）
+class _ClassicConvItem extends StatefulWidget {
+  final String? id;
+  final String title;
+  final bool active;
+  final VoidCallback onTap;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+  const _ClassicConvItem({
+    required this.id,
+    required this.title,
+    required this.active,
+    required this.onTap,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  @override
+  State<_ClassicConvItem> createState() => _ClassicConvItemState();
+}
+
+class _ClassicConvItemState extends State<_ClassicConvItem> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 6, 2, 6),
+            decoration: BoxDecoration(
+              color: widget.active
+                  ? (dark ? const Color(0xFF163A36) : const Color(0xFFE2F3F1))
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.forum_outlined,
+                    size: 15,
+                    color: widget.active ? cs.primary : cs.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: widget.active ? cs.primary : cs.onSurface,
+                      fontWeight: widget.active ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (widget.active || _hover) ...[
+                  IconButton(
+                    onPressed: widget.onRename,
+                    icon: const Icon(Icons.edit_outlined, size: 13),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: '重命名',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(22, 22),
+                      padding: EdgeInsets.zero,
+                      foregroundColor: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: widget.onDelete,
+                    icon: const Icon(Icons.close, size: 13),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: '删除对话',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(22, 22),
+                      padding: EdgeInsets.zero,
+                      foregroundColor: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== 独立窗口（全屏浮层，仿新窗口） ====================class _WindowDialog extends StatelessWidget {
   final String title;
   final Widget child;
   const _WindowDialog({required this.title, required this.child});
