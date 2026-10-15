@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -223,6 +227,7 @@ class _ComposerState extends State<_Composer> {
   int _slashSel = 0;
   bool _webSearch = false;
   bool _searching = false;
+  final List<String> _images = [];
 
   static const _slashItems = [
     ('/new', '新建对话', Icons.add_comment_outlined),
@@ -248,6 +253,14 @@ class _ComposerState extends State<_Composer> {
       _runCommand(text.trim());
       return;
     }
+    final images = List<String>.from(_images);
+    if (images.isNotEmpty) {
+      _images.clear();
+      _ctl.clear();
+      setState(() {});
+      widget.state.sendWithImages(text, images);
+      return;
+    }
     _ctl.clear();
     if (_webSearch) {
       setState(() => _searching = true);
@@ -264,6 +277,36 @@ class _ComposerState extends State<_Composer> {
     } else {
       widget.state.send(text);
     }
+  }
+
+  Future<void> _pickImages() async {
+    const typeGroup = XTypeGroup(
+      label: '图片',
+      extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'],
+    );
+    final files = await openFiles(acceptedTypeGroups: [typeGroup]);
+    for (final f in files) {
+      final path = f.path;
+      final file = File(path);
+      if (!file.existsSync()) continue;
+      try {
+        final bytes = await file.readAsBytes();
+        final mime = _mimeOf(path);
+        final b64 = base64Encode(bytes);
+        _images.add('data:$mime;base64,$b64');
+      } catch (_) {}
+    }
+    if (mounted) setState(() {});
+  }
+
+  String _mimeOf(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.bmp')) return 'image/bmp';
+    return 'image/png';
   }
 
   void _runCommand(String text) {
@@ -541,6 +584,50 @@ class _ComposerState extends State<_Composer> {
                     ],
                   ),
                 ),
+              // 已选图片预览
+              if (_images.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (int i = 0; i < _images.length; i++)
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.memory(
+                                base64Decode(_images[i].split(',').last),
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 2,
+                              right: 2,
+                              child: InkWell(
+                                onTap: () =>
+                                    setState(() => _images.removeAt(i)),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.close,
+                                      size: 12, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
               TextField(
                 controller: _ctl,
                 focusNode: _focus,
@@ -615,6 +702,20 @@ class _ComposerState extends State<_Composer> {
                       },
                     ),
                     const Spacer(),
+                    // 附加图片
+                    Tooltip(
+                      message: '附加图片（视觉模型）',
+                      child: InkWell(
+                        onTap: busy ? null : _pickImages,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.image_outlined,
+                              size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     // 提示词库
                     Tooltip(
                       message: '提示词库',

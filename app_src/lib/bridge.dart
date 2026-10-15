@@ -55,11 +55,13 @@ class BridgeClient {
     void Function(Map<String, dynamic> event) onEvent, {
     void Function(String jobId)? onJob,
     List<Map<String, dynamic>> webResults = const [],
+    List<String> images = const [],
   }) async {
     final start = await postJson('/api/chat', {
       'model_id': modelId,
       'text': text,
       if (webResults.isNotEmpty) 'web_results': webResults,
+      if (images.isNotEmpty) 'images': images,
     });
     final job = start['job'] as String;
     onJob?.call(job);

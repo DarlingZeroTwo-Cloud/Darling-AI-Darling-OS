@@ -146,6 +146,7 @@ class Job:
         self.finished = threading.Event()
         self.stop = threading.Event()
         self.web_results = []
+        self.images = []
 
 
 def _emit(job, type_, **kw):
@@ -214,6 +215,15 @@ def stream_agent(job):
         history.append(messages[-1])
         _emit(job, "tool", title="联网搜索", content=f"已注入 {len(job.web_results)} 条搜索结果作为参考", ok=True)
     history.append({"role": "user", "content": user_text})
+    # 多模态图片：把最后一条用户消息改造成 content 数组
+    if job.images:
+        content = [{"type": "text", "text": user_text}]
+        for img in job.images[:6]:
+            content.append({"type": "image_url",
+                            "image_url": {"url": img}})
+        history[-1]["content"] = content
+        _emit(job, "tool", title="图片输入",
+              content=f"已附加 {len(job.images[:6])} 张图片给视觉模型", ok=True)
     messages.append(history[-1])
 
     steps = 0
@@ -585,6 +595,9 @@ class Handler(BaseHTTPRequestHandler):
             wrs = data.get("web_results")
             if isinstance(wrs, list):
                 job.web_results = wrs
+            imgs = data.get("images")
+            if isinstance(imgs, list):
+                job.images = imgs
             with JOBS_LOCK:
                 JOBS[job.id] = job
             threading.Thread(target=stream_agent, args=(job,), daemon=True).start()
