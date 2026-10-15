@@ -716,8 +716,63 @@ def stream_reply(tokens, extra_markers=None):
 
 
 # ==================== 命令执行 ====================
+def _container_context():
+    """从全局配置读取容器设置；返回 dict 或 None。"""
+    try:
+        cfg = Config()
+        s = cfg.data.get("settings", {})
+        if s.get("container_enabled") != True:
+            return None
+        ctype = s.get("container_type", "auto")
+        distro = (s.get("container_distro") or "").strip()
+        return {"type": ctype, "distro": distro}
+    except Exception:
+        return None
+
+
+def _run_in_container(cmd, workspace, container, timeout):
+    """把命令送进 WSL 或 Docker 容器执行。"""
+    import subprocess as sp
+    try:
+        ctype = container.get("type", "auto")
+        distro = container.get("distro", "")
+        # 自动：Windows 用 WSL，Linux 用 Docker
+        if ctype == "auto":
+            ctype = "wsl" if os.name == "nt" else "docker"
+        if ctype == "wsl" and os.name == "nt":
+            if distro:
+                argv = ["wsl", "-d", distro, "--", "bash", "-lc", cmd]
+            else:
+                argv = ["wsl", "--", "bash", "-lc", cmd]
+            proc = sp.run(argv, capture_output=True, timeout=timeout)
+        elif ctype == "docker":
+            if distro:
+                argv = ["docker", "run", "--rm", "-i", distro, "sh", "-lc", cmd]
+            else:
+                argv = ["docker", "run", "--rm", "-i", "ubuntu", "sh", "-lc", cmd]
+            proc = sp.run(argv, capture_output=True, timeout=timeout)
+        else:
+            return False, "(容器类型不支持)"
+        out = (proc.stdout or b"") + (proc.stderr or b"")
+        text = out.decode("utf-8", errors="replace")
+        text = text.strip()
+        if len(text) > MAX_OUTPUT_CHARS:
+            text = text[:MAX_OUTPUT_CHARS] + f"\n...(输出过长，已截断)"
+        return proc.returncode == 0, text or "(无输出)"
+    except sp.TimeoutExpired:
+        return False, f"(容器命令超时，超过 {timeout} 秒已终止)"
+    except FileNotFoundError:
+        return False, "(未找到容器运行时：Windows 需要 WSL，Linux 需要 Docker)"
+    except Exception as e:
+        return False, f"(容器命令执行失败: {e})"
+
+
 def run_command(cmd, workspace, timeout=120):
-    """在工作区目录执行命令，返回 (是否成功, 输出文本)。"""
+    """在工作区目录执行命令，返回 (是否成功, 输出文本)。
+    若设置了容器（WSL/Docker），命令在容器内执行。"""
+    container = _container_context()
+    if container:
+        return _run_in_container(cmd, workspace, container, timeout)
     try:
         proc = subprocess.run(
             cmd, shell=True, cwd=workspace,
