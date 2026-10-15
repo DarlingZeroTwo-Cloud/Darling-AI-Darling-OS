@@ -387,7 +387,8 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
   }
 }
 
-// ==================== 独立窗口（全屏浮层，仿新窗口） ====================class _WindowDialog extends StatelessWidget {
+// ==================== 独立窗口（全屏浮层，仿新窗口） ====================
+class _WindowDialog extends StatelessWidget {
   final String title;
   final Widget child;
   const _WindowDialog({required this.title, required this.child});
