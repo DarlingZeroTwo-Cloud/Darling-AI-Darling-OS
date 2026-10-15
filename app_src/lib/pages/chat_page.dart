@@ -815,6 +815,20 @@ class _ComposerState extends State<_Composer> {
                       ),
                     ),
                     const SizedBox(width: 4),
+                    // 导出对话为 Markdown
+                    Tooltip(
+                      message: '导出当前对话为 Markdown',
+                      child: InkWell(
+                        onTap: busy ? null : widget.state.exportConversation,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.download_outlined,
+                              size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     // 提示词库
                     Tooltip(
                       message: '提示词库',
