@@ -227,6 +227,7 @@ class _ComposerState extends State<_Composer> {
   int _slashSel = 0;
   bool _webSearch = false;
   bool _searching = false;
+  bool _optimizing = false;
   final List<String> _images = [];
 
   static const _slashItems = [
@@ -277,6 +278,30 @@ class _ComposerState extends State<_Composer> {
     } else {
       widget.state.send(text);
     }
+  }
+
+  /// AI 优化提示词：把当前输入交给当前模型改写得更结构化
+  Future<void> _optimizePrompt() async {
+    final text = _ctl.text;
+    if (text.trim().isEmpty || widget.state.busy) return;
+    setState(() => _optimizing = true);
+    try {
+      final r = await widget.state.api.postJson('/api/chat', {
+        'model_id': widget.state.currentModelId,
+        'text':
+            '请把下面的用户输入改写成一个更清晰、结构化的提示词（保持原意，不要执行任务本身），只输出改写结果：\n\n$text',
+      });
+      final jobId = (r['job_id'] ?? '').toString();
+      if (jobId.isEmpty) return;
+      final sb = StringBuffer();
+      await widget.state.api.streamJob(jobId, (ev) {
+        final t = ev['text'];
+        if (t is String) sb.write(t);
+      });
+      final optimized = sb.toString().trim();
+      if (optimized.isNotEmpty) _ctl.text = optimized;
+    } catch (_) {}
+    if (mounted) setState(() => _optimizing = false);
   }
 
   Future<void> _pickImages() async {
@@ -701,6 +726,61 @@ class _ComposerState extends State<_Composer> {
                         );
                       },
                     ),
+                    const SizedBox(width: 6),
+                    // 助手角色（点击切换预设角色）
+                    MenuAnchor(
+                      alignmentOffset: const Offset(0, 8),
+                      style: MenuStyle(
+                        backgroundColor: WidgetStatePropertyAll(
+                            dark ? const Color(0xFF1D2027) : const Color(0xFFFFFFFF)),
+                        surfaceTintColor:
+                            WidgetStatePropertyAll(Colors.transparent),
+                        elevation: WidgetStatePropertyAll(10),
+                        shadowColor: WidgetStatePropertyAll(Colors.black26),
+                        side: WidgetStatePropertyAll(
+                            BorderSide(color: cs.outlineVariant)),
+                        shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14))),
+                        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                      ),
+                      menuChildren: [
+                        _AssistantRolePanel(state: widget.state),
+                      ],
+                      builder: (context, controller, child) {
+                        return Tooltip(
+                          message: '切换助手角色',
+                          child: InkWell(
+                            onTap: () => controller.isOpen
+                                ? controller.close()
+                                : controller.open(),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.psychology_outlined,
+                                      size: 15, color: cs.primary),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _roleLabel(
+                                        widget.state.settings['assistant_role']
+                                                ?.toString() ??
+                                            'general'),
+                                    style: TextStyle(
+                                        fontSize: 12, color: cs.onSurfaceVariant),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     const Spacer(),
                     // 附加图片
                     Tooltip(
@@ -712,6 +792,25 @@ class _ComposerState extends State<_Composer> {
                           padding: const EdgeInsets.all(6),
                           child: Icon(Icons.image_outlined,
                               size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // AI 优化提示词
+                    Tooltip(
+                      message: 'AI 优化提示词',
+                      child: InkWell(
+                        onTap: busy || _optimizing ? null : _optimizePrompt,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: _optimizing
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : Icon(Icons.bolt_outlined,
+                                  size: 17, color: cs.onSurfaceVariant),
                         ),
                       ),
                     ),
@@ -793,6 +892,97 @@ class _ComposerState extends State<_Composer> {
       ),
     );
   }
+}
+
+class _AssistantRolePanel extends StatelessWidget {
+  final AppState state;
+  const _AssistantRolePanel({required this.state});
+
+  static const roles = [
+    ('general', '通用助手', '默认，回答简洁准确'),
+    ('programmer', '程序员', '代码编写、调试、架构设计'),
+    ('writer', '写作助手', '文案、文章、报告与创意写作'),
+    ('translator', '翻译', '专业翻译，保留原文语气'),
+    ('analyst', '数据分析师', '数据解读、业务分析与逻辑推演'),
+    ('mentor', '导师', '把复杂概念讲得通俗易懂'),
+    ('hr', 'HR 专家', '简历、面试、职场沟通与规划'),
+    ('marketing', '营销策划', '品牌内容、推广文案、增长策略'),
+    ('custom', '自定义角色', '在设置中编辑自己的角色提示词'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final cur = state.settings['assistant_role']?.toString() ?? 'general';
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 420, maxWidth: 280),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+              child: Text('切换助手角色',
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700, color: cs.onSurface)),
+            ),
+            for (final (key, label, desc) in roles)
+              InkWell(
+                onTap: () {
+                  Navigator.of(context).pop();
+                  state.setAssistantRole(key);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  color: cur == key
+                      ? cs.primary.withValues(alpha: 0.10)
+                      : Colors.transparent,
+                  child: Row(
+                    children: [
+                      Icon(
+                        cur == key
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        size: 15,
+                        color: cur == key ? cs.primary : cs.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(label,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: cur == key
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: cs.onSurface)),
+                            Text(desc,
+                                style: TextStyle(
+                                    fontSize: 11, color: cs.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _roleLabel(String key) {
+  for (final (k, label, _) in _AssistantRolePanel.roles) {
+    if (k == key) return label;
+  }
+  return '通用助手';
 }
 
 class _PromptRow extends StatelessWidget {

@@ -98,6 +98,21 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(label: '对话字体大小', desc: '聊天内容的字号（12 ~ 20）。', trailing: SpinField(min: 12, max: 20, value: (s['chat_font_size'] as num? ?? 14).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['chat_font_size'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '历史消息保留条数', desc: '发给 AI 的最近消息数（默认 20）。', trailing: SpinField(min: 4, max: 100, value: (s['history_limit'] as num? ?? 20).toDouble(), step: 2, decimals: 0, onChanged: (v) { state.settings['history_limit'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '自动压缩阈值', desc: '历史 token 超过此值时自动压缩（默认 60000）。', trailing: SpinField(min: 4000, max: 200000, value: (s['context_compress_threshold'] as num? ?? 60000).toDouble(), step: 2000, onChanged: (v) { state.settings['context_compress_threshold'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '助手角色', desc: '预设角色决定 AI 的行为风格；自定义角色可在下方编辑。', trailing: _RolePicker(state: state)),
+        if ((s['assistant_role'] ?? 'general') == 'custom')
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextField(
+              controller: TextEditingController(text: (s['assistant_role_custom'] ?? '').toString()),
+              maxLines: 4,
+              decoration: const InputDecoration(
+                isDense: true,
+                hintText: '自定义角色系统提示词，例如：你是一位精通日语的旅行顾问…',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (v) { state.settings['assistant_role_custom'] = v; state.saveSettings(); },
+            ),
+          ),
       ]),
     ]);
   }
@@ -398,6 +413,37 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RolePicker extends StatelessWidget {
+  final AppState state;
+  const _RolePicker({required this.state});
+
+  static const roles = [
+    ('general', '通用助手'),
+    ('programmer', '程序员'),
+    ('writer', '写作助手'),
+    ('translator', '翻译'),
+    ('analyst', '数据分析师'),
+    ('mentor', '导师'),
+    ('hr', 'HR 专家'),
+    ('marketing', '营销策划'),
+    ('custom', '自定义角色'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cur = state.settings['assistant_role']?.toString() ?? 'general';
+    return DropdownButton<String>(
+      value: cur,
+      isDense: true,
+      underline: const SizedBox.shrink(),
+      items: [for (final (k, label) in roles) DropdownMenuItem(value: k, child: Text(label))],
+      onChanged: (v) {
+        if (v != null) state.setAssistantRole(v);
+      },
     );
   }
 }

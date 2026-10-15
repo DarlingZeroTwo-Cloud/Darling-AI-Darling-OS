@@ -440,6 +440,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 切换助手角色预设
+  Future<void> setAssistantRole(String role) async {
+    settings['assistant_role'] = role;
+    await saveSettings();
+    notifyListeners();
+  }
+
   Future<void> saveProvidersModels() async {
     await api.postJson('/api/config', {
       'providers': providers,

@@ -145,7 +145,7 @@ def clear_screen():
 
 # ==================== 常量 ====================
 APP_NAME = "AI 控制台助手"
-APP_VERSION = "3.0.9"
+APP_VERSION = "3.0.10"
 MAX_AGENT_STEPS = 8          # 一次用户提问后，AI 最多连续执行的命令轮数
 MAX_OUTPUT_CHARS = 20000     # 命令输出回传给 AI 的最大字符数
 HISTORY_LIMIT = 60           # 每个模型保存的历史消息条数上限
@@ -1133,10 +1133,32 @@ def _compress_history(history, max_tokens):
     return head + kept, True
 
 
+# ==================== 助手角色预设 ====================
+ASSISTANT_ROLES = {
+    "general": "你是一个通用 AI 助手，名叫 DARLING-AI。回答简洁准确，使用与用户相同的语言。",
+    "programmer": "你是一位资深软件工程师，擅长代码编写、调试、架构设计与技术方案讲解。给出可直接运行的代码，并解释关键思路。",
+    "writer": "你是一位专业写作助手，擅长各类文案、文章、报告与创意写作。注意语言流畅、结构清晰、风格贴合场景。",
+    "translator": "你是一位专业翻译，翻译时保持原文语气与专业术语准确，必要时补充注释说明。",
+    "analyst": "你是一位数据分析师，擅长数据解读、业务分析与逻辑推演。用表格、对比和结论先行的方式呈现分析结果。",
+    "mentor": "你是一位耐心的导师，善于把复杂概念讲得通俗易懂，适合学习、答疑与知识讲解。",
+    "hr": "你是一位人力资源专家，擅长简历优化、面试辅导、职场沟通与职业规划建议。",
+    "marketing": "你是一位营销策划专家，擅长品牌内容、推广文案、活动方案与用户增长策略。",
+}
+
+
 def build_messages(cfg, model_id):
     """构造消息列表：系统提示词 + 插件/MCP工具 + 长期记忆 + 历史(自动压缩)。"""
     settings = cfg.data["settings"]
     system = settings["system_prompt"]
+    # 助手角色预设：角色提示词前置 + 用户自定义 system_prompt 拼接
+    role_key = settings.get("assistant_role", "general")
+    role_prompt = ""
+    if role_key == "custom":
+        role_prompt = settings.get("assistant_role_custom", "")
+    elif role_key in ASSISTANT_ROLES:
+        role_prompt = ASSISTANT_ROLES[role_key]
+    if role_prompt:
+        system = role_prompt + "\n\n" + system
     markers = enabled_plugin_markers()
 
     # MCP 工具标记（30秒缓存）

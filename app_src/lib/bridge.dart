@@ -110,6 +110,31 @@ class BridgeClient {
     }
   }
 
+  /// 订阅已有 job 的 SSE 事件流（用于后台任务如 AI 优化提示词）
+  Future<void> streamJob(
+    String jobId,
+    void Function(Map<String, dynamic> event) onEvent,
+  ) async {
+    try {
+      final req = http.Request('GET', Uri.parse('$base/api/stream?job=$jobId'));
+      final resp = await _client.send(req).timeout(const Duration(seconds: 30));
+      if (resp.statusCode != 200) return;
+      final stream = resp.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+      await for (final line in stream) {
+        final s = line.trim();
+        if (!s.startsWith('data: ')) continue;
+        final payload = s.substring(6);
+        if (payload == '[DONE]') break;
+        try {
+          final ev = jsonDecode(payload) as Map<String, dynamic>;
+          onEvent(ev);
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
   void dispose() => _client.close();
 
   /// 停止当前任务生成
