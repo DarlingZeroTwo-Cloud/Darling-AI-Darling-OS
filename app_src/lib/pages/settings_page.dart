@@ -177,7 +177,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _Card(title: '服务监听', children: [
         _Row(label: '监听地址', desc: '127.0.0.1 = 仅本机；0.0.0.0 = 局域网可连。重启后端生效。', trailing: SizedBox(width: 200, child: TextField(controller: TextEditingController(text: (s['api_host'] ?? '127.0.0.1').toString()), decoration: const InputDecoration(isDense: true, hintText: '127.0.0.1'), onSubmitted: (v) { state.settings['api_host'] = v.trim(); state.saveSettings(); }))),
         _Row(label: '端口', desc: '后端 API 端口。重启后端生效。', trailing: SpinField(min: 1024, max: 65535, value: (s['api_port'] as num? ?? 19730).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['api_port'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: 'API Key', desc: '远程调用时的鉴权密钥（留空不校验）。', trailing: SizedBox(width: 200, child: TextField(controller: TextEditingController(text: (s['api_key'] ?? '').toString()), obscureText: true, decoration: const InputDecoration(isDense: true, hintText='留空 = 不校验'), onSubmitted: (v) { state.settings['api_key'] = v.trim(); state.saveSettings(); }))),
+        _Row(label: 'API Key', desc: '远程调用时的鉴权密钥（留空不校验）。', trailing: SizedBox(width: 200, child: TextField(controller: TextEditingController(text: (s['api_key'] ?? '').toString()), obscureText: true, decoration: const InputDecoration(isDense: true, hintText: '留空 = 不校验'), onSubmitted: (v) { state.settings['api_key'] = v.trim(); state.saveSettings(); }))),
       ]),
     ]);
   }
