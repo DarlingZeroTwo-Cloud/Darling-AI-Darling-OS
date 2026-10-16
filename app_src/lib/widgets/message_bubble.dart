@@ -7,42 +7,80 @@ import 'package:flutter/services.dart';
 import '../main.dart';
 
 /// 简化 Markdown 渲染：代码块 / 粗体 / 行内链接
-class RichMarkdown extends StatelessWidget {
+class RichMarkdown extends StatefulWidget {
   final String text;
   final double fontSize;
   const RichMarkdown(this.text, {super.key, this.fontSize = 14});
 
   @override
+  State<RichMarkdown> createState() => _RichMarkdownState();
+}
+
+class _RichMarkdownState extends State<RichMarkdown> {
+  String? _copiedCode;
+
+  Future<void> _copyCode(String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    setState(() => _copiedCode = code);
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (mounted) setState(() => _copiedCode = null);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final segments = _parse(text);
+    final segments = _parse(widget.text);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final seg in segments)
           if (seg is _CodeBlock)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(vertical: 5),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0x66111318) : const Color(0x88FAFBFC),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: dark ? kOutlineDark : kOutlineLight),
-              ),
-              child: SelectableText(
-                seg.code,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: fontSize - 1.5,
-                  color: dark ? const Color(0xFF3FD0C2) : const Color(0xFF115E58),
-                  height: 1.45,
+            Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(vertical: 5),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: dark ? const Color(0x66111318) : const Color(0x88FAFBFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: dark ? kOutlineDark : kOutlineLight),
+                  ),
+                  child: SelectableText(
+                    seg.code,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: widget.fontSize - 1.5,
+                      color: dark ? const Color(0xFF3FD0C2) : const Color(0xFF115E58),
+                      height: 1.45,
+                    ),
+                  ),
                 ),
-              ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: InkWell(
+                    onTap: () => _copyCode(seg.code),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: dark ? const Color(0xFF2A2E37) : Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        _copiedCode == seg.code ? Icons.check : Icons.copy,
+                        size: 13,
+                        color: _copiedCode == seg.code ? cs.primary : cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             )
           else if (seg is _TextSeg)
-            _InlineRich(text: seg.text, fontSize: fontSize),
+            _InlineRich(text: seg.text, fontSize: widget.fontSize),
       ],
     );
   }
@@ -168,7 +206,8 @@ class MessageBubble extends StatefulWidget {
   final String role;
   final String text;
   final double ts;
-  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0});
+  final bool showTimestamp;
+  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0, this.showTimestamp = true});
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -214,7 +253,7 @@ class _MessageBubbleState extends State<MessageBubble> {
               ),
               child: RichMarkdown(text, fontSize: 14),
             ),
-            if (widget.ts > 0)
+            if (widget.ts > 0 && widget.showTimestamp)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Text(_fmtTime(widget.ts),
@@ -279,7 +318,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                   ),
               ],
             ),
-            if (widget.ts > 0)
+            if (widget.ts > 0 && widget.showTimestamp)
               Padding(
                 padding: const EdgeInsets.only(left: 44, top: 2),
                 child: Text(_fmtTime(widget.ts),

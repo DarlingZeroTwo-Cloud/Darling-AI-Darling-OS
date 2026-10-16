@@ -320,7 +320,10 @@ def stream_agent(job):
                 if c.get("title", "新对话") == "新对话":
                     for msg in history:
                         if msg.get("role") == "user":
-                            c["title"] = msg["content"][:20]
+                            raw = msg.get("content", "")
+                            if isinstance(raw, list):
+                                raw = next((p.get("text", "") for p in raw if isinstance(p, dict) and p.get("type") == "text"), "")
+                            c["title"] = str(raw)[:20]
                             break
                 cfg.save()
                 break
