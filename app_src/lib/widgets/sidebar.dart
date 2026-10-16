@@ -263,6 +263,7 @@ class _ConvItemState extends State<_ConvItem> {
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: widget.onTap,
+            onDoubleTap: widget.onRename,
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 9, 4, 9),
               decoration: BoxDecoration(
