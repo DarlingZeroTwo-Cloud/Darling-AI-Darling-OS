@@ -85,7 +85,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.1.5',
+          Text('v3.1.6',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 妯″瀷鍒囨崲 / 鏂板缓瀵硅瘽 宸插苟鍏ヤ晶杈规爮锛屾澶勪笉鐣欓噸澶嶅叆鍙?
@@ -255,15 +255,12 @@ class _SidebarContent extends StatelessWidget {
 
   void _openWindow(BuildContext context, String title, Widget page) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    Navigator.of(context).push(PageRouteBuilder(
-      opaque: false,
+    showDialog(
+      context: context,
       barrierDismissible: true,
       barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 180),
-      pageBuilder: (_, __, ___) => _WindowDialog(title: title, child: page, dark: dark),
-      transitionsBuilder: (_, anim, __, child) =>
-          FadeTransition(opacity: anim, child: child),
-    ));
+      builder: (_) => _WindowDialog(title: title, child: page, dark: dark),
+    );
   }
 }
 
@@ -401,53 +398,53 @@ class _WindowDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.black54,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 48),
-        child: Container(
-          decoration: BoxDecoration(
-            color: dark ? const Color(0xFF1D2027) : const Color(0xFFFAFBFC),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cs.outlineVariant),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              // 窗口标题栏
-              Container(
-                height: 42,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: dark ? const Color(0xFF21252D) : const Color(0xFFF0F2F5),
-                  border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.lens_blur, size: 15, color: cs.primary),
-                    const SizedBox(width: 8),
-                    Text(title,
-                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
-                    const Spacer(),
-                    InkWell(
-                      onTap: () => Navigator.of(context).pop(),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(Icons.close, size: 17, color: cs.onSurfaceVariant),
-                      ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+      child: Container(
+        width: 900,
+        height: 640,
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFF1D2027) : const Color(0xFFFAFBFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: cs.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            // 窗口标题栏
+            Container(
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: dark ? const Color(0xFF21252D) : const Color(0xFFF0F2F5),
+                border: Border(bottom: BorderSide(color: cs.outlineVariant)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lens_blur, size: 15, color: cs.primary),
+                  const SizedBox(width: 8),
+                  Text(title,
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.close, size: 17, color: cs.onSurfaceVariant),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: Container(
-                  color: dark ? const Color(0xFF16181D) : const Color(0xFFFFFFFF),
-                  child: child,
-                ),
+            ),
+            Expanded(
+              child: Scaffold(
+                backgroundColor: dark ? const Color(0xFF16181D) : const Color(0xFFFFFFFF),
+                body: child,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
