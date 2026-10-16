@@ -131,7 +131,9 @@ class _MessageList extends StatelessWidget {
             switch (msg.kind) {
               case MsgKind.user:
                 return MessageBubble(role: 'user', text: msg.text, ts: msg.ts,
-                    showTimestamp: state.settings['show_timestamp'] != false);
+                    showTimestamp: state.settings['show_timestamp'] != false,
+                    onResend: () => state.send(msg.text),
+                    onEdit: () => state.editMessage(msg.text));
               case MsgKind.ai:
                 return MessageBubble(role: 'ai', text: msg.text, ts: msg.ts,
                     showTimestamp: state.settings['show_timestamp'] != false);
@@ -242,7 +244,24 @@ class _ComposerState extends State<_Composer> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    widget.state.addListener(_onStateChanged);
+  }
+
+  void _onStateChanged() {
+    final d = widget.state.editDraft;
+    if (d.isNotEmpty) {
+      widget.state.editDraft = '';
+      _ctl.text = d;
+      _ctl.selection = TextSelection.collapsed(offset: d.length);
+      _focus.requestFocus();
+    }
+  }
+
+  @override
   void dispose() {
+    widget.state.removeListener(_onStateChanged);
     _ctl.dispose();
     _focus.dispose();
     super.dispose();

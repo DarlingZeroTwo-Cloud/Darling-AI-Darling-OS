@@ -207,7 +207,9 @@ class MessageBubble extends StatefulWidget {
   final String text;
   final double ts;
   final bool showTimestamp;
-  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0, this.showTimestamp = true});
+  final VoidCallback? onResend;
+  final VoidCallback? onEdit;
+  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0, this.showTimestamp = true, this.onResend, this.onEdit});
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -234,32 +236,74 @@ class _MessageBubbleState extends State<MessageBubble> {
     if (isMe) {
       return Align(
         alignment: Alignment.centerRight,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Container(
-              constraints: const BoxConstraints(maxWidth: 640),
-              margin: const EdgeInsets.symmetric(vertical: 5),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0x992A2E37) : const Color(0x99EEF0F4),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(4),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // hover 重新发送
+                  if ((_hover || _copied) && widget.onResend != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Tooltip(
+                        message: '重新发送',
+                        child: InkWell(
+                          onTap: widget.onResend,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            child: Icon(Icons.refresh, size: 14, color: cs.onSurfaceVariant),
+                          ),
+                        ),
+                      ),
+                    ),
+                  // hover 编辑
+                  if ((_hover || _copied) && widget.onEdit != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Tooltip(
+                        message: '编辑',
+                        child: InkWell(
+                          onTap: widget.onEdit,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            child: Icon(Icons.edit_outlined, size: 14, color: cs.onSurfaceVariant),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Container(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    margin: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: dark ? const Color(0x992A2E37) : const Color(0x99EEF0F4),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                        bottomLeft: Radius.circular(12),
+                        bottomRight: Radius.circular(4),
+                      ),
+                      border: Border.all(color: dark ? kOutlineDark : kOutlineLight),
+                    ),
+                    child: RichMarkdown(text, fontSize: 14),
+                  ),
+                ],
+              ),
+              if (widget.ts > 0 && widget.showTimestamp)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(_fmtTime(widget.ts),
+                      style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
                 ),
-                border: Border.all(color: dark ? kOutlineDark : kOutlineLight),
-              ),
-              child: RichMarkdown(text, fontSize: 14),
-            ),
-            if (widget.ts > 0 && widget.showTimestamp)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(_fmtTime(widget.ts),
-                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
-              ),
-          ],
+            ],
+          ),
         ),
       );
     }

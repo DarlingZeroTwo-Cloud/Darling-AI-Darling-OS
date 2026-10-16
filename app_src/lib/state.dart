@@ -37,6 +37,8 @@ class AppState extends ChangeNotifier {
   bool busy = false;
   String thinkingText = '';
   bool askPending = false;
+  /// 待填入输入框的编辑草稿（编辑消息后重发）
+  String editDraft = '';
   String askCmd = '';
   int _seq = 0;
 
@@ -185,6 +187,12 @@ class AppState extends ChangeNotifier {
     if (cid != null) {
       api.setConversationModel(cid, modelId);
     }
+    notifyListeners();
+  }
+
+  /// 编辑消息：把文本填入输入框待修改后重发
+  void editMessage(String text) {
+    editDraft = text;
     notifyListeners();
   }
 
