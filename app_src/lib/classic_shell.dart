@@ -10,8 +10,8 @@ import 'pages/settings_page.dart';
 import 'pages/local_models_page.dart';
 import 'pages/chat_page.dart';
 
-/// 经典模式（Zed 风格）：左侧历史对话栏 + 右侧对话区；
-/// 设置 / 模型 / 插件 / 本地 以独立窗口（全屏浮层）打开。
+/// 缁忓吀妯″紡锛圸ed 椋庢牸锛夛細宸︿晶鍘嗗彶瀵硅瘽鏍?+ 鍙充晶瀵硅瘽鍖猴紱
+/// 璁剧疆 / 妯″瀷 / 鎻掍欢 / 鏈湴 浠ョ嫭绔嬬獥鍙ｏ紙鍏ㄥ睆娴眰锛夋墦寮€銆?
 class ClassicShell extends StatefulWidget {
   final AppState state;
   const ClassicShell({super.key, required this.state});
@@ -61,7 +61,7 @@ class _ClassicShellState extends State<ClassicShell> {
   }
 }
 
-// ==================== 顶栏 ====================
+// ==================== 椤舵爮 ====================
 class _ClassicTopBar extends StatelessWidget {
   final AppState state;
   const _ClassicTopBar({required this.state});
@@ -73,7 +73,7 @@ class _ClassicTopBar extends StatelessWidget {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        // 半透明：透出背景图片
+        // 鍗婇€忔槑锛氶€忓嚭鑳屾櫙鍥剧墖
         color: dark ? const Color(0xB31D2027) : const Color(0xB3FFFFFF),
         border: Border(bottom: BorderSide(color: cs.outlineVariant)),
       ),
@@ -85,10 +85,10 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.1.3',
+          Text('v3.1.4',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
-          // 模型切换 / 新建对话 已并入侧边栏，此处不留重复入口
+          // 妯″瀷鍒囨崲 / 鏂板缓瀵硅瘽 宸插苟鍏ヤ晶杈规爮锛屾澶勪笉鐣欓噸澶嶅叆鍙?
           const SizedBox(width: 16),
         ],
       ),
@@ -96,7 +96,7 @@ class _ClassicTopBar extends StatelessWidget {
   }
 }
 
-// ==================== 侧边栏（抽屉式） ====================
+// ==================== 渚ц竟鏍忥紙鎶藉眽寮忥級 ====================
 class _ClassicSidebar extends StatelessWidget {
   final AppState state;
   final bool collapsed;
@@ -114,7 +114,7 @@ class _ClassicSidebar extends StatelessWidget {
       curve: Curves.easeOutCubic,
       width: collapsed ? 30 : 230,
       decoration: BoxDecoration(
-        // 半透明：透出背景图片
+        // 鍗婇€忔槑锛氶€忓嚭鑳屾櫙鍥剧墖
         color: bg,
         border: Border(right: BorderSide(color: cs.outlineVariant)),
       ),
@@ -125,7 +125,7 @@ class _ClassicSidebar extends StatelessWidget {
   }
 }
 
-// 收起态：只留一条窄把手
+// 鏀惰捣鎬侊細鍙暀涓€鏉＄獎鎶婃墜
 class _CollapsedBar extends StatelessWidget {
   final VoidCallback onToggle;
   const _CollapsedBar({required this.onToggle});
@@ -139,7 +139,7 @@ class _CollapsedBar extends StatelessWidget {
         IconButton(
           icon: Icon(Icons.chevron_right, size: 18, color: cs.onSurfaceVariant),
           onPressed: onToggle,
-          tooltip: '展开侧边栏',
+          tooltip: '灞曞紑渚ц竟鏍?,
           visualDensity: VisualDensity.compact,
         ),
       ],
@@ -158,7 +158,7 @@ class _SidebarContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 对话标签
+        // 瀵硅瘽鏍囩
         Padding(
           padding: const EdgeInsets.fromLTRB(6, 10, 12, 6),
           child: Row(
@@ -166,11 +166,11 @@ class _SidebarContent extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.chevron_left, size: 18, color: cs.onSurfaceVariant),
                 onPressed: onToggle,
-                tooltip: '收起侧边栏',
+                tooltip: '鏀惰捣渚ц竟鏍?,
                 visualDensity: VisualDensity.compact,
               ),
               const SizedBox(width: 2),
-              Text('对话',
+              Text('瀵硅瘽',
                   style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -179,13 +179,13 @@ class _SidebarContent extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
                 onPressed: () => state.newConversation(),
-                tooltip: '新对话',
+                tooltip: '鏂板璇?,
                 visualDensity: VisualDensity.compact,
               ),
             ],
           ),
         ),
-        // 历史对话列表
+        // 鍘嗗彶瀵硅瘽鍒楄〃
         Expanded(
           child: ListenableBuilder(
             listenable: state,
@@ -193,7 +193,7 @@ class _SidebarContent extends StatelessWidget {
               final convs = state.conversations;
               if (convs.isEmpty) {
                 return const Center(
-                    child: Text('暂无历史对话',
+                    child: Text('鏆傛棤鍘嗗彶瀵硅瘽',
                         style: TextStyle(fontSize: 12, color: Color(0xFF9AA1AC))));
               }
               return ListView.builder(
@@ -205,20 +205,20 @@ class _SidebarContent extends StatelessWidget {
                   final active = id == state.activeConvId;
                   return _ClassicConvItem(
                     id: id,
-                    title: (c['title'] ?? '未命名').toString(),
+                    title: (c['title'] ?? '鏈懡鍚?).toString(),
                     active: active,
                     onTap: () => state.loadConversation(id!),
                     onRename: () => state.renameActiveConversationFor(
-                        context, id!, (c['title'] ?? '未命名').toString()),
+                        context, id!, (c['title'] ?? '鏈懡鍚?).toString()),
                     onDelete: () => state.confirmDeleteConversation(
-                        context, id!, (c['title'] ?? '未命名').toString()),
+                        context, id!, (c['title'] ?? '鏈懡鍚?).toString()),
                   );
                 },
               );
             },
           ),
         ),
-        // 底部入口：设置 / 模型 / 插件 / 本地（独立窗口）
+        // 搴曢儴鍏ュ彛锛氳缃?/ 妯″瀷 / 鎻掍欢 / 鏈湴锛堢嫭绔嬬獥鍙ｏ級
         Container(
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: cs.outlineVariant)),
@@ -228,23 +228,23 @@ class _SidebarContent extends StatelessWidget {
             children: [
               _SidebarEntry(
                 icon: Icons.settings_outlined,
-                label: '设置',
-                onTap: () => _openWindow(context, '设置', SettingsPage(state: state)),
+                label: '璁剧疆',
+                onTap: () => _openWindow(context, '璁剧疆', SettingsPage(state: state)),
               ),
               _SidebarEntry(
                 icon: Icons.model_training_outlined,
-                label: '模型提供商',
-                onTap: () => _openWindow(context, '模型提供商', ModelsPage(state: state)),
+                label: '妯″瀷鎻愪緵鍟?,
+                onTap: () => _openWindow(context, '妯″瀷鎻愪緵鍟?, ModelsPage(state: state)),
               ),
               _SidebarEntry(
                 icon: Icons.extension_outlined,
-                label: '插件',
-                onTap: () => _openWindow(context, '插件', PluginsPage(state: state)),
+                label: '鎻掍欢',
+                onTap: () => _openWindow(context, '鎻掍欢', PluginsPage(state: state)),
               ),
               _SidebarEntry(
                 icon: Icons.smart_toy_outlined,
-                label: '本地模型',
-                onTap: () => _openWindow(context, '本地模型', LocalModelsPage(state: state)),
+                label: '鏈湴妯″瀷',
+                onTap: () => _openWindow(context, '鏈湴妯″瀷', LocalModelsPage(state: state)),
               ),
             ],
           ),
@@ -254,12 +254,16 @@ class _SidebarContent extends StatelessWidget {
   }
 
   void _openWindow(BuildContext context, String title, Widget page) {
-    showDialog(
-      context: context,
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
       barrierDismissible: true,
       barrierColor: Colors.black54,
-      builder: (_) => _WindowDialog(title: title, child: page),
-    );
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (_, __, ___) => _WindowDialog(title: title, child: page, dark: dark),
+      transitionsBuilder: (_, anim, __, child) =>
+          FadeTransition(opacity: anim, child: child),
+    ));
   }
 }
 
@@ -292,7 +296,7 @@ class _SidebarEntry extends StatelessWidget {
   }
 }
 
-// 经典模式对话项（hover 显示重命名/删除）
+// 缁忓吀妯″紡瀵硅瘽椤癸紙hover 鏄剧ず閲嶅懡鍚?鍒犻櫎锛?
 class _ClassicConvItem extends StatefulWidget {
   final String? id;
   final String title;
@@ -359,7 +363,7 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     onPressed: widget.onRename,
                     icon: const Icon(Icons.edit_outlined, size: 13),
                     visualDensity: VisualDensity.compact,
-                    tooltip: '重命名',
+                    tooltip: '閲嶅懡鍚?,
                     style: IconButton.styleFrom(
                       minimumSize: const Size(22, 22),
                       padding: EdgeInsets.zero,
@@ -370,7 +374,7 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     onPressed: widget.onDelete,
                     icon: const Icon(Icons.close, size: 13),
                     visualDensity: VisualDensity.compact,
-                    tooltip: '删除对话',
+                    tooltip: '鍒犻櫎瀵硅瘽',
                     style: IconButton.styleFrom(
                       minimumSize: const Size(22, 22),
                       padding: EdgeInsets.zero,
@@ -387,60 +391,64 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
   }
 }
 
-// ==================== 独立窗口（全屏浮层，仿新窗口） ====================
+// ==================== 鐙珛绐楀彛锛堝叏灞忔诞灞傦紝浠挎柊绐楀彛锛?====================
 class _WindowDialog extends StatelessWidget {
   final String title;
   final Widget child;
-  const _WindowDialog({required this.title, required this.child});
+  final bool dark;
+  const _WindowDialog({required this.title, required this.child, required this.dark});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
-      backgroundColor: dark ? const Color(0xFF1D2027) : const Color(0xFFFAFBFC),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // 窗口标题栏
-          Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: dark ? const Color(0xFF21252D) : const Color(0xFFF0F2F5),
-              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lens_blur, size: 15, color: cs.primary),
-                const SizedBox(width: 8),
-                Text(title,
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
-                const Spacer(),
-                // 模拟窗口最小化/关闭
-                InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 17, color: cs.onSurfaceVariant),
-                  ),
+    return Material(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 60, vertical: 48),
+          decoration: BoxDecoration(
+            color: dark ? const Color(0xFF1D2027) : const Color(0xFFFAFBFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: cs.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // 绐楀彛鏍囬鏍?
+              Container(
+                height: 42,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: dark ? const Color(0xFF21252D) : const Color(0xFFF0F2F5),
+                  border: Border(bottom: BorderSide(color: cs.outlineVariant)),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lens_blur, size: 15, color: cs.primary),
+                    const SizedBox(width: 8),
+                    Text(title,
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
+                    const Spacer(),
+                    InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(Icons.close, size: 17, color: cs.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  color: dark ? const Color(0xFF16181D) : const Color(0xFFFFFFFF),
+                  child: child,
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: Container(
-              color: dark ? const Color(0xFF16181D) : const Color(0xFFFFFFFF),
-              child: child,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
