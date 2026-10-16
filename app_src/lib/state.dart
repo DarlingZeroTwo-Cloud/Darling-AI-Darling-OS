@@ -16,7 +16,8 @@ class ChatMsg {
   String text;
   String title;
   bool ok;
-  ChatMsg(this.kind, this.text, {this.title = '', this.ok = true});
+  double ts;
+  ChatMsg(this.kind, this.text, {this.title = '', this.ok = true, this.ts = 0});
 }
 
 class AppState extends ChangeNotifier {
@@ -162,6 +163,18 @@ class AppState extends ChangeNotifier {
     if (ok == true) {
       await deleteConversation(convId);
     }
+  }
+
+  /// 切换对话置顶
+  Future<void> togglePinConversation(String convId) async {
+    for (final c in conversations) {
+      if (c is Map && c['id'] == convId) {
+        c['pinned'] = !(c['pinned'] == true);
+        break;
+      }
+    }
+    await saveProvidersModels();
+    notifyListeners();
   }
 
   void setModel(String? modelId) {
@@ -321,7 +334,8 @@ class AppState extends ChangeNotifier {
         messages.add(ChatMsg(MsgKind.tool, content, ok: false));
         continue;
       }
-      messages.add(ChatMsg(role == 'user' ? MsgKind.user : MsgKind.ai, content));
+      messages.add(ChatMsg(role == 'user' ? MsgKind.user : MsgKind.ai, content,
+          ts: (msg['ts'] as num? ?? 0).toDouble()));
     }
   }
 
@@ -359,7 +373,7 @@ class AppState extends ChangeNotifier {
     thinkingText = '正在连接服务器…';
     _seq = 0;
     String? jobId;
-    messages.add(ChatMsg(MsgKind.user, text));
+    messages.add(ChatMsg(MsgKind.user, text, ts: DateTime.now().millisecondsSinceEpoch / 1000.0));
     notifyListeners();
 
     try {

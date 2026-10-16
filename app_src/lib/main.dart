@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'bridge.dart';
 import 'state.dart';
@@ -216,7 +217,12 @@ class _HomeShellState extends State<HomeShell> {
     final s = widget.state.settings;
     final bgImage = (s['bg_image'] ?? '').toString();
     final bgOpacity = (s['bg_opacity'] ?? 0.85).toDouble();
-    return Scaffold(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+            () => widget.state.newConversation(),
+      },
+      child: Scaffold(
       backgroundColor: dark ? const Color(0xFF15171C) : const Color(0xFFF4F5F7),
       body: Stack(
         fit: StackFit.expand,
@@ -353,6 +359,7 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
+    ),
     );
   }
 }

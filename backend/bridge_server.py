@@ -214,7 +214,7 @@ def stream_agent(job):
         messages.append({"role": "user", "content": web_ctx})
         history.append(messages[-1])
         _emit(job, "tool", title="联网搜索", content=f"已注入 {len(job.web_results)} 条搜索结果作为参考", ok=True)
-    history.append({"role": "user", "content": user_text})
+    history.append({"role": "user", "content": user_text, "ts": time.time()})
     # 多模态图片：把最后一条用户消息改造成 content 数组
     if job.images:
         content = [{"type": "text", "text": user_text}]
@@ -241,7 +241,7 @@ def stream_agent(job):
                 ok_flag = False
                 break
             last_text = reply
-            messages.append({"role": "assistant", "content": reply})
+            messages.append({"role": "assistant", "content": reply, "ts": time.time()})
             history.append(messages[-1])
             if not blocks:
                 break

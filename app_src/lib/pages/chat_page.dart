@@ -130,9 +130,9 @@ class _MessageList extends StatelessWidget {
             final msg = msgs[i];
             switch (msg.kind) {
               case MsgKind.user:
-                return MessageBubble(role: 'user', text: msg.text);
+                return MessageBubble(role: 'user', text: msg.text, ts: msg.ts);
               case MsgKind.ai:
-                return MessageBubble(role: 'ai', text: msg.text);
+                return MessageBubble(role: 'ai', text: msg.text, ts: msg.ts);
               case MsgKind.tool:
                 return ToolCard(title: msg.title, content: msg.text, ok: msg.ok);
               case MsgKind.error:

@@ -167,7 +167,8 @@ List<Object> _parse(String text) {
 class MessageBubble extends StatefulWidget {
   final String role;
   final String text;
-  const MessageBubble({super.key, required this.role, required this.text});
+  final double ts;
+  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0});
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -194,21 +195,32 @@ class _MessageBubbleState extends State<MessageBubble> {
     if (isMe) {
       return Align(
         alignment: Alignment.centerRight,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 640),
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: dark ? const Color(0x992A2E37) : const Color(0x99EEF0F4),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-              bottomLeft: Radius.circular(12),
-              bottomRight: Radius.circular(4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              constraints: const BoxConstraints(maxWidth: 640),
+              margin: const EdgeInsets.symmetric(vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: dark ? const Color(0x992A2E37) : const Color(0x99EEF0F4),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(4),
+                ),
+                border: Border.all(color: dark ? kOutlineDark : kOutlineLight),
+              ),
+              child: RichMarkdown(text, fontSize: 14),
             ),
-            border: Border.all(color: dark ? kOutlineDark : kOutlineLight),
-          ),
-          child: RichMarkdown(text, fontSize: 14),
+            if (widget.ts > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(_fmtTime(widget.ts),
+                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
+              ),
+          ],
         ),
       );
     }
@@ -218,53 +230,70 @@ class _MessageBubbleState extends State<MessageBubble> {
       onExit: (_) => setState(() => _hover = false),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: cs.primary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text('AI',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: RichMarkdown(text, fontSize: 14),
-              ),
-            ),
-            // hover 复制按钮
-            if (_hover || _copied)
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Tooltip(
-                  message: _copied ? '已复制' : '复制',
-                  child: InkWell(
-                    onTap: _copy,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      child: Icon(
-                        _copied ? Icons.check : Icons.content_copy,
-                        size: 14,
-                        color: _copied ? cs.primary : cs.onSurfaceVariant,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: cs.primary,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text('AI',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: RichMarkdown(text, fontSize: 14),
+                  ),
+                ),
+                // hover 复制按钮
+                if (_hover || _copied)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Tooltip(
+                      message: _copied ? '已复制' : '复制',
+                      child: InkWell(
+                        onTap: _copy,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          child: Icon(
+                            _copied ? Icons.check : Icons.content_copy,
+                            size: 14,
+                            color: _copied ? cs.primary : cs.onSurfaceVariant,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+              ],
+            ),
+            if (widget.ts > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 44, top: 2),
+                child: Text(_fmtTime(widget.ts),
+                    style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
               ),
           ],
         ),
       ),
     );
+  }
+
+  static String _fmtTime(double ts) {
+    final d = DateTime.fromMillisecondsSinceEpoch((ts * 1000).toInt());
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.hour)}:${two(d.minute)}';
   }
 }

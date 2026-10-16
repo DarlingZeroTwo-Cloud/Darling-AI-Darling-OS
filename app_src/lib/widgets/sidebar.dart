@@ -28,14 +28,20 @@ class _SidebarState extends State<Sidebar> {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
 
-    final all = widget.state.conversations.cast<Map<String, dynamic>>();
+    final all = widget.state.conversations.cast<Map<String, dynamic>>().toList();
     final q = _q.trim().toLowerCase();
-    final convs = q.isEmpty
+    var convs = q.isEmpty
         ? all
         : all.where((c) {
             final title = (c['title'] ?? '').toString().toLowerCase();
             return title.contains(q);
           }).toList();
+    // 置顶排前面，同组内按原顺序（最近在前）
+    convs.sort((a, b) {
+      final pa = a['pinned'] == true ? 0 : 1;
+      final pb = b['pinned'] == true ? 0 : 1;
+      return pa - pb;
+    });
 
     return Container(
       width: 248,
@@ -143,9 +149,11 @@ class _SidebarState extends State<Sidebar> {
                       return _ConvItem(
                         title: title,
                         sel: sel,
+                        pinned: c['pinned'] == true,
                         onTap: () => widget.state.loadConversation(id),
                         onRename: () => widget.state.renameActiveConversationFor(context, id, title),
                         onDelete: () => widget.state.confirmDeleteConversation(context, id, title),
+                        onTogglePin: () => widget.state.togglePinConversation(id),
                       );
                     },
                   ),
@@ -219,15 +227,19 @@ class _SidebarState extends State<Sidebar> {
 class _ConvItem extends StatefulWidget {
   final String title;
   final bool sel;
+  final bool pinned;
   final VoidCallback onTap;
   final VoidCallback onRename;
   final VoidCallback onDelete;
+  final VoidCallback onTogglePin;
   const _ConvItem({
     required this.title,
     required this.sel,
+    required this.pinned,
     required this.onTap,
     required this.onRename,
     required this.onDelete,
+    required this.onTogglePin,
   });
 
   @override
@@ -263,8 +275,14 @@ class _ConvItemState extends State<_ConvItem> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.chat_bubble_outline,
-                      size: 16, color: widget.sel ? cs.primary : cs.onSurfaceVariant),
+                  Icon(
+                      widget.pinned
+                          ? Icons.push_pin
+                          : Icons.chat_bubble_outline,
+                      size: 16,
+                      color: widget.sel
+                          ? cs.primary
+                          : (widget.pinned ? cs.primary : cs.onSurfaceVariant)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -279,6 +297,17 @@ class _ConvItemState extends State<_ConvItem> {
                     ),
                   ),
                   if (widget.sel || _hover) ...[
+                    IconButton(
+                      onPressed: widget.onTogglePin,
+                      icon: Icon(widget.pinned ? Icons.push_pin : Icons.push_pin_outlined, size: 14),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: widget.pinned ? '取消置顶' : '置顶',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(24, 24),
+                        padding: EdgeInsets.zero,
+                        foregroundColor: cs.onSurfaceVariant,
+                      ),
+                    ),
                     IconButton(
                       onPressed: widget.onRename,
                       icon: const Icon(Icons.edit_outlined, size: 14),
