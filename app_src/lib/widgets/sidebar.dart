@@ -22,6 +22,25 @@ class Sidebar extends StatefulWidget {
 
 class _SidebarState extends State<Sidebar> {
   String _q = '';
+  List<Map<String, dynamic>> _pinned = [];
+  List<Map<String, dynamic>> _normal = [];
+
+  List<Widget> _buildItems(BuildContext context, List<Map<String, dynamic>> list) {
+    return [
+      for (final c in list)
+        _ConvItem(
+          title: (c['title'] as String? ?? '新对话').trim(),
+          sel: c['id'] == widget.state.activeConvId,
+          pinned: c['pinned'] == true,
+          onTap: () => widget.state.loadConversation(c['id'] as String),
+          onRename: () => widget.state.renameActiveConversationFor(
+              context, c['id'] as String, (c['title'] as String? ?? '新对话').trim()),
+          onDelete: () => widget.state.confirmDeleteConversation(
+              context, c['id'] as String, (c['title'] as String? ?? '新对话').trim()),
+          onTogglePin: () => widget.state.togglePinConversation(c['id'] as String),
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +61,8 @@ class _SidebarState extends State<Sidebar> {
       final pb = b['pinned'] == true ? 0 : 1;
       return pa - pb;
     });
+    _pinned = convs.where((c) => c['pinned'] == true).toList();
+    _normal = convs.where((c) => c['pinned'] != true).toList();
 
     return Container(
       width: 248,
@@ -132,30 +153,26 @@ class _SidebarState extends State<Sidebar> {
                     color: cs.onSurfaceVariant,
                     fontWeight: FontWeight.w600)),
           ),
-          // 会话列表
+          // 会话列表（置顶 / 普通分组）
           Expanded(
             child: convs.isEmpty
                 ? Center(
                     child: Text(q.isEmpty ? '暂无对话' : '没有匹配的对话',
                         style: const TextStyle(color: Color(0xFF9AA1AC), fontSize: 12)))
-                : ListView.builder(
+                : ListView(
                     padding: const EdgeInsets.symmetric(horizontal: 9),
-                    itemCount: convs.length,
-                    itemBuilder: (context, i) {
-                      final c = convs[i];
-                      final id = c['id'] as String? ?? '';
-                      final sel = id == widget.state.activeConvId;
-                      final title = (c['title'] as String? ?? '新对话').trim();
-                      return _ConvItem(
-                        title: title,
-                        sel: sel,
-                        pinned: c['pinned'] == true,
-                        onTap: () => widget.state.loadConversation(id),
-                        onRename: () => widget.state.renameActiveConversationFor(context, id, title),
-                        onDelete: () => widget.state.confirmDeleteConversation(context, id, title),
-                        onTogglePin: () => widget.state.togglePinConversation(id),
-                      );
-                    },
+                    children: [
+                      if (!q.isEmpty)
+                        ..._buildItems(context, convs)
+                      else ...[
+                        if (_pinned.isNotEmpty) ...[
+                          _SectionLabel('置顶'),
+                          ..._buildItems(context, _pinned),
+                        ],
+                        _SectionLabel('对话'),
+                        ..._buildItems(context, _normal),
+                      ],
+                    ],
                   ),
           ),
           // 底部导航（MD3 NavigationRail 竖排）
@@ -224,6 +241,25 @@ class _SidebarState extends State<Sidebar> {
   }
 }
 
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 3),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: cs.onSurfaceVariant)),
+    );
+  }
+}
+
 class _ConvItem extends StatefulWidget {
   final String title;
   final bool sel;
@@ -249,15 +285,54 @@ class _ConvItem extends StatefulWidget {
 class _ConvItemState extends State<_ConvItem> {
   bool _hover = false;
 
+  Future<void> _showCtxMenu() async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final box = context.findRenderObject() as RenderBox;
+    final res = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        box.localToGlobal(Offset.zero) & box.size,
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(value: 'pin', child: Row(children: [
+          Icon(widget.pinned ? Icons.push_pin : Icons.push_pin_outlined, size: 16),
+          const SizedBox(width: 10),
+          Text(widget.pinned ? '取消置顶' : '置顶'),
+        ])),
+        PopupMenuItem(value: 'rename', child: Row(children: [
+          const Icon(Icons.edit_outlined, size: 16),
+          const SizedBox(width: 10),
+          const Text('重命名'),
+        ])),
+        PopupMenuItem(value: 'delete', child: Row(children: [
+          const Icon(Icons.delete_outline, size: 16),
+          const SizedBox(width: 10),
+          const Text('删除'),
+        ])),
+      ],
+    );
+    switch (res) {
+      case 'pin':
+        widget.onTogglePin();
+      case 'rename':
+        widget.onRename();
+      case 'delete':
+        widget.onDelete();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: Material(
+      child: GestureDetector(
+        onSecondaryTap: _showCtxMenu,
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: Material(
           color: widget.sel ? cs.secondaryContainer : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
