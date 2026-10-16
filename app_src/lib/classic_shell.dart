@@ -85,7 +85,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.1.4',
+          Text('v3.1.5',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 妯″瀷鍒囨崲 / 鏂板缓瀵硅瘽 宸插苟鍏ヤ晶杈规爮锛屾澶勪笉鐣欓噸澶嶅叆鍙?
@@ -403,9 +403,9 @@ class _WindowDialog extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Material(
       color: Colors.black54,
-      child: Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 48),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 60, vertical: 48),
           decoration: BoxDecoration(
             color: dark ? const Color(0xFF1D2027) : const Color(0xFFFAFBFC),
             borderRadius: BorderRadius.circular(14),
