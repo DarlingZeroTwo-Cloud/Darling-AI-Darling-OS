@@ -139,7 +139,7 @@ class _CollapsedBar extends StatelessWidget {
         IconButton(
           icon: Icon(Icons.chevron_right, size: 18, color: cs.onSurfaceVariant),
           onPressed: onToggle,
-          tooltip: '灞曞紑渚ц竟鏍?,
+                      tooltip: '展开侧边栏',
           visualDensity: VisualDensity.compact,
         ),
       ],
@@ -166,7 +166,7 @@ class _SidebarContent extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.chevron_left, size: 18, color: cs.onSurfaceVariant),
                 onPressed: onToggle,
-                tooltip: '鏀惰捣渚ц竟鏍?,
+                      tooltip: '收起侧边栏',
                 visualDensity: VisualDensity.compact,
               ),
               const SizedBox(width: 2),
@@ -179,7 +179,7 @@ class _SidebarContent extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
                 onPressed: () => state.newConversation(),
-                tooltip: '鏂板璇?,
+                  tooltip: '新对话',
                 visualDensity: VisualDensity.compact,
               ),
             ],
@@ -205,20 +205,20 @@ class _SidebarContent extends StatelessWidget {
                   final active = id == state.activeConvId;
                   return _ClassicConvItem(
                     id: id,
-                    title: (c['title'] ?? '鏈懡鍚?).toString(),
+                    title: (c['title'] ?? '新对话').toString(),
                     active: active,
                     onTap: () => state.loadConversation(id!),
                     onRename: () => state.renameActiveConversationFor(
-                        context, id!, (c['title'] ?? '鏈懡鍚?).toString()),
+                        context, id!, (c['title'] ?? '新对话').toString()),
                     onDelete: () => state.confirmDeleteConversation(
-                        context, id!, (c['title'] ?? '鏈懡鍚?).toString()),
+                        context, id!, (c['title'] ?? '新对话').toString()),
                   );
                 },
               );
             },
           ),
         ),
-        // 搴曢儴鍏ュ彛锛氳缃?/ 妯″瀷 / 鎻掍欢 / 鏈湴锛堢嫭绔嬬獥鍙ｏ級
+        // 底部入口：设置/ 模型/ 插件/ 本地（独立窗口）
         Container(
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: cs.outlineVariant)),
@@ -228,23 +228,23 @@ class _SidebarContent extends StatelessWidget {
             children: [
               _SidebarEntry(
                 icon: Icons.settings_outlined,
-                label: '璁剧疆',
-                onTap: () => _openWindow(context, '璁剧疆', SettingsPage(state: state)),
+                label: '设置',
+                onTap: () => _openWindow(context, '设置', SettingsPage(state: state)),
               ),
               _SidebarEntry(
                 icon: Icons.model_training_outlined,
-                label: '妯″瀷鎻愪緵鍟?,
-                onTap: () => _openWindow(context, '妯″瀷鎻愪緵鍟?, ModelsPage(state: state)),
+                label: '模型供应商',
+                onTap: () => _openWindow(context, '模型供应商', ModelsPage(state: state)),
               ),
               _SidebarEntry(
                 icon: Icons.extension_outlined,
-                label: '鎻掍欢',
-                onTap: () => _openWindow(context, '鎻掍欢', PluginsPage(state: state)),
+                label: '插件',
+                onTap: () => _openWindow(context, '插件', PluginsPage(state: state)),
               ),
               _SidebarEntry(
                 icon: Icons.smart_toy_outlined,
-                label: '鏈湴妯″瀷',
-                onTap: () => _openWindow(context, '鏈湴妯″瀷', LocalModelsPage(state: state)),
+                label: '本地模型',
+                onTap: () => _openWindow(context, '本地模型', LocalModelsPage(state: state)),
               ),
             ],
           ),
@@ -363,7 +363,7 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     onPressed: widget.onRename,
                     icon: const Icon(Icons.edit_outlined, size: 13),
                     visualDensity: VisualDensity.compact,
-                    tooltip: '閲嶅懡鍚?,
+                  tooltip: '重命名',
                     style: IconButton.styleFrom(
                       minimumSize: const Size(22, 22),
                       padding: EdgeInsets.zero,
@@ -414,7 +414,7 @@ class _WindowDialog extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              // 绐楀彛鏍囬鏍?
+              // 窗口标题栏
               Container(
                 height: 42,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
