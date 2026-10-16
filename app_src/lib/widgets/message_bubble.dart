@@ -209,7 +209,8 @@ class MessageBubble extends StatefulWidget {
   final bool showTimestamp;
   final VoidCallback? onResend;
   final VoidCallback? onEdit;
-  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0, this.showTimestamp = true, this.onResend, this.onEdit});
+  final VoidCallback? onRegenerate;
+  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0, this.showTimestamp = true, this.onResend, this.onEdit, this.onRegenerate});
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -356,6 +357,22 @@ class _MessageBubbleState extends State<MessageBubble> {
                             size: 14,
                             color: _copied ? cs.primary : cs.onSurfaceVariant,
                           ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // hover 重新生成
+                if ((_hover || _copied) && widget.onRegenerate != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Tooltip(
+                      message: '重新生成',
+                      child: InkWell(
+                        onTap: widget.onRegenerate,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          child: Icon(Icons.refresh, size: 14, color: cs.onSurfaceVariant),
                         ),
                       ),
                     ),

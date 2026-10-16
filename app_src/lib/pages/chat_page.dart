@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../state.dart';
@@ -136,7 +138,8 @@ class _MessageList extends StatelessWidget {
                     onEdit: () => state.editMessage(msg.text));
               case MsgKind.ai:
                 return MessageBubble(role: 'ai', text: msg.text, ts: msg.ts,
-                    showTimestamp: state.settings['show_timestamp'] != false);
+                    showTimestamp: state.settings['show_timestamp'] != false,
+                    onRegenerate: () => state.regenerate());
               case MsgKind.tool:
                 return ToolCard(title: msg.title, content: msg.text, ok: msg.ok);
               case MsgKind.error:
@@ -682,6 +685,17 @@ class _ComposerState extends State<_Composer> {
                 enabled: !busy,
                 onChanged: _onTextChanged,
                 onSubmitted: (_) => _send(),
+                onKeyEvent: (node, ev) {
+                  if (ev is KeyDownEvent &&
+                      ev.logicalKey == LogicalKeyboardKey.escape) {
+                    if (_ctl.text.isNotEmpty) {
+                      _ctl.clear();
+                      setState(() {});
+                      return KeyEventResult.handled;
+                    }
+                  }
+                  return KeyEventResult.ignored;
+                },
                 style: TextStyle(fontSize: 14, color: cs.onSurface),
                 decoration: InputDecoration(
                   border: InputBorder.none,

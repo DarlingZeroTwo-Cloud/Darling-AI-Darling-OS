@@ -196,6 +196,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 重新生成：取最后一条用户消息重发
+  Future<void> regenerate() {
+    String? lastUser;
+    for (final m in messages) {
+      if (m.kind == MsgKind.user) lastUser = m.text;
+    }
+    if (lastUser == null || lastUser.trim().isEmpty) return Future.value();
+    return send(lastUser);
+  }
+
   /// 停止当前生成
   Future<void> stop() async {
     final jobId = _jobId;
