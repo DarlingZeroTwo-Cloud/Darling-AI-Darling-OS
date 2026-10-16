@@ -248,6 +248,45 @@ class _SettingsPageState extends State<SettingsPage> {
       ]),
     ]);
   }
+
+  // ===== 关于 =====
+  Widget _aboutPage(AppState state) {
+    final cs = Theme.of(context).colorScheme;
+    return _Card(title: '关于', children: [
+      Row(children: [
+        Container(
+          width: 48, height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(14)),
+          child: const Text('D', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
+        ),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
+          Text('版本 3.0.14', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+        ])),
+      ]),
+      const SizedBox(height: 16),
+      const Text('本地 AI 工作台 · Flutter + Python 桥接', style: TextStyle(fontSize: 13)),
+      const SizedBox(height: 6),
+      const Text('GitHub: DarlingZeroTwo-Cloud/Darling-ai', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+      const SizedBox(height: 16),
+      OutlinedButton.icon(
+        onPressed: () async {
+          const url = 'https://github.com/DarlingZeroTwo-Cloud/Darling-ai/releases/latest';
+          try {
+            if (Platform.isWindows) {
+              await Process.start('cmd', ['/c', 'start', '', url]);
+            } else {
+              await Process.start('xdg-open', [url]);
+            }
+          } catch (_) {}
+        },
+        icon: const Icon(Icons.open_in_new, size: 14),
+        label: const Text('检查更新'),
+      ),
+    ]);
+  }
 }
 
 // ===== 通用控件 =====
@@ -417,45 +456,6 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
         ],
       ),
     );
-  }
-
-  // ===== 关于 =====
-  Widget _aboutPage(AppState state) {
-    final cs = Theme.of(context).colorScheme;
-    return _Card(title: '关于', children: [
-      Row(children: [
-        Container(
-          width: 48, height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.circular(14)),
-          child: const Text('D', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700)),
-        ),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.0.14', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-        ])),
-      ]),
-      const SizedBox(height: 16),
-      const Text('本地 AI 工作台 · Flutter + Python 桥接', style: TextStyle(fontSize: 13)),
-      const SizedBox(height: 6),
-      const Text('GitHub: DarlingZeroTwo-Cloud/Darling-ai', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-      const SizedBox(height: 16),
-      OutlinedButton.icon(
-        onPressed: () async {
-          const url = 'https://github.com/DarlingZeroTwo-Cloud/Darling-ai/releases/latest';
-          try {
-            if (Platform.isWindows) {
-              await Process.start('cmd', ['/c', 'start', '', url]);
-            } else {
-              await Process.start('xdg-open', [url]);
-            }
-          } catch (_) {}
-        },
-        icon: const Icon(Icons.open_in_new, size: 14),
-        label: const Text('检查更新'),
-      ),
-    ]);
   }
 }
 
