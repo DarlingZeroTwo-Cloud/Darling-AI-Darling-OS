@@ -413,6 +413,7 @@ class _ConvItemState extends State<_ConvItem> {
           ),
         ),
       ),
+    ),
     );
   }
 }
