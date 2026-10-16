@@ -1,10 +1,10 @@
-name: build-3.1.2
+name: build-3.1.3
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v3.1.2*'
+      - 'v3.1.3*'
 
 permissions:
   contents: write
@@ -47,7 +47,7 @@ jobs:
 
       - name: Assemble dist
         run: |
-          $DIST = "dist\darling-ai-3.1.2"
+          $DIST = "dist\darling-ai-3.1.3"
           New-Item -ItemType Directory -Force $DIST | Out-Null
           New-Item -ItemType Directory -Force "$DIST\backend" | Out-Null
           New-Item -ItemType Directory -Force "$DIST\plugins" | Out-Null
@@ -60,7 +60,7 @@ jobs:
         run: |
           $iss = @"
           #define MyAppName "darling-ai"
-          #define MyAppVersion "3.1.2"
+          #define MyAppVersion "3.1.3"
           #define MyAppPublisher "darling"
           #define MyAppExeName "darling_ai.exe"
           [Setup]
@@ -74,7 +74,7 @@ jobs:
           AllowNoIcons=yes
           DisableProgramGroupPage=yes
           OutputDir=.
-          OutputBaseFilename=darling-ai-3.1.2-setup
+          OutputBaseFilename=darling-ai-3.1.3-setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -88,7 +88,7 @@ jobs:
           [Tasks]
           Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional tasks:"; Flags: checkedonce
           [Files]
-          Source: "dist\darling-ai-3.1.2\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+          Source: "dist\darling-ai-3.1.3\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
           [Icons]
           Name: "{group}\darling-ai"; Filename: "{app}\{#MyAppExeName}"
           Name: "{group}\Uninstall darling-ai"; Filename: "{uninstallexe}"
@@ -118,16 +118,16 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.1.2-windows
-          path: darling-ai-3.1.2-setup.exe
+          name: darling-ai-3.1.3-windows
+          path: darling-ai-3.1.3-setup.exe
 
       - name: Upload to release
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload v3.1.2 darling-ai-3.1.2-setup.exe --clobber || \
-          gh release create v3.1.2 darling-ai-3.1.2-setup.exe --title "darling-ai 3.1.2" --notes "Based on 2.0 architecture"
+          gh release upload v3.1.3 darling-ai-3.1.3-setup.exe --clobber || \
+          gh release create v3.1.3 darling-ai-3.1.3-setup.exe --title "darling-ai 3.1.3" --notes "Based on 2.0 architecture"
         shell: pwsh
 
   build-linux:
@@ -170,23 +170,23 @@ jobs:
 
       - name: Assemble tar.gz
         run: |
-          DIST=dist/darling-ai-3.1.2
+          DIST=dist/darling-ai-3.1.3
           rm -rf dist
           mkdir -p $DIST/backend $DIST/plugins
           cp -r app/build/linux/x64/release/bundle/. $DIST/
           cp backend/dist/darling-backend $DIST/backend/
           chmod +x $DIST/backend/darling-backend
           cp backend/plugins/*.json $DIST/plugins/ 2>/dev/null || true
-          tar czf darling-ai-3.1.2-linux-x64.tar.gz dist/
+          tar czf darling-ai-3.1.3-linux-x64.tar.gz dist/
 
       - name: Upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload v3.1.2 darling-ai-3.1.2-linux-x64.tar.gz --clobber || true
+          gh release upload v3.1.3 darling-ai-3.1.3-linux-x64.tar.gz --clobber || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.1.2-linux
-          path: darling-ai-3.1.2-linux-x64.tar.gz
+          name: darling-ai-3.1.3-linux
+          path: darling-ai-3.1.3-linux-x64.tar.gz

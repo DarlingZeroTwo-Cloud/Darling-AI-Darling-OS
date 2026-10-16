@@ -85,7 +85,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v2.0',
+          Text('v3.1.3',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 模型切换 / 新建对话 已并入侧边栏，此处不留重复入口
@@ -434,7 +434,12 @@ class _WindowDialog extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(child: child),
+          Expanded(
+            child: Container(
+              color: dark ? const Color(0xFF16181D) : const Color(0xFFFFFFFF),
+              child: child,
+            ),
+          ),
         ],
       ),
     );
