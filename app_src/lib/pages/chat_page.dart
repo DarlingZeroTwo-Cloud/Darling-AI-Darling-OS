@@ -250,6 +250,17 @@ class _ComposerState extends State<_Composer> {
   void initState() {
     super.initState();
     widget.state.addListener(_onStateChanged);
+    // Esc 清空输入框（FocusNode.onKeyEvent 兼容旧版 Flutter）
+    _focus.onKeyEvent = (node, ev) {
+      if (ev is KeyDownEvent && ev.logicalKey == LogicalKeyboardKey.escape) {
+        if (_ctl.text.isNotEmpty) {
+          _ctl.clear();
+          setState(() {});
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    };
   }
 
   void _onStateChanged() {
@@ -685,17 +696,6 @@ class _ComposerState extends State<_Composer> {
                 enabled: !busy,
                 onChanged: _onTextChanged,
                 onSubmitted: (_) => _send(),
-                onKeyEvent: (node, ev) {
-                  if (ev is KeyDownEvent &&
-                      ev.logicalKey == LogicalKeyboardKey.escape) {
-                    if (_ctl.text.isNotEmpty) {
-                      _ctl.clear();
-                      setState(() {});
-                      return KeyEventResult.handled;
-                    }
-                  }
-                  return KeyEventResult.ignored;
-                },
                 style: TextStyle(fontSize: 14, color: cs.onSurface),
                 decoration: InputDecoration(
                   border: InputBorder.none,
