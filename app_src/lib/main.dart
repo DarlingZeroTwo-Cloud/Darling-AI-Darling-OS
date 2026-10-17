@@ -215,25 +215,27 @@ class DarlingApp extends StatefulWidget {
   State<DarlingApp> createState() => _DarlingAppState();
 }
 
-class _DarlingAppState extends State<DarlingApp> {
-  late final AppLifecycleListener _lifecycle;
-
+class _DarlingAppState extends State<DarlingApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    // 窗口关闭/退出时干净关闭后端，释放 GGUF 文件句柄（否则 Windows 删目录报占用）
-    _lifecycle = AppLifecycleListener(
-      onExitRequested: () async {
-        await shutdownBackend();
-        return AppExitResponse.exit;
-      },
-    );
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
-    _lifecycle.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    // 退出时干净关闭后端，释放 GGUF 文件句柄（否则 Windows 删目录报占用）
+    shutdownBackend();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Android/iOS 切后台时也顺手关一下（桌面端窗口关闭走 dispose）
+    if (state == AppLifecycleState.detached) {
+      shutdownBackend();
+    }
   }
 
   @override
