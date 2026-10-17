@@ -208,6 +208,10 @@ def stream_agent(job):
         provider = {"id": "local", "name": "本地模型", "type": "local",
                     "base_url": "", "api_key": "",
                     "local_path": model.get("local_path")}
+    elif provider.get("type") == "local" and not provider.get("local_path"):
+        # merge 进来的 local provider 缺 local_path 字段，从 model dict 补上
+        # （否则下游 chat_request 会短路到 model.get(...)，而 model 是字符串名 → AttributeError）
+        provider = {**provider, "local_path": model.get("local_path", "")}
     if not provider:
         _emit(job, "error", text="模型对应的供应商不存在，请重新添加。")
         _emit(job, "done", text="", ok=False)
@@ -442,6 +446,21 @@ class Handler(BaseHTTPRequestHandler):
             return
         if p.path == "/api/ping":
             self._json(200, {"ok": True, "version": "1.1.0"})
+            return
+        if p.path == "/api/shutdown":
+            # 前端关闭时调用：释放 GGUF 句柄后退出进程
+            self._json(200, {"ok": True})
+            def _later():
+                import time
+                time.sleep(0.3)
+                try:
+                    import local_engine
+                    local_engine.unload_all()
+                except Exception:
+                    pass
+                import os
+                os._exit(0)
+            threading.Thread(target=_later, daemon=True).start()
             return
         if p.path == "/api/config":
             data = self._cfg().data
@@ -844,6 +863,17 @@ def main():
         pass
     cfg = core.Config()
     host = cfg.data["settings"].get("bind_host", "127.0.0.1") or "127.0.0.1"
+
+    # 退出时释放 GGUF 文件句柄，否则 Windows 删除安装/模型目录会报"被占用"
+    import atexit
+    def _cleanup():
+        try:
+            import local_engine
+            local_engine.unload_all()
+        except Exception:
+            pass
+    atexit.register(_cleanup)
+
     try:
         server = ThreadingHTTPServer((host, PORT), Handler)
     except OSError as e:
@@ -854,6 +884,8 @@ def main():
         server.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        _cleanup()
 
 
 if __name__ == "__main__":

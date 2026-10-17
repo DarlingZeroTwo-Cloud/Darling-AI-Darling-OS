@@ -46,6 +46,28 @@ def load_status():
     return {"loading": loading, "ready": ready}
 
 
+def unload_all():
+    """卸载所有已加载模型，释放 GGUF 文件句柄（退出时调用，否则 Windows 删目录报占用）。"""
+    import gc
+    with _meta_lock:
+        loaded = list(_loaded.items())
+        _loaded.clear()
+        # 取消正在加载的
+        for p, e in _loading.items():
+            e["cancel"] = True
+        _loading.clear()
+    for path, entry in loaded:
+        try:
+            llm = entry.get("llm")
+            if llm is not None:
+                # llama.cpp 的 Llama 对象析构时释放 mmap；显式删除并 GC
+                entry["llm"] = None
+                del llm
+        except Exception:
+            pass
+    gc.collect()
+
+
 def _do_load(path, n_gpu_layers, n_ctx):
     """在后台线程加载 GGUF（耗时，不阻塞对话）。"""
     try:

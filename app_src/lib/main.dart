@@ -121,6 +121,8 @@ ThemeData buildTheme(Brightness b, {int? accent}) {
 }
 
 /// 启动前确保后端桥接服务在线（打包后 backend/darling-backend 与 exe 同级）
+Process? _backendProc;
+
 Future<void> ensureBackend() async {
   final api = BridgeClient();
   if (await api.ping()) return;
@@ -150,7 +152,8 @@ Future<void> ensureBackend() async {
     return;
   }
   try {
-    Process.start(backend, [], mode: ProcessStartMode.detached);
+    // 不 detached：持有进程句柄，退出时能干净关闭（释放 GGUF 句柄）
+    _backendProc = await Process.start(backend, [], mode: ProcessStartMode.normal);
   } catch (_) {}
 
   // 轮询等就绪（最长 15 秒）
@@ -158,6 +161,20 @@ Future<void> ensureBackend() async {
     await Future.delayed(const Duration(milliseconds: 300));
     if (await api.ping()) return;
   }
+}
+
+/// 关闭后端：先调 /api/shutdown 让它释放 GGUF 文件句柄，再杀进程
+Future<void> shutdownBackend() async {
+  try {
+    final api = BridgeClient();
+    // 发 shutdown 请求（不等响应也行）
+    final uri = Uri.parse('http://127.0.0.1:19730/api/shutdown');
+    await HttpClient().getUrl(uri).timeout(const Duration(seconds: 2));
+  } catch (_) {}
+  await Future.delayed(const Duration(milliseconds: 400));
+  try {
+    _backendProc?.kill();
+  } catch (_) {}
 }
 
 void main() async {
@@ -190,12 +207,38 @@ void main() async {
   runApp(DarlingApp(state: state));
 }
 
-class DarlingApp extends StatelessWidget {
+class DarlingApp extends StatefulWidget {
   final AppState state;
   const DarlingApp({super.key, required this.state});
 
   @override
+  State<DarlingApp> createState() => _DarlingAppState();
+}
+
+class _DarlingAppState extends State<DarlingApp> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    // 窗口关闭/退出时干净关闭后端，释放 GGUF 文件句柄（否则 Windows 删目录报占用）
+    _lifecycle = AppLifecycleListener(
+      onExitRequested: () async {
+        await shutdownBackend();
+        return AppExitRequestResult.confirm;
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
