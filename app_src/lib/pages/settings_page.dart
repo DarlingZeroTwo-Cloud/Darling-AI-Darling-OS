@@ -458,7 +458,7 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
           const SizedBox(width: 160),
           const SizedBox(width: 16),
           Expanded(
-            child: _info == null
+            child: info == null
                 ? Text('尚未检测容器环境',
                     style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant))
                 : Column(
@@ -468,13 +468,13 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
                         _summary(info),
                         style: TextStyle(fontSize: 12.5, color: cs.onSurface),
                       ),
-                      if ((info?['distros'] is List &&
-                              (info!['distros'] as List).isNotEmpty) ||
-                          (info?['docker_installed'] == true))
+                      if ((info['distros'] is List &&
+                              (info['distros'] as List).isNotEmpty) ||
+                          (info['docker_installed'] == true))
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
-                            info!['platform'] == 'windows'
+                            info['platform'] == 'windows'
                                 ? '在“发行版 / 镜像”留空即自动使用第一个发行版'
                                 : '在“发行版 / 镜像”可填镜像名如 ubuntu:22.04',
                             style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
