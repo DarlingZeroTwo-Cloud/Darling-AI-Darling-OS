@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../state.dart';
@@ -326,7 +325,7 @@ class _ComposerState extends State<_Composer> {
         'text':
             '请把下面的用户输入改写成一个更清晰、结构化的提示词（保持原意，不要执行任务本身），只输出改写结果：\n\n$text',
       });
-      final jobId = (r['job_id'] ?? '').toString();
+      final jobId = (r['job'] ?? r['job_id'] ?? '').toString();
       if (jobId.isEmpty) return;
       final sb = StringBuffer();
       await widget.state.api.streamJob(jobId, (ev) {

@@ -91,10 +91,11 @@ class BridgeClient {
           try {
             final ev = jsonDecode(payload) as Map<String, dynamic>;
             if (ev['type'] == 'token') gotTokens = true;
+            if (ev['type'] == 'done') done = true; // 后端完成事件
             onEvent(ev);
           } catch (_) {}
         }
-        // 正常结束：收到 DONE，或已经收到 token 后流自然关闭
+        // 正常结束：收到 DONE / done 事件，或已经收到 token 后流自然关闭
         if (done || gotTokens) return;
         // 流关闭但没收到任何内容 → 真断线，重连
         if (reconnects >= maxReconnects) return;
@@ -184,11 +185,17 @@ class BridgeClient {
   }
 
   // ===== 本地模型 / 模型市场 =====
-  Future<List<dynamic>> localCatalog() async =>
-      (await getJson('/api/local/catalog'))['models'] as List<dynamic>;
+  Future<List<dynamic>> localCatalog() async {
+    final r = await getJson('/api/local/catalog');
+    final m = r['models'];
+    return m is List ? m : <dynamic>[];
+  }
 
-  Future<List<dynamic>> localList() async =>
-      (await getJson('/api/local/list'))['models'] as List<dynamic>;
+  Future<List<dynamic>> localList() async {
+    final r = await getJson('/api/local/list');
+    final m = r['models'];
+    return m is List ? m : <dynamic>[];
+  }
 
   Future<Map<String, dynamic>> localGpu() => getJson('/api/local/gpu');
 

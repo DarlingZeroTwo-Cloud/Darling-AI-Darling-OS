@@ -38,12 +38,13 @@ const Color kMeBubbleLight = Color(0xFFEEF0F4);
 const Color kMeBubbleDark = Color(0xFF2A2E37);
 
 /// 跟随系统的深浅主题（MD3 + 高对比，色值映射自 Qt 版）
-ThemeData buildTheme(Brightness b) {
+ThemeData buildTheme(Brightness b, {int? accent}) {
   final dark = b == Brightness.dark;
-  final seed = dark ? kPrimaryDark : kPrimaryLight;
-  var scheme = ColorScheme.fromSeed(seedColor: seed, brightness: b);
+  final accentColor = accent != null ? Color(accent) : null;
+  final primary = accentColor ?? (dark ? kPrimaryDark : kPrimaryLight);
+  var scheme = ColorScheme.fromSeed(seedColor: primary, brightness: b);
   scheme = scheme.copyWith(
-    primary: dark ? kPrimaryDark : kPrimaryLight,
+    primary: primary,
     onPrimary: Colors.white,
     surface: dark ? kSurfaceDark : kSurfaceLight,
     onSurface: dark ? kOnSurfaceDark : kOnSurfaceLight,
@@ -51,7 +52,7 @@ ThemeData buildTheme(Brightness b) {
     outline: dark ? kOutlineDark : kOutlineLight,
     outlineVariant: dark ? const Color(0xFF343A45) : const Color(0xFFE4E6EA),
     secondaryContainer: dark ? kSelDark : kSelLight,
-    onSecondaryContainer: dark ? kPrimaryDark : kPrimaryLight,
+    onSecondaryContainer: primary,
     error: dark ? kErrDark : kErrLight,
     surfaceContainerLowest: dark ? kBgDark : kBgLight,
     surfaceContainerLow: dark ? const Color(0xFF191C22) : const Color(0xFFF9FAFB),
@@ -103,7 +104,7 @@ ThemeData buildTheme(Brightness b) {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(
-            color: dark ? kPrimaryDark : kPrimaryLight, width: 1.6),
+            color: primary, width: 1.6),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -201,8 +202,14 @@ class DarlingApp extends StatelessWidget {
         return MaterialApp(
           title: 'darling-ai',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light),
-          darkTheme: buildTheme(Brightness.dark),
+          theme: buildTheme(Brightness.light,
+              accent: state.settings['accent_color'] is int
+                  ? state.settings['accent_color'] as int
+                  : null),
+          darkTheme: buildTheme(Brightness.dark,
+              accent: state.settings['accent_color'] is int
+                  ? state.settings['accent_color'] as int
+                  : null),
           themeMode: state.themeMode,
           home: HomeShell(state: state),
         );

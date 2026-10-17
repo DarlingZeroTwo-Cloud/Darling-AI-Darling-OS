@@ -470,11 +470,23 @@ class Handler(BaseHTTPRequestHandler):
                     line = json.dumps(ev, ensure_ascii=False)
                     self.wfile.write(f"data: {line}\n\n".encode("utf-8"))
                     self.wfile.flush()
+                # 正常结束：发送 [DONE]，前端据此判定完成，不再重连
+                try:
+                    self.wfile.write(b"data: [DONE]\n\n")
+                    self.wfile.flush()
+                except Exception:
+                    pass
             except Exception:
+                # 传输中断（客户端断线）：job 保留，允许前端短时重连续读
                 pass
             finally:
-                with JOBS_LOCK:
-                    JOBS.pop(job.id, None)
+                # 延迟 30 秒删除 job：正常结束/断线重连场景都兜底清理，避免内存泄漏
+                def _delayed_pop():
+                    import time
+                    time.sleep(30)
+                    with JOBS_LOCK:
+                        JOBS.pop(job.id, None)
+                threading.Thread(target=_delayed_pop, daemon=True).start()
             return
         self._json(404, {"error": "not found"})
 

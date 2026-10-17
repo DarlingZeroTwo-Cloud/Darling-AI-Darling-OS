@@ -42,21 +42,20 @@ class _LocalModelsPageState extends State<LocalModelsPage>
   }
 
   Future<void> _refresh() async {
+    // 三个请求独立容错：任一失败（如无 GPU 机器）不影响模型市场列表
     try {
       final c = await widget.state.api.localCatalog();
+      if (mounted) setState(() => _catalog = c);
+    } catch (_) {}
+    try {
       final l = await widget.state.api.localList();
+      if (mounted) setState(() => _local = l);
+    } catch (_) {}
+    try {
       final g = await widget.state.api.localGpu();
-      if (mounted) {
-        setState(() {
-          _catalog = c;
-          _local = l;
-          _gpu = g;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
+      if (mounted) setState(() => _gpu = g);
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _pollDownloads() async {
