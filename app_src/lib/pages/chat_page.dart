@@ -12,12 +12,23 @@ import '../widgets/thinking_row.dart';
 import '../widgets/tool_card.dart';
 import '../dialogs/model_picker.dart';
 
-class ChatPage extends StatelessWidget {
+class ChatPage extends StatefulWidget {
   final AppState state;
   const ChatPage({super.key, required this.state});
 
   @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  // MenuAnchor 面板挂在 Overlay 下（无独立路由）：关闭必须用 MenuController.close()，
+  // 不能用 Navigator.pop()（会弹出根路由导致黑屏/闪退）。
+  final MenuController _modelMenu = MenuController();
+  final MenuController _roleMenu = MenuController();
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
@@ -773,6 +784,7 @@ class _ComposerState extends State<_Composer> {
                   children: [
                     // 当前模型（点击展开下拉面板，opencode 风格）
                     MenuAnchor(
+                      controller: _modelMenu,
                       alignmentOffset: const Offset(0, 8),
                       style: MenuStyle(
                         backgroundColor: WidgetStatePropertyAll(
@@ -789,7 +801,7 @@ class _ComposerState extends State<_Composer> {
                         padding: WidgetStatePropertyAll(EdgeInsets.zero),
                       ),
                       menuChildren: [
-                        ModelPickerPanel(state: widget.state),
+                        ModelPickerPanel(state: widget.state, onClose: () => _modelMenu.close()),
                       ],
                       builder: (context, controller, child) {
                         return InkWell(
@@ -825,6 +837,7 @@ class _ComposerState extends State<_Composer> {
                     const SizedBox(width: 6),
                     // 助手角色（点击切换预设角色）
                     MenuAnchor(
+                      controller: _roleMenu,
                       alignmentOffset: const Offset(0, 8),
                       style: MenuStyle(
                         backgroundColor: WidgetStatePropertyAll(
@@ -841,7 +854,7 @@ class _ComposerState extends State<_Composer> {
                         padding: WidgetStatePropertyAll(EdgeInsets.zero),
                       ),
                       menuChildren: [
-                        _AssistantRolePanel(state: widget.state),
+                        _AssistantRolePanel(state: widget.state, onClose: () => _roleMenu.close()),
                       ],
                       builder: (context, controller, child) {
                         return Tooltip(
@@ -1006,7 +1019,8 @@ class _ComposerState extends State<_Composer> {
 
 class _AssistantRolePanel extends StatelessWidget {
   final AppState state;
-  const _AssistantRolePanel({required this.state});
+  final VoidCallback onClose;
+  const _AssistantRolePanel({required this.state, required this.onClose});
 
   static const roles = [
     ('general', '通用助手', '默认，回答简洁准确'),
@@ -1040,8 +1054,8 @@ class _AssistantRolePanel extends StatelessWidget {
             for (final (key, label, desc) in roles)
               InkWell(
                 onTap: () {
-                  Navigator.of(context).pop();
                   state.setAssistantRole(key);
+                  onClose();
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(

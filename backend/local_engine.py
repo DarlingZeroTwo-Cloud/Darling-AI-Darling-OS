@@ -18,6 +18,24 @@ _loaded = {}          # model_path -> {"llm": Llama, "lock": threading.Lock, "at
 _loading = {}         # model_path -> {"thread": Thread, "ts": float}  后台加载中
 _meta_lock = threading.Lock()
 _active_lock = threading.Lock()   # 全局串行：同一时刻只跑一次推理
+_llama_available = None  # None=未探测；True/False
+
+
+def _llama():
+    """返回 llama_cpp.Llama 类；引擎缺失时抛友好中文错误（而非 ImportError 乱码）。"""
+    global _llama_available
+    if _llama_available is None:
+        try:
+            import llama_cpp  # noqa: F401
+            _llama_available = True
+        except ImportError:
+            _llama_available = False
+    if not _llama_available:
+        raise RuntimeError(
+            "本地推理引擎（llama.cpp）未安装或未内置，请先在模型市场下载模型，"
+            "或改用云端模型。")
+    from llama_cpp import Llama
+    return Llama
 
 
 def load_status():
@@ -31,7 +49,7 @@ def load_status():
 def _do_load(path, n_gpu_layers, n_ctx):
     """在后台线程加载 GGUF（耗时，不阻塞对话）。"""
     try:
-        from llama_cpp import Llama  # 延迟导入
+        Llama = _llama()
         llm = Llama(
             model_path=path,
             n_ctx=n_ctx,
