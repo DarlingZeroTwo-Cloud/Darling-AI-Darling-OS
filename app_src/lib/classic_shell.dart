@@ -10,8 +10,7 @@ import 'pages/settings_page.dart';
 import 'pages/local_models_page.dart';
 import 'pages/chat_page.dart';
 
-/// 缁忓吀妯″紡锛圸ed 椋庢牸锛夛細宸︿晶鍘嗗彶瀵硅瘽鏍?+ 鍙充晶瀵硅瘽鍖猴紱
-/// 璁剧疆 / 妯″瀷 / 鎻掍欢 / 鏈湴 浠ョ嫭绔嬬獥鍙ｏ紙鍏ㄥ睆娴眰锛夋墦寮€銆?
+/// 经典模式（VSCode 风格）：左侧历史对话栏 + 右侧对话/设置区域
 class ClassicShell extends StatefulWidget {
   final AppState state;
   const ClassicShell({super.key, required this.state});
@@ -22,10 +21,10 @@ class ClassicShell extends StatefulWidget {
 
 class _ClassicShellState extends State<ClassicShell> {
   bool _sidebarCollapsed = false;
+  String _rightPage = 'chat'; // chat / settings / models / plugins / local
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final s = widget.state.settings;
     final bgImage = (s['bg_image'] ?? '').toString();
@@ -48,8 +47,10 @@ class _ClassicShellState extends State<ClassicShell> {
                       state: widget.state,
                       collapsed: _sidebarCollapsed,
                       onToggle: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+                      onSelectPage: (p) => setState(() => _rightPage = p),
+                      onSelectChat: () => setState(() => _rightPage = 'chat'),
                     ),
-                    Expanded(child: ChatPage(state: widget.state)),
+                    Expanded(child: _buildRight()),
                   ],
                 ),
               ),
@@ -59,9 +60,24 @@ class _ClassicShellState extends State<ClassicShell> {
       ),
     );
   }
+
+  Widget _buildRight() {
+    switch (_rightPage) {
+      case 'settings':
+        return SettingsPage(state: widget.state);
+      case 'models':
+        return ModelsPage(state: widget.state);
+      case 'plugins':
+        return PluginsPage(state: widget.state);
+      case 'local':
+        return LocalModelsPage(state: widget.state);
+      default:
+        return ChatPage(state: widget.state);
+    }
+  }
 }
 
-// ==================== 椤舵爮 ====================
+// ==================== 顶栏 ====================
 class _ClassicTopBar extends StatelessWidget {
   final AppState state;
   const _ClassicTopBar({required this.state});
@@ -73,7 +89,6 @@ class _ClassicTopBar extends StatelessWidget {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        // 鍗婇€忔槑锛氶€忓嚭鑳屾櫙鍥剧墖
         color: dark ? const Color(0xB31D2027) : const Color(0xB3FFFFFF),
         border: Border(bottom: BorderSide(color: cs.outlineVariant)),
       ),
@@ -85,10 +100,9 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.1.6',
+          Text('v3.1.7',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
-          // 妯″瀷鍒囨崲 / 鏂板缓瀵硅瘽 宸插苟鍏ヤ晶杈规爮锛屾澶勪笉鐣欓噸澶嶅叆鍙?
           const SizedBox(width: 16),
         ],
       ),
@@ -96,13 +110,20 @@ class _ClassicTopBar extends StatelessWidget {
   }
 }
 
-// ==================== 渚ц竟鏍忥紙鎶藉眽寮忥級 ====================
+// ==================== 侧边栏（抽屉式） ====================
 class _ClassicSidebar extends StatelessWidget {
   final AppState state;
   final bool collapsed;
   final VoidCallback onToggle;
-  const _ClassicSidebar(
-      {required this.state, required this.collapsed, required this.onToggle});
+  final void Function(String) onSelectPage;
+  final VoidCallback onSelectChat;
+  const _ClassicSidebar({
+    required this.state,
+    required this.collapsed,
+    required this.onToggle,
+    required this.onSelectPage,
+    required this.onSelectChat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -114,18 +135,22 @@ class _ClassicSidebar extends StatelessWidget {
       curve: Curves.easeOutCubic,
       width: collapsed ? 30 : 230,
       decoration: BoxDecoration(
-        // 鍗婇€忔槑锛氶€忓嚭鑳屾櫙鍥剧墖
         color: bg,
         border: Border(right: BorderSide(color: cs.outlineVariant)),
       ),
       child: collapsed
           ? _CollapsedBar(onToggle: onToggle)
-          : _SidebarContent(state: state, onToggle: onToggle),
+          : _SidebarContent(
+              state: state,
+              onToggle: onToggle,
+              onSelectPage: onSelectPage,
+              onSelectChat: onSelectChat,
+            ),
     );
   }
 }
 
-// 鏀惰捣鎬侊細鍙暀涓€鏉＄獎鎶婃墜
+// 收起态：只留一条窄把手
 class _CollapsedBar extends StatelessWidget {
   final VoidCallback onToggle;
   const _CollapsedBar({required this.onToggle});
@@ -139,7 +164,7 @@ class _CollapsedBar extends StatelessWidget {
         IconButton(
           icon: Icon(Icons.chevron_right, size: 18, color: cs.onSurfaceVariant),
           onPressed: onToggle,
-                      tooltip: '展开侧边栏',
+          tooltip: '展开侧边栏',
           visualDensity: VisualDensity.compact,
         ),
       ],
@@ -150,7 +175,14 @@ class _CollapsedBar extends StatelessWidget {
 class _SidebarContent extends StatelessWidget {
   final AppState state;
   final VoidCallback onToggle;
-  const _SidebarContent({required this.state, required this.onToggle});
+  final void Function(String) onSelectPage;
+  final VoidCallback onSelectChat;
+  const _SidebarContent({
+    required this.state,
+    required this.onToggle,
+    required this.onSelectPage,
+    required this.onSelectChat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +190,7 @@ class _SidebarContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 瀵硅瘽鏍囩
+        // 对话标签
         Padding(
           padding: const EdgeInsets.fromLTRB(6, 10, 12, 6),
           child: Row(
@@ -166,11 +198,11 @@ class _SidebarContent extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.chevron_left, size: 18, color: cs.onSurfaceVariant),
                 onPressed: onToggle,
-                      tooltip: '收起侧边栏',
+                tooltip: '收起侧边栏',
                 visualDensity: VisualDensity.compact,
               ),
               const SizedBox(width: 2),
-              Text('瀵硅瘽',
+              Text('对话',
                   style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -179,13 +211,13 @@ class _SidebarContent extends StatelessWidget {
               IconButton(
                 icon: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
                 onPressed: () => state.newConversation(),
-                  tooltip: '新对话',
+                tooltip: '新对话',
                 visualDensity: VisualDensity.compact,
               ),
             ],
           ),
         ),
-        // 鍘嗗彶瀵硅瘽鍒楄〃
+        // 历史对话列表
         Expanded(
           child: ListenableBuilder(
             listenable: state,
@@ -193,7 +225,7 @@ class _SidebarContent extends StatelessWidget {
               final convs = state.conversations;
               if (convs.isEmpty) {
                 return const Center(
-                    child: Text('鏆傛棤鍘嗗彶瀵硅瘽',
+                    child: Text('暂无历史对话',
                         style: TextStyle(fontSize: 12, color: Color(0xFF9AA1AC))));
               }
               return ListView.builder(
@@ -207,7 +239,7 @@ class _SidebarContent extends StatelessWidget {
                     id: id,
                     title: (c['title'] ?? '新对话').toString(),
                     active: active,
-                    onTap: () => state.loadConversation(id!),
+                    onTap: () { state.loadConversation(id!); onSelectChat(); },
                     onRename: () => state.renameActiveConversationFor(
                         context, id!, (c['title'] ?? '新对话').toString()),
                     onDelete: () => state.confirmDeleteConversation(
@@ -218,7 +250,7 @@ class _SidebarContent extends StatelessWidget {
             },
           ),
         ),
-        // 底部入口：设置/ 模型/ 插件/ 本地（独立窗口）
+        // 底部入口：设置/模型/插件/本地（页内切换）
         Container(
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: cs.outlineVariant)),
@@ -229,37 +261,27 @@ class _SidebarContent extends StatelessWidget {
               _SidebarEntry(
                 icon: Icons.settings_outlined,
                 label: '设置',
-                onTap: () => _openWindow(context, '设置', SettingsPage(state: state)),
+                onTap: () => onSelectPage('settings'),
               ),
               _SidebarEntry(
                 icon: Icons.model_training_outlined,
                 label: '模型供应商',
-                onTap: () => _openWindow(context, '模型供应商', ModelsPage(state: state)),
+                onTap: () => onSelectPage('models'),
               ),
               _SidebarEntry(
                 icon: Icons.extension_outlined,
                 label: '插件',
-                onTap: () => _openWindow(context, '插件', PluginsPage(state: state)),
+                onTap: () => onSelectPage('plugins'),
               ),
               _SidebarEntry(
                 icon: Icons.smart_toy_outlined,
                 label: '本地模型',
-                onTap: () => _openWindow(context, '本地模型', LocalModelsPage(state: state)),
+                onTap: () => onSelectPage('local'),
               ),
             ],
           ),
         ),
       ],
-    );
-  }
-
-  void _openWindow(BuildContext context, String title, Widget page) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      builder: (_) => _WindowDialog(title: title, child: page, dark: dark),
     );
   }
 }
@@ -273,7 +295,6 @@ class _SidebarEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -284,8 +305,6 @@ class _SidebarEntry extends StatelessWidget {
             const SizedBox(width: 10),
             Text(label,
                 style: TextStyle(fontSize: 13, color: cs.onSurface)),
-            const Spacer(),
-            Icon(Icons.open_in_new, size: 13, color: cs.outline),
           ],
         ),
       ),
@@ -293,7 +312,7 @@ class _SidebarEntry extends StatelessWidget {
   }
 }
 
-// 缁忓吀妯″紡瀵硅瘽椤癸紙hover 鏄剧ず閲嶅懡鍚?鍒犻櫎锛?
+// 经典模式对话项（hover 显示重命名/删除）
 class _ClassicConvItem extends StatefulWidget {
   final String? id;
   final String title;
@@ -360,7 +379,7 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     onPressed: widget.onRename,
                     icon: const Icon(Icons.edit_outlined, size: 13),
                     visualDensity: VisualDensity.compact,
-                  tooltip: '重命名',
+                    tooltip: '重命名',
                     style: IconButton.styleFrom(
                       minimumSize: const Size(22, 22),
                       padding: EdgeInsets.zero,
@@ -371,7 +390,7 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     onPressed: widget.onDelete,
                     icon: const Icon(Icons.close, size: 13),
                     visualDensity: VisualDensity.compact,
-                    tooltip: '鍒犻櫎瀵硅瘽',
+                    tooltip: '删除对话',
                     style: IconButton.styleFrom(
                       minimumSize: const Size(22, 22),
                       padding: EdgeInsets.zero,
@@ -382,69 +401,6 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ==================== 鐙珛绐楀彛锛堝叏灞忔诞灞傦紝浠挎柊绐楀彛锛?====================
-class _WindowDialog extends StatelessWidget {
-  final String title;
-  final Widget child;
-  final bool dark;
-  const _WindowDialog({required this.title, required this.child, required this.dark});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
-      child: Container(
-        width: 900,
-        height: 640,
-        decoration: BoxDecoration(
-          color: dark ? const Color(0xFF1D2027) : const Color(0xFFFAFBFC),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: cs.outlineVariant),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            // 窗口标题栏
-            Container(
-              height: 42,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0xFF21252D) : const Color(0xFFF0F2F5),
-                border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.lens_blur, size: 15, color: cs.primary),
-                  const SizedBox(width: 8),
-                  Text(title,
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
-                  const Spacer(),
-                  InkWell(
-                    onTap: () => Navigator.of(context).pop(),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.close, size: 17, color: cs.onSurfaceVariant),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Scaffold(
-                backgroundColor: dark ? const Color(0xFF16181D) : const Color(0xFFFFFFFF),
-                body: child,
-              ),
-            ),
-          ],
         ),
       ),
     );
