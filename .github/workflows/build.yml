@@ -79,8 +79,8 @@ jobs:
               $langRef = "compiler:Default.isl"
             }
           }
-          Write-Host "Language file: $langRef"
-          $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langRef`""
+          Write-Host "Language file: $langFile"
+          $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langFile`""
           $iss = @"
           #define MyAppName "darling-ai"
           #define MyAppVersion "3.1.9"
