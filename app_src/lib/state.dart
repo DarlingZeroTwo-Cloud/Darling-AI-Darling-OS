@@ -349,7 +349,7 @@ class AppState extends ChangeNotifier {
         content: SizedBox(
           width: 420,
           height: 430,
-          child: ModelPickerPanel(state: this),
+          child: ModelPickerPanel(state: this, onClose: () => Navigator.pop(ctx)),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),

@@ -21,11 +21,6 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  // MenuAnchor 面板挂在 Overlay 下（无独立路由）：关闭必须用 MenuController.close()，
-  // 不能用 Navigator.pop()（会弹出根路由导致黑屏/闪退）。
-  final MenuController _modelMenu = MenuController();
-  final MenuController _roleMenu = MenuController();
-
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
@@ -302,6 +297,10 @@ class _Composer extends StatefulWidget {
 class _ComposerState extends State<_Composer> {
   final TextEditingController _ctl = TextEditingController();
   final FocusNode _focus = FocusNode();
+  // MenuAnchor 面板挂在 Overlay 下（无独立路由）：关闭必须用 MenuController.close()，
+  // 不能用 Navigator.pop()（会弹出根路由导致黑屏/闪退）。
+  final MenuController _modelMenu = MenuController();
+  final MenuController _roleMenu = MenuController();
   bool _showSlash = false;
   int _slashSel = 0;
   bool _webSearch = false;
