@@ -161,6 +161,23 @@ Future<void> ensureBackend() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 构建异常可见化：release 模式不再显示灰色 ErrorWidget，
+  // 而是显示带错误信息的红框，方便定位问题
+  ErrorWidget.builder = (details) {
+    return Material(
+      color: const Color(0xFFFFF3F0),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            '界面构建出错，请截图反馈：\n${details.exception}',
+            style: const TextStyle(color: Color(0xFFB3261E), fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  };
   await ensureBackend();
   final api = BridgeClient();
   final state = AppState(api);

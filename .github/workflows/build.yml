@@ -1,10 +1,10 @@
-name: build-3.1.7
+name: build-3.1.8
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v3.1.7*'
+      - 'v3.1.8*'
 
 permissions:
   contents: write
@@ -45,7 +45,7 @@ jobs:
 
       - name: Assemble dist
         run: |
-          $DIST = "dist\darling-ai-3.1.7"
+          $DIST = "dist\darling-ai-3.1.8"
           New-Item -ItemType Directory -Force $DIST | Out-Null
           New-Item -ItemType Directory -Force "$DIST\backend" | Out-Null
           New-Item -ItemType Directory -Force "$DIST\plugins" | Out-Null
@@ -56,11 +56,11 @@ jobs:
 
       - name: Pack portable zip (no installer)
         run: |
-          Compress-Archive -Path "dist\darling-ai-3.1.7\*" -DestinationPath "darling-ai-3.1.7-portable.zip" -Force
+          Compress-Archive -Path "dist\darling-ai-3.1.8\*" -DestinationPath "darling-ai-3.1.8-portable.zip" -Force
         shell: pwsh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.1.7-windows
-          path: darling-ai-3.1.7-portable.zip
+          name: darling-ai-3.1.8-windows
+          path: darling-ai-3.1.8-portable.zip

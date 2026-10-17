@@ -84,10 +84,10 @@ class AppState extends ChangeNotifier {
   // ---------------- 初始化 ----------------
   Future<void> load() async {
     config = await api.getJson('/api/config');
-    providers = (config['providers'] ?? []) as List;
-    models = (config['models'] ?? []) as List;
+    providers = (config['providers'] is List ? config['providers'] as List : []);
+    models = (config['models'] is List ? config['models'] as List : []);
     settings = ((config['settings'] ?? {}) as Map).cast<String, dynamic>();
-    conversations = (config['conversations'] ?? []) as List;
+    conversations = (config['conversations'] is List ? config['conversations'] as List : []);
     activeConvId = config['active_conv'] as String?;
 
     // 默认模型：活动会话记录的模型，否则第一个
@@ -102,10 +102,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> reload() async {
     config = await api.getJson('/api/config');
-    providers = (config['providers'] ?? []) as List;
-    models = (config['models'] ?? []) as List;
+    providers = (config['providers'] is List ? config['providers'] as List : []);
+    models = (config['models'] is List ? config['models'] as List : []);
     settings = ((config['settings'] ?? {}) as Map).cast<String, dynamic>();
-    conversations = (config['conversations'] ?? []) as List;
+    conversations = (config['conversations'] is List ? config['conversations'] as List : []);
     activeConvId = config['active_conv'] as String?;
     notifyListeners();
   }
@@ -353,7 +353,7 @@ class AppState extends ChangeNotifier {
         continue;
       }
       messages.add(ChatMsg(role == 'user' ? MsgKind.user : MsgKind.ai, content,
-          ts: (msg['ts'] as num? ?? 0).toDouble()));
+          ts: (msg['ts'] is num ? msg['ts'] as num : 0).toDouble()));
     }
   }
 

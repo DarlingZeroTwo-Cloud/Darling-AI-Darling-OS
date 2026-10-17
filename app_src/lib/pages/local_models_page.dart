@@ -111,7 +111,7 @@ class _LocalModelsPageState extends State<LocalModelsPage>
           child: Text('GGUF 开源模型本地推理，离线可用，隐私安全',
               style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
         ),
-        if (_gpu['cards'] != null && (_gpu['cards'] as List).isNotEmpty)
+        if (_gpu['cards'] is List && (_gpu['cards'] as List).isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
             child: Text(
@@ -300,8 +300,8 @@ class _LocalModelsPageState extends State<LocalModelsPage>
   }
 
   double _pct(Map<String, dynamic> t) {
-    final total = (t['total'] as num? ?? 0).toDouble();
-    final done = (t['done'] as num? ?? 0).toDouble();
+    final total = (t['total'] is num ? t['total'] as num : 0).toDouble();
+    final done = (t['done'] is num ? t['done'] as num : 0).toDouble();
     if (total <= 0) return 0;
     return (done / total).clamp(0.0, 1.0).toDouble();
   }

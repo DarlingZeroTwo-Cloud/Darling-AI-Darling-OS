@@ -38,11 +38,11 @@ class _AddModelDialogState extends State<AddModelDialog> {
       setState(() {
         _pulling = false;
         final err = r['error'];
-        if (err != null && (r['models'] as List? ?? []).isEmpty) {
+        if (err != null && (r['models'] is List ? (r['models'] as List).isEmpty : true)) {
           _status = '拉取失败：$err\n可手动输入模型名称添加。';
           _fetched = [];
         } else {
-          _fetched = (r['models'] as List)
+          _fetched = (r['models'] is List ? r['models'] as List : <dynamic>[])
               .map((x) => x.toString())
               .where((x) => x.isNotEmpty)
               .toList();

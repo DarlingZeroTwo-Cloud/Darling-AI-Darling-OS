@@ -19,7 +19,7 @@ class _PluginsPageState extends State<PluginsPage> {
 
   Future<List<Map<String, dynamic>>> _loadPlugins() async {
     final r = await widget.state.api.getJson('/api/plugins');
-    return (r['plugins'] as List? ?? [])
+    return (r['plugins'] is List ? r['plugins'] as List : <dynamic>[])
         .map((e) => e as Map<String, dynamic>)
         .toList();
   }
@@ -168,7 +168,7 @@ class _PluginCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final tools = (plugin['tools'] as List? ?? [])
+    final tools = (plugin['tools'] is List ? plugin['tools'] as List : <dynamic>[])
         .map((e) => e as Map<String, dynamic>)
         .toList();
     return Card(

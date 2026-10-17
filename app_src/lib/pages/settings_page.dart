@@ -13,6 +13,24 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
+
+// 安全读取数值：settings 来自后端 JSON，旧版本可能存了字符串/非法类型
+num _num(Map<String, dynamic> s, String key, num def) {
+  final v = s[key];
+  return (v is num) ? v : def;
+}
+
+int _int(Map<String, dynamic> s, String key, int def) {
+  final v = s[key];
+  return (v is int) ? v : def;
+}
+
+// 安全读取枚举值：不在合法集合内时回退默认
+String _opt(Map<String, dynamic> s, String key, String def, Set<String> valid) {
+  final v = s[key];
+  return (v is String && valid.contains(v)) ? v : def;
+}
+
 class _SettingsPageState extends State<SettingsPage> {
   int _nav = 0;
 
@@ -92,15 +110,15 @@ class _SettingsPageState extends State<SettingsPage> {
     return Column(children: [
       _Card(title: '对话', children: [
         _Row(label: '温度 temperature', desc: '控制回复随机性（0 ~ 2），默认 0.7。', trailing: _TempSlider(state: state)),
-        _Row(label: '最大回复 tokens', desc: '单次回复长度上限。', trailing: SpinField(min: 256, max: 131072, value: (s['max_tokens'] as num? ?? 4096).toDouble(), step: 512, onChanged: (v) { state.settings['max_tokens'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: '思考强度', desc: '控制 AI 思考深度（0=关闭, 3=最强）。', trailing: SpinField(min: 0, max: 3, value: (s['reasoning_effort'] as num? ?? 1).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['reasoning_effort'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '最大回复 tokens', desc: '单次回复长度上限。', trailing: SpinField(min: 256, max: 131072, value: _num(s, 'max_tokens', 4096).toDouble(), step: 512, onChanged: (v) { state.settings['max_tokens'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '思考强度', desc: '控制 AI 思考深度（0=关闭, 3=最强）。', trailing: SpinField(min: 0, max: 3, value: _num(s, 'reasoning_effort', 1).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['reasoning_effort'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '流式输出', desc: '逐字显示 AI 回复。', trailing: Switch(value: s['stream'] != false, onChanged: (v) { state.settings['stream'] = v; state.saveSettings(); })),
         _Row(label: '自动滚动到底部', desc: '新消息自动滚动到最新内容。', trailing: Switch(value: s['auto_scroll'] != false, onChanged: (v) { state.settings['auto_scroll'] = v; state.saveSettings(); })),
         _Row(label: '显示 token 用量', desc: '每条回复后显示消耗的 token 数。', trailing: Switch(value: s['show_tokens'] == true, onChanged: (v) { state.settings['show_tokens'] = v; state.saveSettings(); })),
         _Row(label: '消息时间戳', desc: '每条消息下方显示发送时间。', trailing: Switch(value: s['show_timestamp'] != false, onChanged: (v) { state.settings['show_timestamp'] = v; state.saveSettings(); })),
-        _Row(label: '对话字体大小', desc: '聊天内容的字号（12 ~ 20）。', trailing: SpinField(min: 12, max: 20, value: (s['chat_font_size'] as num? ?? 14).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['chat_font_size'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: '历史消息保留条数', desc: '发给 AI 的最近消息数（默认 20）。', trailing: SpinField(min: 4, max: 100, value: (s['history_limit'] as num? ?? 20).toDouble(), step: 2, decimals: 0, onChanged: (v) { state.settings['history_limit'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: '自动压缩阈值', desc: '历史 token 超过此值时自动压缩（默认 60000）。', trailing: SpinField(min: 4000, max: 200000, value: (s['context_compress_threshold'] as num? ?? 60000).toDouble(), step: 2000, onChanged: (v) { state.settings['context_compress_threshold'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '对话字体大小', desc: '聊天内容的字号（12 ~ 20）。', trailing: SpinField(min: 12, max: 20, value: _num(s, 'chat_font_size', 14).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['chat_font_size'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '历史消息保留条数', desc: '发给 AI 的最近消息数（默认 20）。', trailing: SpinField(min: 4, max: 100, value: _num(s, 'history_limit', 20).toDouble(), step: 2, decimals: 0, onChanged: (v) { state.settings['history_limit'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '自动压缩阈值', desc: '历史 token 超过此值时自动压缩（默认 60000）。', trailing: SpinField(min: 4000, max: 200000, value: _num(s, 'context_compress_threshold', 60000).toDouble(), step: 2000, onChanged: (v) { state.settings['context_compress_threshold'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '助手角色', desc: '预设角色决定 AI 的行为风格；自定义角色可在下方编辑。', trailing: _RolePicker(state: state)),
         if ((s['assistant_role'] ?? 'general') == 'custom')
           Padding(
@@ -125,15 +143,15 @@ class _SettingsPageState extends State<SettingsPage> {
     final s = state.settings;
     return Column(children: [
       _Card(title: '网络', children: [
-        _Row(label: '连接超时（秒）', desc: '连不上时快速失败并重试。', trailing: SpinField(min: 3, max: 120, value: (s['connect_timeout'] as num? ?? 15).toDouble(), step: 1, onChanged: (v) { state.settings['connect_timeout'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: 'API 失败重试次数', desc: '流式请求失败后的额外重试次数（0 ~ 5）。', trailing: SpinField(min: 0, max: 5, value: (s['api_retries'] as num? ?? 1).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['api_retries'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '连接超时（秒）', desc: '连不上时快速失败并重试。', trailing: SpinField(min: 3, max: 120, value: _num(s, 'connect_timeout', 15).toDouble(), step: 1, onChanged: (v) { state.settings['connect_timeout'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: 'API 失败重试次数', desc: '流式请求失败后的额外重试次数（0 ~ 5）。', trailing: SpinField(min: 0, max: 5, value: _num(s, 'api_retries', 1).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['api_retries'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '使用系统代理', desc: '默认直连。需要走代理时再开启。', trailing: Switch(value: s['use_proxy'] == true, onChanged: (v) { state.settings['use_proxy'] = v; state.saveSettings(); })),
-        _Row(label: 'SSE 断线重连次数', desc: '流式断开后自动重连次数（0 ~ 10）。', trailing: SpinField(min: 0, max: 10, value: (s['sse_reconnects'] as num? ?? 3).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['sse_reconnects'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: '请求间隔（毫秒）', desc: '连续请求之间的等待，避免触发限流。', trailing: SpinField(min: 0, max: 5000, value: (s['request_delay_ms'] as num? ?? 0).toDouble(), step: 100, onChanged: (v) { state.settings['request_delay_ms'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: 'SSE 断线重连次数', desc: '流式断开后自动重连次数（0 ~ 10）。', trailing: SpinField(min: 0, max: 10, value: _num(s, 'sse_reconnects', 3).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['sse_reconnects'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '请求间隔（毫秒）', desc: '连续请求之间的等待，避免触发限流。', trailing: SpinField(min: 0, max: 5000, value: _num(s, 'request_delay_ms', 0).toDouble(), step: 100, onChanged: (v) { state.settings['request_delay_ms'] = v.toInt(); state.saveSettings(); })),
       ]),
       const SizedBox(height: 14),
       _Card(title: '联网搜索', children: [
-        _Row(label: '搜索引擎', desc: 'DuckDuckGo 免费无需 Key；Tavily 更稳定需 API Key。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'duckduckgo', label: Text('DuckDuckGo')), ButtonSegment(value: 'tavily', label: Text('Tavily'))], selected: {s['websearch_engine'] ?? 'duckduckgo'}, onSelectionChanged: (sel) { state.settings['websearch_engine'] = sel.first; state.saveSettings(); })),
+        _Row(label: '搜索引擎', desc: 'DuckDuckGo 免费无需 Key；Tavily 更稳定需 API Key。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'duckduckgo', label: Text('DuckDuckGo')), ButtonSegment(value: 'tavily', label: Text('Tavily'))], selected: {_opt(s, 'websearch_engine', 'duckduckgo', const {'duckduckgo', 'tavily'})}, onSelectionChanged: (sel) { state.settings['websearch_engine'] = sel.first; state.saveSettings(); })),
         _Row(label: 'Tavily API Key', desc: '选择 Tavily 时必填。', trailing: SizedBox(width: 260, child: TextField(controller: TextEditingController(text: (s['tavily_api_key'] ?? '').toString()), obscureText: true, decoration: const InputDecoration(isDense: true, hintText: 'tvly-...'), onSubmitted: (v) { state.settings['tavily_api_key'] = v.trim(); state.saveSettings(); }))),
       ]),
     ]);
@@ -164,10 +182,10 @@ class _SettingsPageState extends State<SettingsPage> {
           _Row(label: 'MCP Servers', desc: '配置 stdio MCP 服务器命令和参数（JSON）。', trailing: OutlinedButton(onPressed: () => showDialog(context: context, builder: (_) => AlertDialog(title: const Text('MCP Servers'), content: SizedBox(width: 400, child: TextField(maxLines: 8, controller: TextEditingController(text: (s['mcp_config'] ?? '').toString()), decoration: const InputDecoration(hintText: '{"filesystem": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]}}'))), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')), FilledButton(onPressed: () { state.saveSettings(); Navigator.pop(context); }, child: const Text('保存'))])), child: const Text('配置…'))),
         _Row(label: '长期记忆', desc: 'AI 跨对话记住关键信息。', trailing: Switch(value: s['memory_enabled'] == true, onChanged: (v) { state.settings['memory_enabled'] = v; state.saveSettings(); })),
         if (s['memory_enabled'] == true)
-          _Row(label: '记忆容量（条）', desc: '长期记忆最多保存条数。', trailing: SpinField(min: 10, max: 5000, value: (s['memory_capacity'] as num? ?? 500).toDouble(), step: 50, onChanged: (v) { state.settings['memory_capacity'] = v.toInt(); state.saveSettings(); })),
+          _Row(label: '记忆容量（条）', desc: '长期记忆最多保存条数。', trailing: SpinField(min: 10, max: 5000, value: _num(s, 'memory_capacity', 500).toDouble(), step: 50, onChanged: (v) { state.settings['memory_capacity'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '任务模式', desc: 'AI 自动多步执行任务。', trailing: Switch(value: s['task_mode'] == true, onChanged: (v) { state.settings['task_mode'] = v; state.saveSettings(); })),
         if (s['task_mode'] == true)
-          _Row(label: '最大任务步数', desc: '一次提问最多连续执行多少步。', trailing: SpinField(min: 3, max: 50, value: (s['max_agent_steps'] as num? ?? 8).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['max_agent_steps'] = v.toInt(); state.saveSettings(); })),
+          _Row(label: '最大任务步数', desc: '一次提问最多连续执行多少步。', trailing: SpinField(min: 3, max: 50, value: _num(s, 'max_agent_steps', 8).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['max_agent_steps'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '文件 / Git 工具', desc: 'AI 可操作文件和 Git 仓库。', trailing: Switch(value: s['file_git_enabled'] == true, onChanged: (v) { state.settings['file_git_enabled'] = v; state.saveSettings(); })),
         _Row(label: '内置浏览器', desc: 'AI 可打开网页、提取内容。', trailing: Switch(value: s['browser_enabled'] == true, onChanged: (v) { state.settings['browser_enabled'] = v; state.saveSettings(); })),
         _Row(label: '多模态图片输入', desc: '对话中可粘贴/选择图片发送给视觉模型。', trailing: Switch(value: s['image_input_enabled'] == true, onChanged: (v) { state.settings['image_input_enabled'] = v; state.saveSettings(); })),
@@ -175,7 +193,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(label: '容器工作区', desc: 'AI 在 WSL/Docker 隔离环境中执行命令。', trailing: Switch(value: s['container_enabled'] == true, onChanged: (v) { state.settings['container_enabled'] = v; state.saveSettings(); })),
         if (s['container_enabled'] == true) ...[
           _ContainerDetectCard(state: state),
-          _Row(label: '容器类型', desc: '自动检测当前系统可用的容器环境。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'wsl', label: Text('WSL')), ButtonSegment(value: 'docker', label: Text('Docker'))], selected: {s['container_type'] ?? 'auto'}, onSelectionChanged: (sel) { state.settings['container_type'] = sel.first; state.saveSettings(); })),
+          _Row(label: '容器类型', desc: '自动检测当前系统可用的容器环境。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'wsl', label: Text('WSL')), ButtonSegment(value: 'docker', label: Text('Docker'))], selected: {_opt(s, 'container_type', 'auto', const {'auto', 'wsl', 'docker'})}, onSelectionChanged: (sel) { state.settings['container_type'] = sel.first; state.saveSettings(); })),
           _Row(label: '发行版 / 镜像', desc: '自动检测时留空；手动指定如 Ubuntu-22.04。', trailing: SizedBox(width: 220, child: TextField(controller: TextEditingController(text: (s['container_distro'] ?? '').toString()), decoration: const InputDecoration(isDense: true, hintText: '自动检测'), onSubmitted: (v) { state.settings['container_distro'] = v.trim(); state.saveSettings(); }))),
           _Row(label: '自动配置国内镜像', desc: '容器内自动配置 apt/pip 国内源加速。', trailing: Switch(value: s['container_mirror'] != false, onChanged: (v) { state.settings['container_mirror'] = v; state.saveSettings(); })),
         ],
@@ -188,9 +206,9 @@ class _SettingsPageState extends State<SettingsPage> {
     final s = state.settings;
     return Column(children: [
       _Card(title: '本地推理', children: [
-        _Row(label: 'GPU 加速', desc: '自动检测 / 纯 CPU / Vulkan（兼容 N/A/I 卡）。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'cpu', label: Text('CPU')), ButtonSegment(value: 'vulkan', label: Text('Vulkan'))], selected: {s['local_gpu'] ?? 'auto'}, onSelectionChanged: (sel) { state.settings['local_gpu'] = sel.first; state.saveSettings(); })),
-        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [const SizedBox(width: 120, child: Text('GPU 层数', style: TextStyle(fontSize: 13))), const SizedBox(width: 12), Expanded(child: Slider(value: (s['local_gpu_layers'] as num? ?? 0).toDouble().clamp(0, 100), min: 0, max: 100, divisions: 10, label: '${s['local_gpu_layers'] ?? 0}', onChanged: (v) { state.settings['local_gpu_layers'] = v.round(); state.saveSettings(); })), SizedBox(width: 36, child: Text('${s['local_gpu_layers'] ?? 0}', style: const TextStyle(fontSize: 13)))]),),
-        _Row(label: '上下文长度', desc: '本地模型单次可处理的 token 数。', trailing: SpinField(min: 512, max: 131072, value: (s['local_n_ctx'] as num? ?? 4096).toDouble(), step: 512, onChanged: (v) { state.settings['local_n_ctx'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: 'GPU 加速', desc: '自动检测 / 纯 CPU / Vulkan（兼容 N/A/I 卡）。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'cpu', label: Text('CPU')), ButtonSegment(value: 'vulkan', label: Text('Vulkan'))], selected: {_opt(s, 'local_gpu', 'auto', const {'auto', 'cpu', 'vulkan'})}, onSelectionChanged: (sel) { state.settings['local_gpu'] = sel.first; state.saveSettings(); })),
+        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [const SizedBox(width: 120, child: Text('GPU 层数', style: TextStyle(fontSize: 13))), const SizedBox(width: 12), Expanded(child: Slider(value: _num(s, 'local_gpu_layers', 0).toDouble().clamp(0, 100), min: 0, max: 100, divisions: 10, label: '${s['local_gpu_layers'] ?? 0}', onChanged: (v) { state.settings['local_gpu_layers'] = v.round(); state.saveSettings(); })), SizedBox(width: 36, child: Text('${s['local_gpu_layers'] ?? 0}', style: const TextStyle(fontSize: 13)))]),),
+        _Row(label: '上下文长度', desc: '本地模型单次可处理的 token 数。', trailing: SpinField(min: 512, max: 131072, value: _num(s, 'local_n_ctx', 4096).toDouble(), step: 512, onChanged: (v) { state.settings['local_n_ctx'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '使用 HF 国内镜像', desc: '模型市场下载走 hf-mirror.com。', trailing: Switch(value: s['hf_mirror'] != false, onChanged: (v) { state.settings['hf_mirror'] = v; state.saveSettings(); })),
       ]),
     ]);
@@ -202,7 +220,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Column(children: [
       _Card(title: '服务监听', children: [
         _Row(label: '监听地址', desc: '127.0.0.1 = 仅本机；0.0.0.0 = 局域网可连。重启后端生效。', trailing: SizedBox(width: 200, child: TextField(controller: TextEditingController(text: (s['api_host'] ?? '127.0.0.1').toString()), decoration: const InputDecoration(isDense: true, hintText: '127.0.0.1'), onSubmitted: (v) { state.settings['api_host'] = v.trim(); state.saveSettings(); }))),
-        _Row(label: '端口', desc: '后端 API 端口。重启后端生效。', trailing: SpinField(min: 1024, max: 65535, value: (s['api_port'] as num? ?? 19730).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['api_port'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '端口', desc: '后端 API 端口。重启后端生效。', trailing: SpinField(min: 1024, max: 65535, value: _num(s, 'api_port', 19730).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['api_port'] = v.toInt(); state.saveSettings(); })),
         _Row(label: 'API Key', desc: '远程调用时的鉴权密钥（留空不校验）。', trailing: SizedBox(width: 200, child: TextField(controller: TextEditingController(text: (s['api_key'] ?? '').toString()), obscureText: true, decoration: const InputDecoration(isDense: true, hintText: '留空 = 不校验'), onSubmitted: (v) { state.settings['api_key'] = v.trim(); state.saveSettings(); }))),
       ]),
     ]);
@@ -215,7 +233,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _Card(title: '个性化', children: [
         _Row(label: 'UI 模式', desc: '精简：顶部菜单切换；经典：左侧历史对话栏。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'compact', label: Text('精简')), ButtonSegment(value: 'classic', label: Text('经典'))], selected: {state.uiMode}, onSelectionChanged: (sel) { state.setUiMode(sel.first); })),
         const SizedBox(height: 14),
-        _Row(label: '界面主题', desc: '跟随系统，或手动固定深浅色。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'system', label: Text('跟随系统')), ButtonSegment(value: 'light', label: Text('浅色')), ButtonSegment(value: 'dark', label: Text('深色'))], selected: {s['theme_mode'] ?? 'system'}, onSelectionChanged: (sel) { state.setThemeMode(sel.first); })),
+        _Row(label: '界面主题', desc: '跟随系统，或手动固定深浅色。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'system', label: Text('跟随系统')), ButtonSegment(value: 'light', label: Text('浅色')), ButtonSegment(value: 'dark', label: Text('深色'))], selected: {_opt(s, 'theme_mode', 'system', const {'system', 'light', 'dark'})}, onSelectionChanged: (sel) { state.setThemeMode(sel.first); })),
         const SizedBox(height: 14),
         // 强调色
         Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [
@@ -229,13 +247,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   width: 28, height: 28,
                   decoration: BoxDecoration(
                     color: Color(c), shape: BoxShape.circle,
-                    border: Border.all(color: (s['accent_color'] as int? ?? 0xFF10A37F) == c ? Colors.white : Colors.transparent, width: 2),
+                    border: Border.all(color: _int(s, 'accent_color', 0xFF10A37F) == c ? Colors.white : Colors.transparent, width: 2),
                   ),
                 ),
               ),
           ]),
         ])),
-        _Row(label: '圆角大小', desc: '卡片和按钮的圆角半径（0 ~ 24）。', trailing: SpinField(min: 0, max: 24, value: (s['corner_radius'] as num? ?? 12).toDouble(), step: 2, decimals: 0, onChanged: (v) { state.settings['corner_radius'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '圆角大小', desc: '卡片和按钮的圆角半径（0 ~ 24）。', trailing: SpinField(min: 0, max: 24, value: _num(s, 'corner_radius', 12).toDouble(), step: 2, decimals: 0, onChanged: (v) { state.settings['corner_radius'] = v.toInt(); state.saveSettings(); })),
         // 背景图片
         Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [
           const SizedBox(width: 120, child: Text('背景图片', style: TextStyle(fontSize: 13))),
@@ -244,7 +262,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(width: 8),
           OutlinedButton(onPressed: () { state.settings['bg_image'] = ''; state.saveSettings(); }, child: const Text('清除')),
         ])),
-        _Row(label: '背景不透明度', desc: '设置了背景图片时的不透明度（0.1 ~ 1.0）。', trailing: SizedBox(width: 200, child: Slider(value: (s['bg_opacity'] as num? ?? 0.9).toDouble().clamp(0.1, 1.0), min: 0.1, max: 1.0, divisions: 9, label: '${((s['bg_opacity'] as num? ?? 0.9) * 100).round()}%', onChanged: (v) { state.settings['bg_opacity'] = v; state.saveSettings(); }))),
+        _Row(label: '背景不透明度', desc: '设置了背景图片时的不透明度（0.1 ~ 1.0）。', trailing: SizedBox(width: 200, child: Slider(value: _num(s, 'bg_opacity', 0.9).toDouble().clamp(0.1, 1.0), min: 0.1, max: 1.0, divisions: 9, label: '${(_num(s, 'bg_opacity', 0.9) * 100).round()}%', onChanged: (v) { state.settings['bg_opacity'] = v; state.saveSettings(); }))),
       ]),
     ]);
   }
@@ -263,7 +281,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.0.14', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.1.8', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -372,7 +390,7 @@ class _TempSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = (state.settings['temperature'] as num? ?? 0.7).toDouble();
+    final t = _num(state.settings, 'temperature', 0.7).toDouble();
     return SizedBox(
       width: 200,
       child: Row(children: [
@@ -398,11 +416,35 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
 
   Future<void> _detect() async {
     setState(() => _loading = true);
-    final r = await widget.state.api.containerDetect();
-    if (mounted) setState(() {
-      _info = r;
-      _loading = false;
-    });
+    try {
+      final r = await widget.state.api.containerDetect();
+      if (mounted) setState(() {
+        _info = r;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() {
+        _info = null;
+        _loading = false;
+      });
+    }
+  }
+
+  String _summary(Map<String, dynamic> info) {
+    final distros = info['distros'];
+    final distroList = distros is List ? distros : <dynamic>[];
+    if (info['platform'] == 'windows') {
+      if (info['wsl_installed'] == true) {
+        return '已检测到 WSL，发行版：${distroList.join('、')}';
+      }
+      return '未检测到 WSL（可到微软商店安装）';
+    }
+    if (info['docker_installed'] == true) {
+      return info['docker_running'] == true
+          ? '已检测到 Docker（运行中）'
+          : '已检测到 Docker（未运行）';
+    }
+    return '未检测到 Docker';
   }
 
   @override
@@ -423,16 +465,11 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        info!['platform'] == 'windows'
-                            ? (info['wsl_installed'] == true
-                                ? '已检测到 WSL，发行版：${(info['distros'] as List).join('、')}'
-                                : '未检测到 WSL（可到微软商店安装）')
-                            : (info['docker_installed'] == true
-                                ? '已检测到 Docker${info['docker_running'] == true ? '（运行中）' : '（未运行）'}'
-                                : '未检测到 Docker'),
+                        _summary(info),
                         style: TextStyle(fontSize: 12.5, color: cs.onSurface),
                       ),
-                      if ((info?['distros'] as List?)?.isNotEmpty == true ||
+                      if ((info?['distros'] is List &&
+                              (info!['distros'] as List).isNotEmpty) ||
                           (info?['docker_installed'] == true))
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
@@ -477,7 +514,8 @@ class _RolePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cur = state.settings['assistant_role']?.toString() ?? 'general';
+    final raw = state.settings['assistant_role']?.toString() ?? 'general';
+    final cur = roles.any((r) => r.$1 == raw) ? raw : 'general';
     return DropdownButton<String>(
       value: cur,
       isDense: true,

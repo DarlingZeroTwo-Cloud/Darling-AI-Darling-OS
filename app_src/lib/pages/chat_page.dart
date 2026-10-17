@@ -302,7 +302,7 @@ class _ComposerState extends State<_Composer> {
       setState(() => _searching = true);
       try {
         final r = await widget.state.api.webSearch(text);
-        final results = (r['results'] as List<dynamic>? ?? [])
+        final results = (r['results'] is List ? r['results'] as List<dynamic> : <dynamic>[])
             .cast<Map<String, dynamic>>();
         widget.state.sendWithWeb(text, results);
       } catch (_) {
@@ -412,7 +412,7 @@ class _ComposerState extends State<_Composer> {
 
   void _showPrompts() {
     final state = widget.state;
-    final custom = (state.settings['prompts'] as List<dynamic>? ?? [])
+    final custom = (state.settings['prompts'] is List ? state.settings['prompts'] as List<dynamic> : <dynamic>[])
         .cast<Map<String, dynamic>>();
     showDialog(
       context: context,
@@ -519,7 +519,7 @@ class _ComposerState extends State<_Composer> {
                 Navigator.pop(ctx);
                 return;
               }
-              final list = (state.settings['prompts'] as List<dynamic>? ?? [])
+              final list = (state.settings['prompts'] is List ? state.settings['prompts'] as List<dynamic> : <dynamic>[])
                   .cast<Map<String, dynamic>>()
                   .toList();
               list.add({'title': t, 'text': b});
