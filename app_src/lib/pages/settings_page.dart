@@ -517,7 +517,6 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
                   const SizedBox(height: 6),
                   TextField(
                     controller: _manualCtl,
-                    isDense: true,
                     style: const TextStyle(fontSize: 12),
                     decoration: InputDecoration(
                       isDense: true,
