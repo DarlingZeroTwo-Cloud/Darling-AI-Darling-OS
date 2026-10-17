@@ -216,6 +216,10 @@ class BridgeClient {
   Future<Map<String, dynamic>> localStatus() =>
       getJson('/api/model/status');
 
+  /// 取消本地模型后台加载（切换云端模型时调用）
+  Future<Map<String, dynamic>> modelCancel(String path) =>
+      postJson('/api/model/cancel', {'path': path});
+
   Future<bool> localDelete(String path) async {
     final r = await postJson('/api/local/delete', {'path': path});
     return r['ok'] == true;

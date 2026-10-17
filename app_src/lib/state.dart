@@ -202,7 +202,14 @@ class AppState extends ChangeNotifier {
         _startLocalWarmup(path);
       }
     } else {
+      // 切到云端模型：取消本地模型后台加载，释放资源避免卡顿
+      final lp = localLoadingPath;
       _stopLocalPoll();
+      localModelLoading = false;
+      localLoadingPath = null;
+      if (lp != null && lp.isNotEmpty) {
+        api.modelCancel(lp).catchError((_) {});
+      }
     }
     notifyListeners();
   }
@@ -251,9 +258,14 @@ class AppState extends ChangeNotifier {
         _startLocalWarmup(path);
       }
     } else {
+      // 当前模型不是本地模型：取消后台加载，释放资源
+      final lp = localLoadingPath;
       _stopLocalPoll();
       localModelLoading = false;
       localLoadingPath = null;
+      if (lp != null && lp.isNotEmpty) {
+        api.modelCancel(lp).catchError((_) {});
+      }
     }
   }
 

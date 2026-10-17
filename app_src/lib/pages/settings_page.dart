@@ -194,7 +194,6 @@ class _SettingsPageState extends State<SettingsPage> {
         if (s['container_enabled'] != false) ...[
           _ContainerDetectCard(state: state),
           _Row(label: '容器类型', desc: '自动检测当前系统可用的容器环境。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'wsl', label: Text('WSL')), ButtonSegment(value: 'docker', label: Text('Docker'))], selected: {_opt(s, 'container_type', 'auto', const {'auto', 'wsl', 'docker'})}, onSelectionChanged: (sel) { state.settings['container_type'] = sel.first; state.saveSettings(); })),
-          _Row(label: '发行版 / 镜像', desc: '自动检测时留空；手动指定如 Ubuntu-22.04。', trailing: SizedBox(width: 220, child: TextField(controller: TextEditingController(text: (s['container_distro'] ?? '').toString()), decoration: const InputDecoration(isDense: true, hintText: '自动检测'), onSubmitted: (v) { state.settings['container_distro'] = v.trim(); state.saveSettings(); }))),
           _Row(label: '自动配置国内镜像', desc: '容器内自动配置 apt/pip 国内源加速。', trailing: Switch(value: s['container_mirror'] != false, onChanged: (v) { state.settings['container_mirror'] = v; state.saveSettings(); })),
         ],
       ]),
@@ -413,6 +412,19 @@ class _ContainerDetectCard extends StatefulWidget {
 class _ContainerDetectCardState extends State<_ContainerDetectCard> {
   Map<String, dynamic>? _info;
   bool _loading = false;
+  final TextEditingController _manualCtl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _manualCtl.text = (widget.state.settings['container_distro'] ?? '').toString();
+  }
+
+  @override
+  void dispose() {
+    _manualCtl.dispose();
+    super.dispose();
+  }
 
   Future<void> _detect() async {
     setState(() => _loading = true);
@@ -447,6 +459,11 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
     return '未检测到 Docker';
   }
 
+  void _saveManual(String v) {
+    widget.state.settings['container_distro'] = v.trim();
+    widget.state.saveSettings();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -466,49 +483,53 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
           const SizedBox(width: 160),
           const SizedBox(width: 16),
           Expanded(
-            child: info == null
-                ? Text('尚未检测容器环境',
-                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant))
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _summary(info),
-                        style: TextStyle(fontSize: 12.5, color: cs.onSurface),
-                      ),
-                      // 检测到发行版/镜像后直接提供选择
-                      if (distros.isNotEmpty && isWindows) ...[
-                        const SizedBox(height: 6),
-                        DropdownButton<String>(
-                          value: distroValue,
-                          hint: const Text('选择发行版（留空=自动）',
-                              style: TextStyle(fontSize: 12)),
-                          isDense: true,
-                          items: [
-                            const DropdownMenuItem<String>(
-                                value: '', child: Text('自动（第一个发行版）',
-                                    style: TextStyle(fontSize: 12))),
-                            for (final d in distros)
-                              DropdownMenuItem<String>(
-                                  value: d,
-                                  child: Text(d, style: const TextStyle(fontSize: 12))),
-                          ],
-                          onChanged: (v) {
-                            widget.state.settings['container_distro'] = v ?? '';
-                            widget.state.saveSettings();
-                            setState(() {});
-                          },
-                        ),
-                      ] else if (distros.isNotEmpty && !isWindows)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            '已检测到 Docker，可在下方填写镜像名如 ubuntu:22.04',
-                            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-                          ),
-                        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  info == null ? '尚未检测容器环境（可手动填写下方名称）' : _summary(info),
+                  style: TextStyle(fontSize: 12.5, color: cs.onSurface),
+                ),
+                // 检测到发行版：直接下拉选择；未检测到：手动输入
+                if (distros.isNotEmpty && isWindows) ...[
+                  const SizedBox(height: 6),
+                  DropdownButton<String>(
+                    value: distroValue,
+                    hint: const Text('选择发行版（留空=自动）',
+                        style: TextStyle(fontSize: 12)),
+                    isDense: true,
+                    items: [
+                      const DropdownMenuItem<String>(
+                          value: '', child: Text('自动（第一个发行版）',
+                              style: TextStyle(fontSize: 12))),
+                      for (final d in distros)
+                        DropdownMenuItem<String>(
+                            value: d,
+                            child: Text(d, style: const TextStyle(fontSize: 12))),
                     ],
+                    onChanged: (v) {
+                      widget.state.settings['container_distro'] = v ?? '';
+                      widget.state.saveSettings();
+                      setState(() {});
+                    },
                   ),
+                ] else ...[
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _manualCtl,
+                    isDense: true,
+                    style: const TextStyle(fontSize: 12),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: isWindows
+                          ? '未检测到发行版，可手动输入（如 Ubuntu-22.04）'
+                          : '填写镜像名（如 ubuntu:22.04）',
+                    ),
+                    onSubmitted: (v) => _saveManual(v),
+                  ),
+                ],
+              ],
+            ),
           ),
           OutlinedButton.icon(
             onPressed: _loading ? null : _detect,

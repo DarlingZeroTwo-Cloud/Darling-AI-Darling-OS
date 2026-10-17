@@ -525,7 +525,8 @@ def chat_request(provider, model, messages, settings, stream=True):
     # 本地引擎：provider.type == "local"，走 GGUF 推理
     if provider.get("type") == "local":
         import local_engine
-        path = provider.get("local_path", "")
+        # provider 可能不含 local_path（merge 的本地 provider），从 model 兜底
+        path = provider.get("local_path") or model.get("local_path") or ""
         if not path or not os.path.exists(path):
             raise RuntimeError("本地模型文件不存在，请在模型市场重新下载。")
         yield from local_engine.chat_stream(messages, settings, path)

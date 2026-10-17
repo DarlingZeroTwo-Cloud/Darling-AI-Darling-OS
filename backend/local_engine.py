@@ -39,9 +39,13 @@ def _do_load(path, n_gpu_layers, n_ctx):
             verbose=False,
             use_mmap=True,
         )
-        entry = {"llm": llm, "lock": threading.Lock(), "at": time.time()}
         with _meta_lock:
-            _loaded[path] = entry
+            entry = _loading.get(path) or {}
+            if entry.get("cancel"):
+                # 加载过程中被取消：不入缓存，释放内存
+                _loading.pop(path, None)
+                return
+            _loaded[path] = {"llm": llm, "lock": threading.Lock(), "at": time.time()}
             _loading.pop(path, None)
     except Exception:
         with _meta_lock:
@@ -142,22 +146,11 @@ def detect_gpu():
     }
 
 
-def _get_llm(path, n_gpu_layers, n_ctx):
+def cancel_load(path):
+    """取消后台加载（切换模型时调用，释放资源避免卡顿）。已加载/未加载无副作用。"""
     with _meta_lock:
-        entry = _loaded.get(path)
-    if entry is None:
-        from llama_cpp import Llama  # 延迟导入
-        llm = Llama(
-            model_path=path,
-            n_ctx=n_ctx,
-            n_gpu_layers=n_gpu_layers,
-            verbose=False,
-            use_mmap=True,
-        )
-        entry = {"llm": llm, "lock": threading.Lock(), "at": time.time()}
-        with _meta_lock:
-            _loaded[path] = entry
-    return entry
+        if path in _loading:
+            _loading[path]["cancel"] = True
 
 
 def chat_stream(messages, settings, local_path):

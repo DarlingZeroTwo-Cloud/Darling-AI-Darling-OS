@@ -206,7 +206,8 @@ def stream_agent(job):
     # 这里根据 model.local_path 现场构造一个 local provider
     if not provider and model.get("local_path"):
         provider = {"id": "local", "name": "本地模型", "type": "local",
-                    "base_url": "", "api_key": ""}
+                    "base_url": "", "api_key": "",
+                    "local_path": model.get("local_path")}
     if not provider:
         _emit(job, "error", text="模型对应的供应商不存在，请重新添加。")
         _emit(job, "done", text="", ok=False)
@@ -399,7 +400,13 @@ class Handler(BaseHTTPRequestHandler):
         return self.headers.get("X-API-Key", "") == key
 
     def _cfg(self):
-        return core.Config()
+        """返回 Config 并确保内存 data 里包含本地模型（防止 /api/chat 等查不到 model 报 400）。"""
+        cfg = core.Config()
+        try:
+            self._merge_local_models(cfg.data)
+        except Exception:
+            pass
+        return cfg
 
     def _merge_local_models(self, data):
         """把本地 models 目录下的 gguf 合并成内置 local provider 的可选模型。"""
@@ -485,6 +492,16 @@ class Handler(BaseHTTPRequestHandler):
             return
         if p.path == "/api/model/status":
             self._json(200, local_engine.load_status())
+            return
+        if p.path == "/api/model/cancel":
+            # 切换模型时取消本地加载（释放资源，避免低配机卡顿）
+            path = (data or {}).get("path", "")
+            if path:
+                try:
+                    local_engine.cancel_load(path)
+                except Exception:
+                    pass
+            self._json(200, {"ok": True})
             return
         if p.path == "/api/plugins":
             self._json(200, {"plugins": core.load_plugins()})
