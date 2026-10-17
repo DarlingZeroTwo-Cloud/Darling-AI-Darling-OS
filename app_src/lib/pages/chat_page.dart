@@ -110,7 +110,7 @@ class _EmptyState extends StatelessWidget {
 // ==================== 消息列表 ====================
 class _MessageList extends StatefulWidget {
   final AppState state;
-  const _MessageList({required this.state});
+  const _MessageList({super.key, required this.state});
 
   @override
   State<_MessageList> createState() => _MessageListState();
