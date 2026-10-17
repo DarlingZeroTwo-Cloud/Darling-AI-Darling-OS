@@ -179,8 +179,65 @@ jobs:
           cp backend/plugins/*.json $DIST/plugins/ 2>/dev/null || true
           tar czf darling-ai-3.2.2-linux-x64.tar.gz dist/
 
+      - name: Build deb package (all runtime deps bundled, offline install)
+        run: |
+          DIST=dist/darling-ai-3.2.2
+          PKG=darling-ai_3.2.2_amd64
+          rm -rf $PKG
+          mkdir -p $PKG/DEBIAN $PKG/usr/share/darling-ai $PKG/usr/bin $PKG/usr/share/applications
+          # 应用本体（Flutter bundle 自带全部 Flutter 库；backend 为 PyInstaller onefile，自带 Python 解释器）
+          cp -r $DIST/. $PKG/usr/share/darling-ai/
+          # 启动命令：darling-ai
+          cat > $PKG/usr/bin/darling-ai <<'EOS'
+          #!/bin/sh
+          exec /usr/share/darling-ai/darling_ai "$@"
+          EOS
+          chmod +x $PKG/usr/bin/darling-ai
+          # 桌面入口
+          cat > $PKG/usr/share/applications/darling-ai.desktop <<'EOS'
+          [Desktop Entry]
+          Name=darling-ai
+          Comment=DARLING-AI desktop AI assistant
+          Exec=/usr/share/darling-ai/darling_ai
+          Type=Application
+          Categories=Utility;
+          EOS
+          # control：仅声明最基础的 GTK 系统库（绝大多数发行版自带，无需联网装 Python/Flutter）
+          cat > $PKG/DEBIAN/control <<'EOS'
+          Package: darling-ai
+          Version: 3.2.2
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: darling
+          Depends: libgtk-3-0 (>= 3.24)
+          Description: DARLING-AI desktop AI assistant
+          EOS
+          chmod +x $PKG/usr/share/darling-ai/darling_ai
+          chmod +x $PKG/usr/share/darling-ai/backend/darling-backend
+          chmod 644 $PKG/usr/share/applications/darling-ai.desktop
+          dpkg-deb --build --root-owner-group $PKG darling-ai-3.2.2-amd64.deb
+
+      - name: Verify deb package (install + dependency check)
+        run: |
+          echo "===== dpkg-deb info ====="
+          dpkg-deb --info darling-ai-3.2.2-amd64.deb
+          echo "===== contents (head) ====="
+          dpkg-deb --contents darling-ai-3.2.2-amd64.deb | head -20
+          echo "===== actually install ====="
+          sudo dpkg -i darling-ai-3.2.2-amd64.deb
+          which darling-ai
+          dpkg -s darling-ai | grep -E "Package|Version|Status"
+          echo "===== dependency check (ldd) ====="
+          ldd /usr/share/darling-ai/darling_ai 2>&1 | grep -i "not found" && { echo "GUI LIBS MISSING"; exit 1; } || echo "GUI libs OK"
+          ldd /usr/share/darling-ai/backend/darling-backend 2>&1 | grep -i "not found" && { echo "BACKEND LIBS MISSING"; exit 1; } || echo "Backend libs OK"
+          echo "===== tar.gz lib check ====="
+          tar tzf darling-ai-3.2.2-linux-x64.tar.gz | head -10
+
       - name: Upload linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: darling-ai-3.2.2-linux
-          path: darling-ai-3.2.2-linux-x64.tar.gz
+          path: |
+            darling-ai-3.2.2-linux-x64.tar.gz
+            darling-ai-3.2.2-amd64.deb
