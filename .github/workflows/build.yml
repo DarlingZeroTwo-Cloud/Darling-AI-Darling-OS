@@ -62,23 +62,8 @@ jobs:
 
       - name: Build installer (Chinese UI)
         run: |
-          # 中文语言文件：Inno Setup 6.4+ 为 ChineseSimplified-1942.isl，旧版为 ChineseSimplified.isl
-          $langFile = ""
-          $langRef = ""
-          foreach ($cand in @(
-            "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified-1942.isl",
-            "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
-          )) {
-            if (Test-Path $cand) { $langFile = $cand; $langRef = Split-Path $cand -Leaf; break }
-          }
-          if ($langFile -eq "") {
-            try {
-              Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/ChineseSimplified.isl" -OutFile "ChineseSimplified.isl" -UseBasicParsing
-              $langFile = "ChineseSimplified.isl"; $langRef = "ChineseSimplified.isl"
-            } catch {
-              $langRef = "compiler:Default.isl"
-            }
-          }
+          # 中文语言文件已随仓库提交（带 UTF-8 BOM，ISCC 才能正确识别）
+          $langFile = "$env:GITHUB_WORKSPACE\installer\ChineseSimplified.isl"
           Write-Host "Language file: $langFile"
           $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langFile`""
           $iss = @"
