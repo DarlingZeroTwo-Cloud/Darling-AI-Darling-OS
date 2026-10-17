@@ -30,9 +30,6 @@ class _ChatPageState extends State<ChatPage> {
         final empty = state.messages.isEmpty && !state.busy;
         return Column(
           children: [
-            // 本地模型后台加载进度条
-            if (state.localModelLoading)
-              _LocalLoadingBanner(path: state.localLoadingPath ?? ''),
             Expanded(
               child: empty
                   ? _EmptyState(state: state)
@@ -1176,40 +1173,3 @@ class _PromptRow extends StatelessWidget {
   }
 }
 
-// ==================== 本地模型加载进度条 ====================
-class _LocalLoadingBanner extends StatelessWidget {
-  final String path;
-  const _LocalLoadingBanner({required this.path});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final name = path.split(RegExp(r'[/\\]')).last;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      decoration: BoxDecoration(
-        color: cs.tertiaryContainer.withValues(alpha: 0.5),
-        border: Border(
-            bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5))),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '正在加载本地模型：$name（首次加载需 1-3 分钟，请稍候）',
-              style: TextStyle(fontSize: 12.5, color: cs.onTertiaryContainer),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

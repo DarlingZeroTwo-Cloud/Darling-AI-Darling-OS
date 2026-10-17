@@ -1,10 +1,10 @@
-name: build-3.2.1
+name: build-3.2.2
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v3.2.1*'
+      - 'v3.2.2*'
 
 permissions:
   contents: write
@@ -25,7 +25,7 @@ jobs:
 
       - name: Install deps
         run: |
-          pip install pyinstaller requests llama-cpp-python
+          pip install pyinstaller requests
           choco install innosetup -y
 
       - name: Build Flutter Windows
@@ -41,12 +41,12 @@ jobs:
       - name: Build Python backend
         run: |
           cd backend
-          pyinstaller --onefile --name darling-backend --noconsole bridge_server.py --add-data "models_catalog.json;." --collect-all requests --collect-all llama_cpp
+          pyinstaller --onefile --name darling-backend --noconsole bridge_server.py --collect-all requests
         shell: pwsh
 
       - name: Assemble dist
         run: |
-          $DIST = "dist\darling-ai-3.2.1"
+          $DIST = "dist\darling-ai-3.2.2"
           New-Item -ItemType Directory -Force $DIST | Out-Null
           New-Item -ItemType Directory -Force "$DIST\backend" | Out-Null
           New-Item -ItemType Directory -Force "$DIST\plugins" | Out-Null
@@ -57,7 +57,7 @@ jobs:
 
       - name: Pack portable zip
         run: |
-          Compress-Archive -Path "dist\darling-ai-3.2.1\*" -DestinationPath "darling-ai-3.2.1-portable.zip" -Force
+          Compress-Archive -Path "dist\darling-ai-3.2.2\*" -DestinationPath "darling-ai-3.2.2-portable.zip" -Force
         shell: pwsh
 
       - name: Build installer (Chinese UI)
@@ -68,7 +68,7 @@ jobs:
           $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langFile`""
           $iss = @"
           #define MyAppName "darling-ai"
-          #define MyAppVersion "3.2.1"
+          #define MyAppVersion "3.2.2"
           #define MyAppPublisher "darling"
           #define MyAppExeName "darling_ai.exe"
           [Setup]
@@ -82,7 +82,7 @@ jobs:
           AllowNoIcons=yes
           DisableProgramGroupPage=yes
           OutputDir=.
-          OutputBaseFilename=darling-ai-3.2.1-setup
+          OutputBaseFilename=darling-ai-3.2.2-setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -96,7 +96,7 @@ jobs:
           [Tasks]
           Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional tasks:"; Flags: checkedonce
           [Files]
-          Source: "dist\darling-ai-3.2.1\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+          Source: "dist\darling-ai-3.2.2\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
           [Icons]
           Name: "{group}\darling-ai"; Filename: "{app}\{#MyAppExeName}"
           Name: "{group}\Uninstall darling-ai"; Filename: "{uninstallexe}"
@@ -126,10 +126,10 @@ jobs:
       - name: Upload windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.2.1-windows
+          name: darling-ai-3.2.2-windows
           path: |
-            darling-ai-3.2.1-portable.zip
-            darling-ai-3.2.1-setup.exe
+            darling-ai-3.2.2-portable.zip
+            darling-ai-3.2.2-setup.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -148,7 +148,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libgtk-3-dev ninja-build pkg-config liblzma-dev cmake build-essential
-          pip install pyinstaller requests llama-cpp-python
+          pip install pyinstaller requests
 
       - name: Build Flutter Linux
         run: |
@@ -166,22 +166,21 @@ jobs:
         run: |
           cd backend
           pyinstaller --onefile --name darling-backend --noconsole bridge_server.py \
-            --add-data "models_catalog.json:." \
-            --collect-all requests --collect-all llama_cpp
+            --collect-all requests
 
       - name: Assemble tar.gz
         run: |
-          DIST=dist/darling-ai-3.2.1
+          DIST=dist/darling-ai-3.2.2
           rm -rf dist
           mkdir -p $DIST/backend $DIST/plugins
           cp -r app/build/linux/x64/release/bundle/. $DIST/
           cp backend/dist/darling-backend $DIST/backend/
           chmod +x $DIST/backend/darling-backend
           cp backend/plugins/*.json $DIST/plugins/ 2>/dev/null || true
-          tar czf darling-ai-3.2.1-linux-x64.tar.gz dist/
+          tar czf darling-ai-3.2.2-linux-x64.tar.gz dist/
 
       - name: Upload linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.2.1-linux
-          path: darling-ai-3.2.1-linux-x64.tar.gz
+          name: darling-ai-3.2.2-linux
+          path: darling-ai-3.2.2-linux-x64.tar.gz

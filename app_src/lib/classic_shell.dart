@@ -7,7 +7,6 @@ import '../state.dart';
 import 'pages/models_page.dart';
 import 'pages/plugins_page.dart';
 import 'pages/settings_page.dart';
-import 'pages/local_models_page.dart';
 import 'pages/chat_page.dart';
 
 /// 经典模式（VSCode 风格）：左侧历史对话栏 + 右侧对话/设置区域
@@ -70,14 +69,12 @@ class _ClassicShellState extends State<ClassicShell> {
       'settings' => '设置',
       'models' => '模型',
       'plugins' => '插件',
-      'local' => '本地模型',
       _ => '',
     };
     final Widget page = switch (_rightPage) {
       'settings' => SettingsPage(state: widget.state),
       'models' => ModelsPage(state: widget.state),
       'plugins' => PluginsPage(state: widget.state),
-      'local' => LocalModelsPage(state: widget.state),
       _ => const SizedBox.shrink(),
     };
     return Column(
@@ -131,7 +128,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.2.1',
+          Text('v3.2.2',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           const SizedBox(width: 16),
@@ -303,11 +300,6 @@ class _SidebarContent extends StatelessWidget {
                 icon: Icons.extension_outlined,
                 label: '插件',
                 onTap: () => onSelectPage('plugins'),
-              ),
-              _SidebarEntry(
-                icon: Icons.smart_toy_outlined,
-                label: '本地模型',
-                onTap: () => onSelectPage('local'),
               ),
             ],
           ),

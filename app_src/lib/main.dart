@@ -12,7 +12,6 @@ import 'pages/chat_page.dart';
 import 'pages/models_page.dart';
 import 'pages/plugins_page.dart';
 import 'pages/settings_page.dart';
-import 'pages/local_models_page.dart';
 
 const Color kPrimaryLight = Color(0xFF0F766E);
 const Color kPrimaryDark = Color(0xFF2BBBAD);
@@ -420,9 +419,7 @@ class _HomeShellState extends State<HomeShell> {
                     ? ModelsPage(state: widget.state)
                     : _nav == 2
                         ? PluginsPage(state: widget.state)
-                        : _nav == 4
-                            ? LocalModelsPage(state: widget.state)
-                            : SettingsPage(state: widget.state),
+                        : SettingsPage(state: widget.state),
           ),
         ],
           ),

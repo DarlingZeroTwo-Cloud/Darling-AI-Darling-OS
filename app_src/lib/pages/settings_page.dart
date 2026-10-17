@@ -39,7 +39,6 @@ class _SettingsPageState extends State<SettingsPage> {
     ('网络', Icons.public),
     ('权限', Icons.shield_outlined),
     ('高级功能', Icons.auto_awesome),
-    ('本地推理', Icons.memory),
     ('服务', Icons.dns_outlined),
     ('个性化', Icons.palette_outlined),
     ('关于', Icons.info_outline),
@@ -96,10 +95,9 @@ class _SettingsPageState extends State<SettingsPage> {
       case 1: return _networkPage(state);
       case 2: return _privacyPage(state);
       case 3: return _advancedPage(state);
-      case 4: return _localPage(state);
-      case 5: return _serverPage(state);
-      case 6: return _appearancePage(state);
-      case 7: return _aboutPage(state);
+      case 4: return _serverPage(state);
+      case 5: return _appearancePage(state);
+      case 6: return _aboutPage(state);
       default: return _chatPage(state);
     }
   }
@@ -200,19 +198,6 @@ class _SettingsPageState extends State<SettingsPage> {
     ]);
   }
 
-  // ===== 本地推理 =====
-  Widget _localPage(AppState state) {
-    final s = state.settings;
-    return Column(children: [
-      _Card(title: '本地推理', children: [
-        _Row(label: 'GPU 加速', desc: '自动检测 / 纯 CPU / Vulkan（兼容 N/A/I 卡）。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'cpu', label: Text('CPU')), ButtonSegment(value: 'vulkan', label: Text('Vulkan'))], selected: {_opt(s, 'local_gpu', 'auto', const {'auto', 'cpu', 'vulkan'})}, onSelectionChanged: (sel) { state.settings['local_gpu'] = sel.first; state.saveSettings(); })),
-        Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [const SizedBox(width: 120, child: Text('GPU 层数', style: TextStyle(fontSize: 13))), const SizedBox(width: 12), Expanded(child: Slider(value: _num(s, 'local_gpu_layers', 0).toDouble().clamp(0, 100), min: 0, max: 100, divisions: 10, label: '${s['local_gpu_layers'] ?? 0}', onChanged: (v) { state.settings['local_gpu_layers'] = v.round(); state.saveSettings(); })), SizedBox(width: 36, child: Text('${s['local_gpu_layers'] ?? 0}', style: const TextStyle(fontSize: 13)))]),),
-        _Row(label: '上下文长度', desc: '本地模型单次可处理的 token 数。', trailing: SpinField(min: 512, max: 131072, value: _num(s, 'local_n_ctx', 4096).toDouble(), step: 512, onChanged: (v) { state.settings['local_n_ctx'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: '使用 HF 国内镜像', desc: '模型市场下载走 hf-mirror.com。', trailing: Switch(value: s['hf_mirror'] != false, onChanged: (v) { state.settings['hf_mirror'] = v; state.saveSettings(); })),
-      ]),
-    ]);
-  }
-
   // ===== 服务 =====
   Widget _serverPage(AppState state) {
     final s = state.settings;
@@ -280,7 +265,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.2.1', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.2.2', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),

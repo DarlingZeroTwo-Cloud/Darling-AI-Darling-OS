@@ -18,8 +18,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 import ai_console as core
-import local_engine
-import downloader
 import websearch
 
 HOST, PORT = "127.0.0.1", 19730
@@ -202,16 +200,6 @@ def stream_agent(job):
     cfg, model, user_text = job.cfg, job.model, job.text
     settings = cfg.data["settings"]
     provider = cfg.provider(model.get("provider_id"))
-    # 本地模型：provider 不在磁盘 config 里（_merge 只在 GET /api/config 时临时合并），
-    # 这里根据 model.local_path 现场构造一个 local provider
-    if not provider and model.get("local_path"):
-        provider = {"id": "local", "name": "本地模型", "type": "local",
-                    "base_url": "", "api_key": "",
-                    "local_path": model.get("local_path")}
-    elif provider.get("type") == "local" and not provider.get("local_path"):
-        # merge 进来的 local provider 缺 local_path 字段，从 model dict 补上
-        # （否则下游 chat_request 会短路到 model.get(...)，而 model 是字符串名 → AttributeError）
-        provider = {**provider, "local_path": model.get("local_path", "")}
     if not provider:
         _emit(job, "error", text="模型对应的供应商不存在，请重新添加。")
         _emit(job, "done", text="", ok=False)
@@ -404,39 +392,7 @@ class Handler(BaseHTTPRequestHandler):
         return self.headers.get("X-API-Key", "") == key
 
     def _cfg(self):
-        """返回 Config 并确保内存 data 里包含本地模型（防止 /api/chat 等查不到 model 报 400）。"""
-        cfg = core.Config()
-        try:
-            self._merge_local_models(cfg.data)
-        except Exception:
-            pass
-        return cfg
-
-    def _merge_local_models(self, data):
-        """把本地 models 目录下的 gguf 合并成内置 local provider 的可选模型。"""
-        locals_ = local_engine.list_local_models()
-        providers = data.setdefault("providers", [])
-        has_local = any(p.get("id") == "local" for p in providers)
-        if not has_local:
-            providers.insert(0, {
-                "id": "local",
-                "name": "本地模型",
-                "type": "local",
-                "base_url": "",
-                "api_key": "",
-            })
-        # 把本地 gguf 同步进 models 列表（已存在则不重复，保留用户改名）
-        existing = {m.get("id") for m in data.setdefault("models", [])}
-        for lm in locals_:
-            if lm["id"] in existing:
-                continue
-            data["models"].append({
-                "id": lm["id"],
-                "name": lm["name"],
-                "provider_id": "local",
-                "local_path": lm["path"],
-                "size_mb": lm["size_mb"],
-            })
+        return core.Config()
 
     # ---- GET ----
     def do_GET(self):
@@ -448,42 +404,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "version": "1.1.0"})
             return
         if p.path == "/api/shutdown":
-            # 前端关闭时调用：释放 GGUF 句柄后退出进程
+            # 前端关闭时调用：退出进程
             self._json(200, {"ok": True})
             def _later():
-                import time
+                import time, os
                 time.sleep(0.3)
-                try:
-                    import local_engine
-                    local_engine.unload_all()
-                except Exception:
-                    pass
-                import os
                 os._exit(0)
             threading.Thread(target=_later, daemon=True).start()
             return
         if p.path == "/api/config":
-            data = self._cfg().data
-            # 合并本地扫描到的 GGUF 模型（自动注册为 local provider）
-            self._merge_local_models(data)
-            self._json(200, data)
-            return
-        if p.path == "/api/local/catalog":
-            self._json(200, {"models": downloader.load_catalog()})
-            return
-        if p.path == "/api/local/list":
-            self._json(200, {"models": local_engine.list_local_models()})
-            return
-        if p.path == "/api/local/gpu":
-            self._json(200, local_engine.detect_gpu())
-            return
-        if p.path == "/api/local/download/status":
-            qs = parse_qs(p.query)
-            dl = qs.get("id", [""])[0]
-            if dl:
-                self._json(200, downloader.status(dl) or {"error": "not found"})
-            else:
-                self._json(200, {"tasks": downloader.all_status()})
+            self._json(200, self._cfg().data)
             return
         if p.path == "/api/websearch":
             qs = parse_qs(p.query)
@@ -496,31 +426,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         if p.path == "/api/container/detect":
             self._json(200, websearch.detect_container())
-            return
-        if p.path == "/api/model/warmup":
-            # 后台加载本地模型（不阻塞）：前端轮询 /api/model/status 显示进度
-            path = (data or {}).get("path", "")
-            ok = False
-            if path:
-                try:
-                    cfg = self._cfg()
-                    ok = local_engine.warmup(path, cfg.data.get("settings", {}))
-                except Exception as e:
-                    ok = False
-            self._json(200, {"started": ok, "path": path})
-            return
-        if p.path == "/api/model/status":
-            self._json(200, local_engine.load_status())
-            return
-        if p.path == "/api/model/cancel":
-            # 切换模型时取消本地加载（释放资源，避免低配机卡顿）
-            path = (data or {}).get("path", "")
-            if path:
-                try:
-                    local_engine.cancel_load(path)
-                except Exception:
-                    pass
-            self._json(200, {"ok": True})
             return
         if p.path == "/api/plugins":
             self._json(200, {"plugins": core.load_plugins()})
@@ -801,78 +706,13 @@ class Handler(BaseHTTPRequestHandler):
             cfg.save()
             self._json(200, {"ok": True})
             return
-        if p.path == "/api/local/download/start":
-            cfg = self._cfg()
-            try:
-                ret = downloader.start_download(data.get("catalog_id", ""),
-                                                cfg.data["settings"])
-                self._json(200, ret)
-            except Exception as e:
-                self._json(200, {"status": "error", "error": str(e)})
-            return
-        if p.path == "/api/local/delete":
-            path = data.get("path", "")
-            ok = downloader.delete_local_model(path)
-            self._json(200, {"ok": ok})
-            return
-        if p.path == "/api/local/download/pause":
-            downloader.pause(data.get("id", ""))
-            self._json(200, {"ok": True})
-            return
-        if p.path == "/api/local/download/resume":
-            downloader.resume(data.get("id", ""))
-            self._json(200, {"ok": True})
-            return
-        if p.path == "/api/local/download/cancel":
-            downloader.cancel(data.get("id", ""))
-            self._json(200, {"ok": True})
-            return
-        if p.path == "/api/local/import":
-            src = data.get("path", "")
-            if not src or not os.path.exists(src):
-                self._json(200, {"ok": False, "error": "文件不存在"})
-                return
-            if not src.lower().endswith(".gguf"):
-                self._json(200, {"ok": False, "error": "只支持 .gguf 文件"})
-                return
-            try:
-                import shutil
-                dest_dir = local_engine.models_dir()
-                dest = os.path.join(dest_dir, os.path.basename(src))
-                if os.path.abspath(src) != os.path.abspath(dest):
-                    shutil.copy2(src, dest)
-                self._json(200, {"ok": True, "path": dest})
-            except Exception as e:
-                self._json(200, {"ok": False, "error": str(e)})
-            return
         self._json(404, {"error": "not found"})
 
 
 def main():
     core.ensure_default_plugins()
-    # 启动自愈：清理上次强杀残留的 .part 临时文件（避免损坏文件占着磁盘）
-    try:
-        md = local_engine.models_dir()
-        for fn in os.listdir(md):
-            if fn.endswith(".part"):
-                try:
-                    os.remove(os.path.join(md, fn))
-                except OSError:
-                    pass
-    except Exception:
-        pass
     cfg = core.Config()
     host = cfg.data["settings"].get("bind_host", "127.0.0.1") or "127.0.0.1"
-
-    # 退出时释放 GGUF 文件句柄，否则 Windows 删除安装/模型目录会报"被占用"
-    import atexit
-    def _cleanup():
-        try:
-            import local_engine
-            local_engine.unload_all()
-        except Exception:
-            pass
-    atexit.register(_cleanup)
 
     try:
         server = ThreadingHTTPServer((host, PORT), Handler)
@@ -884,8 +724,6 @@ def main():
         server.serve_forever()
     except KeyboardInterrupt:
         pass
-    finally:
-        _cleanup()
 
 
 if __name__ == "__main__":

@@ -184,47 +184,6 @@ class BridgeClient {
     }
   }
 
-  // ===== 本地模型 / 模型市场 =====
-  Future<List<dynamic>> localCatalog() async {
-    final r = await getJson('/api/local/catalog');
-    final m = r['models'];
-    return m is List ? m : <dynamic>[];
-  }
-
-  Future<List<dynamic>> localList() async {
-    final r = await getJson('/api/local/list');
-    final m = r['models'];
-    return m is List ? m : <dynamic>[];
-  }
-
-  Future<Map<String, dynamic>> localGpu() => getJson('/api/local/gpu');
-
-  Future<Map<String, dynamic>> localDownloadStart(String catalogId) =>
-      postJson('/api/local/download/start', {'catalog_id': catalogId});
-
-  Future<Map<String, dynamic>> localDownloadStatus(String id) =>
-      getJson('/api/local/download/status?id=$id');
-
-  Future<Map<String, dynamic>> localDownloadsAll() =>
-      getJson('/api/local/download/status');
-
-  /// 后台加载本地模型（不阻塞，前端轮询状态显示进度）
-  Future<Map<String, dynamic>> localWarmup(String path) =>
-      postJson('/api/model/warmup', {'path': path});
-
-  /// 本地模型加载状态：{"loading": [path...], "ready": [path...]}
-  Future<Map<String, dynamic>> localStatus() =>
-      getJson('/api/model/status');
-
-  /// 取消本地模型后台加载（切换云端模型时调用）
-  Future<Map<String, dynamic>> modelCancel(String path) =>
-      postJson('/api/model/cancel', {'path': path});
-
-  Future<bool> localDelete(String path) async {
-    final r = await postJson('/api/local/delete', {'path': path});
-    return r['ok'] == true;
-  }
-
   Future<bool> deleteProvider(String providerId) async {
     final r = await postJson('/api/provider/delete', {'provider_id': providerId});
     return r['ok'] == true;

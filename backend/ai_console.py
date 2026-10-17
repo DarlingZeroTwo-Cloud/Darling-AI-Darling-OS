@@ -522,18 +522,6 @@ def fetch_models(provider, timeout=30):
 
 def chat_request(provider, model, messages, settings, stream=True):
     """发起对话请求。stream=True 时生成 content 增量 token；否则生成单个完整文本。"""
-    # 本地引擎：provider.type == "local"，走 GGUF 推理
-    if provider.get("type") == "local":
-        import local_engine
-        # provider 可能不含 local_path（merge 的本地 provider），从 model 兜底；
-        # 注意 model 参数可能是模型名字符串（stream_agent 传 job.model["name"]），必须判类型
-        path = provider.get("local_path") or ""
-        if not path and isinstance(model, dict):
-            path = model.get("local_path") or ""
-        if not path or not os.path.exists(path):
-            raise RuntimeError("本地模型文件不存在，请在模型市场重新下载。")
-        yield from local_engine.chat_stream(messages, settings, path)
-        return
     url = chat_url(provider)
     payload = {
         "model": model,
