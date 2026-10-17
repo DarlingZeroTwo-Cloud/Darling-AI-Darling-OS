@@ -25,7 +25,11 @@ class ChatPage extends StatelessWidget {
         return Column(
           children: [
             Expanded(
-              child: empty ? _EmptyState(state: state) : _MessageList(state: state),
+              child: empty
+                  ? _EmptyState(state: state)
+                  : _MessageList(
+                      key: ValueKey(state.activeConvId ?? 'conv'),
+                      state: state),
             ),
             if (!empty) _Composer(state: state),
           ],
