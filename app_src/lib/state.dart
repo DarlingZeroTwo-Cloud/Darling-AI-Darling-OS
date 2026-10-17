@@ -42,6 +42,11 @@ class AppState extends ChangeNotifier {
   String askCmd = '';
   int _seq = 0;
 
+  // ===== 本地模型后台加载状态 =====
+  bool localModelLoading = false;
+  String? localLoadingPath;
+  Timer? _localPollTimer;
+
   ThemeMode get themeMode {
     final m = settings['theme_mode'];
     if (m == 'light') return ThemeMode.light;
@@ -97,6 +102,7 @@ class AppState extends ChangeNotifier {
       currentModelId = models.first['id'] as String;
     }
     _renderFromHist();
+    _maybeWarmupCurrent();
     notifyListeners();
   }
 
@@ -130,6 +136,7 @@ class AppState extends ChangeNotifier {
       currentModelId = models.first['id'] as String;
     }
     _renderFromHist(r['hist'] as List?);
+    _maybeWarmupCurrent();
     notifyListeners();
   }
 
@@ -187,7 +194,67 @@ class AppState extends ChangeNotifier {
     if (cid != null) {
       api.setConversationModel(cid, modelId);
     }
+    // 选择本地模型：后台预热 + 轮询加载进度（避免首次对话同步加载卡死/黑屏）
+    if (modelId.startsWith('local::')) {
+      final m = model(modelId);
+      final path = (m?['path'] ?? '').toString();
+      if (path.isNotEmpty) {
+        _startLocalWarmup(path);
+      }
+    } else {
+      _stopLocalPoll();
+    }
     notifyListeners();
+  }
+
+  void _startLocalWarmup(String path) {
+    _stopLocalPoll();
+    localModelLoading = true;
+    localLoadingPath = path;
+    notifyListeners();
+    // 触发后台加载
+    api.localWarmup(path).catchError((_) {});
+    // 每 2 秒轮询一次，直到该路径加载完成
+    _localPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      try {
+        final st = await api.localStatus();
+        final loading = (st['loading'] as List? ?? []).map((e) => e.toString()).toList();
+        final ready = (st['ready'] as List? ?? []).map((e) => e.toString()).toList();
+        if (ready.contains(path)) {
+          _stopLocalPoll();
+          localModelLoading = false;
+          localLoadingPath = null;
+          notifyListeners();
+        } else if (!loading.contains(path) && !ready.contains(path)) {
+          // 既不在加载也没就绪（如路径失败）：停止轮询
+          _stopLocalPoll();
+          localModelLoading = false;
+          localLoadingPath = null;
+          notifyListeners();
+        }
+      } catch (_) {}
+    });
+  }
+
+  void _stopLocalPoll() {
+    _localPollTimer?.cancel();
+    _localPollTimer = null;
+  }
+
+  /// 当前模型是本地模型时，后台预热 + 显示加载进度
+  void _maybeWarmupCurrent() {
+    final mid = currentModelId;
+    if (mid != null && mid.startsWith('local::')) {
+      final m = model(mid);
+      final path = (m?['path'] ?? '').toString();
+      if (path.isNotEmpty) {
+        _startLocalWarmup(path);
+      }
+    } else {
+      _stopLocalPoll();
+      localModelLoading = false;
+      localLoadingPath = null;
+    }
   }
 
   /// 编辑消息：把文本填入输入框待修改后重发
@@ -386,6 +453,29 @@ class AppState extends ChangeNotifier {
       String text, List<Map<String, dynamic>> webResults, List<String> images) async {
     final m = model(currentModelId);
     if (m == null || busy || text.trim().isEmpty) return;
+    // 本地模型仍在后台加载：提示等待，不发请求
+    if (localModelLoading) {
+      messages.add(ChatMsg(MsgKind.error, '本地模型仍在加载中，请稍候再试…'));
+      notifyListeners();
+      return;
+    }
+    // 本地模型未加载也未预热：先触发后台加载并提示
+    if (currentModelId != null && currentModelId!.startsWith('local::')) {
+      final path = (m['path'] ?? '').toString();
+      if (path.isNotEmpty) {
+        try {
+          final st = await api.localStatus();
+          final loading = (st['loading'] as List? ?? []).map((e) => e.toString()).toList();
+          final ready = (st['ready'] as List? ?? []).map((e) => e.toString()).toList();
+          if (!loading.contains(path) && !ready.contains(path)) {
+            _startLocalWarmup(path);
+            messages.add(ChatMsg(MsgKind.error, '本地模型首次使用需要加载，正在后台加载…请稍候再试'));
+            notifyListeners();
+            return;
+          }
+        } catch (_) {}
+      }
+    }
     busy = true;
     askPending = false;
     thinkingText = '正在连接服务器…';

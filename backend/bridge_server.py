@@ -471,6 +471,21 @@ class Handler(BaseHTTPRequestHandler):
         if p.path == "/api/container/detect":
             self._json(200, websearch.detect_container())
             return
+        if p.path == "/api/model/warmup":
+            # 后台加载本地模型（不阻塞）：前端轮询 /api/model/status 显示进度
+            path = (data or {}).get("path", "")
+            ok = False
+            if path:
+                try:
+                    cfg = self._cfg()
+                    ok = local_engine.warmup(path, cfg.data.get("settings", {}))
+                except Exception as e:
+                    ok = False
+            self._json(200, {"started": ok, "path": path})
+            return
+        if p.path == "/api/model/status":
+            self._json(200, local_engine.load_status())
+            return
         if p.path == "/api/plugins":
             self._json(200, {"plugins": core.load_plugins()})
             return

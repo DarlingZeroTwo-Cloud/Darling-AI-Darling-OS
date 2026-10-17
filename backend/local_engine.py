@@ -15,8 +15,58 @@ import ai_console as core
 
 # 模块级状态
 _loaded = {}          # model_path -> {"llm": Llama, "lock": threading.Lock, "at": float}
+_loading = {}         # model_path -> {"thread": Thread, "ts": float}  后台加载中
 _meta_lock = threading.Lock()
 _active_lock = threading.Lock()   # 全局串行：同一时刻只跑一次推理
+
+
+def load_status():
+    """当前本地模型加载状态：返回 {"loading": [path...], "ready": [path...]}。"""
+    with _meta_lock:
+        loading = sorted(_loading.keys())
+        ready = sorted(_loaded.keys())
+    return {"loading": loading, "ready": ready}
+
+
+def _do_load(path, n_gpu_layers, n_ctx):
+    """在后台线程加载 GGUF（耗时，不阻塞对话）。"""
+    try:
+        from llama_cpp import Llama  # 延迟导入
+        llm = Llama(
+            model_path=path,
+            n_ctx=n_ctx,
+            n_gpu_layers=n_gpu_layers,
+            verbose=False,
+            use_mmap=True,
+        )
+        entry = {"llm": llm, "lock": threading.Lock(), "at": time.time()}
+        with _meta_lock:
+            _loaded[path] = entry
+            _loading.pop(path, None)
+    except Exception:
+        with _meta_lock:
+            _loading.pop(path, None)
+        raise
+
+
+def _get_llm(path, n_gpu_layers, n_ctx):
+    """取已加载模型；若正在后台加载则抛异常（前端显示加载进度）。"""
+    with _meta_lock:
+        entry = _loaded.get(path)
+    if entry is None:
+        with _meta_lock:
+            if path in _loading:
+                raise RuntimeError("本地模型正在加载中，请稍候再试")
+            # 双检：刚加载完成
+            entry = _loaded.get(path)
+            if entry is not None:
+                return entry
+            t = threading.Thread(
+                target=_do_load, args=(path, n_gpu_layers, n_ctx), daemon=True)
+            _loading[path] = {"thread": t, "ts": time.time()}
+            t.start()
+            raise RuntimeError("本地模型正在加载中，请稍候再试")
+    return entry
 
 
 def models_dir():
@@ -139,9 +189,21 @@ def chat_stream(messages, settings, local_path):
 
 
 def warmup(local_path, settings):
-    """预热加载模型（首次切换到本地模型时调用，避免对话时卡很久）。"""
+    """后台预热加载模型（不阻塞）。已加载或正在加载则直接返回。
+    返回 True 表示已就绪或已启动加载。"""
+    if not local_path or not os.path.exists(local_path):
+        return False
     n_ctx = int(settings.get("local_n_ctx", 4096) or 4096)
     n_gpu = int(settings.get("local_gpu_layers", 0) or 0)
     if settings.get("local_gpu_mode", "cpu") == "cpu":
         n_gpu = 0
-    _get_llm(local_path, n_gpu, n_ctx)
+    with _meta_lock:
+        if local_path in _loaded:
+            return True
+        if local_path in _loading:
+            return True
+        t = threading.Thread(
+            target=_do_load, args=(local_path, n_gpu, n_ctx), daemon=True)
+        _loading[local_path] = {"thread": t, "ts": time.time()}
+        t.start()
+    return True

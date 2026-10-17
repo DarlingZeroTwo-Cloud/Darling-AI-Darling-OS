@@ -208,6 +208,14 @@ class BridgeClient {
   Future<Map<String, dynamic>> localDownloadsAll() =>
       getJson('/api/local/download/status');
 
+  /// 后台加载本地模型（不阻塞，前端轮询状态显示进度）
+  Future<Map<String, dynamic>> localWarmup(String path) =>
+      postJson('/api/model/warmup', {'path': path});
+
+  /// 本地模型加载状态：{"loading": [path...], "ready": [path...]}
+  Future<Map<String, dynamic>> localStatus() =>
+      getJson('/api/model/status');
+
   Future<bool> localDelete(String path) async {
     final r = await postJson('/api/local/delete', {'path': path});
     return r['ok'] == true;
