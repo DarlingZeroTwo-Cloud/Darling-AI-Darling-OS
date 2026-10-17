@@ -225,7 +225,7 @@ class _DarlingAppState extends State<DarlingApp> {
     _lifecycle = AppLifecycleListener(
       onExitRequested: () async {
         await shutdownBackend();
-        return AppExitRequestResult.confirm;
+        return AppExitResponse.exit;
       },
     );
   }
