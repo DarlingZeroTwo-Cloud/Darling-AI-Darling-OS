@@ -62,17 +62,25 @@ jobs:
 
       - name: Build installer (Chinese UI)
         run: |
-          $langFile = "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
-          $langLine = 'Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"'
-          if (-not (Test-Path $langFile)) {
-            $dl = "ChineseSimplified.isl"
+          # 中文语言文件：Inno Setup 6.4+ 为 ChineseSimplified-1942.isl，旧版为 ChineseSimplified.isl
+          $langFile = ""
+          $langRef = ""
+          foreach ($cand in @(
+            "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified-1942.isl",
+            "C:\Program Files (x86)\Inno Setup 6\Languages\ChineseSimplified.isl"
+          )) {
+            if (Test-Path $cand) { $langFile = $cand; $langRef = Split-Path $cand -Leaf; break }
+          }
+          if ($langFile -eq "") {
             try {
-              Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile $dl -UseBasicParsing
-              $langLine = 'Name: "chinesesimplified"; MessagesFile: "ChineseSimplified.isl"'
+              Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/ChineseSimplified.isl" -OutFile "ChineseSimplified.isl" -UseBasicParsing
+              $langFile = "ChineseSimplified.isl"; $langRef = "ChineseSimplified.isl"
             } catch {
-              $langLine = 'Name: "english"; MessagesFile: "compiler:Default.isl"'
+              $langRef = "compiler:Default.isl"
             }
           }
+          Write-Host "Language file: $langRef"
+          $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langRef`""
           $iss = @"
           #define MyAppName "darling-ai"
           #define MyAppVersion "3.1.9"
