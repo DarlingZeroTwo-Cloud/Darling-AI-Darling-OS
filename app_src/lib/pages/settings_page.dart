@@ -176,22 +176,22 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _advancedPage(AppState state) {
     final s = state.settings;
     return Column(children: [
-      _Card(title: '高级功能（默认关闭，开启后才加载）', children: [
-        _Row(label: 'MCP 客户端', desc: '连接 MCP 服务器扩展 AI 能力。', trailing: Switch(value: s['mcp_enabled'] == true, onChanged: (v) { state.settings['mcp_enabled'] = v; state.saveSettings(); })),
-        if (s['mcp_enabled'] == true)
+      _Card(title: '高级功能（默认开启，可单独关闭）', children: [
+        _Row(label: 'MCP 客户端', desc: '连接 MCP 服务器扩展 AI 能力。', trailing: Switch(value: s['mcp_enabled'] != false, onChanged: (v) { state.settings['mcp_enabled'] = v; state.saveSettings(); })),
+        if (s['mcp_enabled'] != false)
           _Row(label: 'MCP Servers', desc: '配置 stdio MCP 服务器命令和参数（JSON）。', trailing: OutlinedButton(onPressed: () => showDialog(context: context, builder: (_) => AlertDialog(title: const Text('MCP Servers'), content: SizedBox(width: 400, child: TextField(maxLines: 8, controller: TextEditingController(text: (s['mcp_config'] ?? '').toString()), decoration: const InputDecoration(hintText: '{"filesystem": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]}}'))), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')), FilledButton(onPressed: () { state.saveSettings(); Navigator.pop(context); }, child: const Text('保存'))])), child: const Text('配置…'))),
-        _Row(label: '长期记忆', desc: 'AI 跨对话记住关键信息。', trailing: Switch(value: s['memory_enabled'] == true, onChanged: (v) { state.settings['memory_enabled'] = v; state.saveSettings(); })),
-        if (s['memory_enabled'] == true)
+        _Row(label: '长期记忆', desc: 'AI 跨对话记住关键信息。', trailing: Switch(value: s['memory_enabled'] != false, onChanged: (v) { state.settings['memory_enabled'] = v; state.saveSettings(); })),
+        if (s['memory_enabled'] != false)
           _Row(label: '记忆容量（条）', desc: '长期记忆最多保存条数。', trailing: SpinField(min: 10, max: 5000, value: _num(s, 'memory_capacity', 500).toDouble(), step: 50, onChanged: (v) { state.settings['memory_capacity'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: '任务模式', desc: 'AI 自动多步执行任务。', trailing: Switch(value: s['task_mode'] == true, onChanged: (v) { state.settings['task_mode'] = v; state.saveSettings(); })),
-        if (s['task_mode'] == true)
+        _Row(label: '任务模式', desc: 'AI 自动多步执行任务。', trailing: Switch(value: s['task_mode'] != false, onChanged: (v) { state.settings['task_mode'] = v; state.saveSettings(); })),
+        if (s['task_mode'] != false)
           _Row(label: '最大任务步数', desc: '一次提问最多连续执行多少步。', trailing: SpinField(min: 3, max: 50, value: _num(s, 'max_agent_steps', 8).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['max_agent_steps'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: '文件 / Git 工具', desc: 'AI 可操作文件和 Git 仓库。', trailing: Switch(value: s['file_git_enabled'] == true, onChanged: (v) { state.settings['file_git_enabled'] = v; state.saveSettings(); })),
-        _Row(label: '内置浏览器', desc: 'AI 可打开网页、提取内容。', trailing: Switch(value: s['browser_enabled'] == true, onChanged: (v) { state.settings['browser_enabled'] = v; state.saveSettings(); })),
-        _Row(label: '多模态图片输入', desc: '对话中可粘贴/选择图片发送给视觉模型。', trailing: Switch(value: s['image_input_enabled'] == true, onChanged: (v) { state.settings['image_input_enabled'] = v; state.saveSettings(); })),
-        _Row(label: '对话导出', desc: '对话界面出现导出按钮，保存为 Markdown。', trailing: Switch(value: s['export_enabled'] == true, onChanged: (v) { state.settings['export_enabled'] = v; state.saveSettings(); })),
-        _Row(label: '容器工作区', desc: 'AI 在 WSL/Docker 隔离环境中执行命令。', trailing: Switch(value: s['container_enabled'] == true, onChanged: (v) { state.settings['container_enabled'] = v; state.saveSettings(); })),
-        if (s['container_enabled'] == true) ...[
+        _Row(label: '文件 / Git 工具', desc: 'AI 可操作文件和 Git 仓库。', trailing: Switch(value: s['file_git_enabled'] != false, onChanged: (v) { state.settings['file_git_enabled'] = v; state.saveSettings(); })),
+        _Row(label: '内置浏览器', desc: 'AI 可打开网页、提取内容。', trailing: Switch(value: s['browser_enabled'] != false, onChanged: (v) { state.settings['browser_enabled'] = v; state.saveSettings(); })),
+        _Row(label: '多模态图片输入', desc: '对话中可粘贴/选择图片发送给视觉模型。', trailing: Switch(value: s['image_input_enabled'] != false, onChanged: (v) { state.settings['image_input_enabled'] = v; state.saveSettings(); })),
+        _Row(label: '对话导出', desc: '对话界面出现导出按钮，保存为 Markdown。', trailing: Switch(value: s['export_enabled'] != false, onChanged: (v) { state.settings['export_enabled'] = v; state.saveSettings(); })),
+        _Row(label: '容器工作区', desc: 'AI 在 WSL/Docker 隔离环境中执行命令。', trailing: Switch(value: s['container_enabled'] != false, onChanged: (v) { state.settings['container_enabled'] = v; state.saveSettings(); })),
+        if (s['container_enabled'] != false) ...[
           _ContainerDetectCard(state: state),
           _Row(label: '容器类型', desc: '自动检测当前系统可用的容器环境。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'wsl', label: Text('WSL')), ButtonSegment(value: 'docker', label: Text('Docker'))], selected: {_opt(s, 'container_type', 'auto', const {'auto', 'wsl', 'docker'})}, onSelectionChanged: (sel) { state.settings['container_type'] = sel.first; state.saveSettings(); })),
           _Row(label: '发行版 / 镜像', desc: '自动检测时留空；手动指定如 Ubuntu-22.04。', trailing: SizedBox(width: 220, child: TextField(controller: TextEditingController(text: (s['container_distro'] ?? '').toString()), decoration: const InputDecoration(isDense: true, hintText: '自动检测'), onSubmitted: (v) { state.settings['container_distro'] = v.trim(); state.saveSettings(); }))),
@@ -281,7 +281,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.1.9', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.2.0', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -451,6 +451,14 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final info = _info;
+    final distros = info != null && info['distros'] is List
+        ? (info['distros'] as List).whereType<String>().toList()
+        : <String>[];
+    final isWindows = info?['platform'] == 'windows';
+    final curDistro = (widget.state.settings['container_distro'] ?? '').toString();
+    final distroValue = distros.contains(curDistro)
+        ? curDistro
+        : (distros.isNotEmpty ? '' : null);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -468,15 +476,34 @@ class _ContainerDetectCardState extends State<_ContainerDetectCard> {
                         _summary(info),
                         style: TextStyle(fontSize: 12.5, color: cs.onSurface),
                       ),
-                      if ((info['distros'] is List &&
-                              (info['distros'] as List).isNotEmpty) ||
-                          (info['docker_installed'] == true))
+                      // 检测到发行版/镜像后直接提供选择
+                      if (distros.isNotEmpty && isWindows) ...[
+                        const SizedBox(height: 6),
+                        DropdownButton<String>(
+                          value: distroValue,
+                          hint: const Text('选择发行版（留空=自动）',
+                              style: TextStyle(fontSize: 12)),
+                          isDense: true,
+                          items: [
+                            const DropdownMenuItem<String>(
+                                value: '', child: Text('自动（第一个发行版）',
+                                    style: TextStyle(fontSize: 12))),
+                            for (final d in distros)
+                              DropdownMenuItem<String>(
+                                  value: d,
+                                  child: Text(d, style: const TextStyle(fontSize: 12))),
+                          ],
+                          onChanged: (v) {
+                            widget.state.settings['container_distro'] = v ?? '';
+                            widget.state.saveSettings();
+                            setState(() {});
+                          },
+                        ),
+                      ] else if (distros.isNotEmpty && !isWindows)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
-                            info['platform'] == 'windows'
-                                ? '在“发行版 / 镜像”留空即自动使用第一个发行版'
-                                : '在“发行版 / 镜像”可填镜像名如 ubuntu:22.04',
+                            '已检测到 Docker，可在下方填写镜像名如 ubuntu:22.04',
                             style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                           ),
                         ),

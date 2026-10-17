@@ -145,7 +145,7 @@ def clear_screen():
 
 # ==================== 常量 ====================
 APP_NAME = "AI 控制台助手"
-APP_VERSION = "3.1.9"
+APP_VERSION = "3.2.0"
 MAX_AGENT_STEPS = 8          # 一次用户提问后，AI 最多连续执行的命令轮数
 MAX_OUTPUT_CHARS = 20000     # 命令输出回传给 AI 的最大字符数
 HISTORY_LIMIT = 60           # 每个模型保存的历史消息条数上限
@@ -183,8 +183,8 @@ DEFAULT_SETTINGS = {
     "use_proxy": False,          # 是否使用系统代理（默认关，避免代理残留导致卡死）
     "system_prompt": DEFAULT_SYSTEM_PROMPT,
     "workspace": None,           # 首次运行时自动设为程序所在目录
-    "memory_enabled": False,      # 跨会话长期记忆（默认关，设置中可开启）
-    "task_mode": False,           # 任务模式：AI 多步自动执行
+    "memory_enabled": True,       # 跨会话长期记忆（默认开启，可关闭）
+    "task_mode": True,            # 任务模式：AI 多步自动执行（默认开启，可关闭）
     "mcp_servers": {},            # MCP server 配置（默认空，设置中添加）
 }
 
@@ -717,7 +717,11 @@ def stream_reply(tokens, extra_markers=None):
 
 # ==================== 命令执行 ====================
 def _container_context():
-    """从全局配置读取容器设置；返回 dict 或 None。"""
+    """从全局配置读取容器设置；返回 dict 或 None。
+
+    注意：容器默认开启（设置可关），但若本机没有可用运行时（WSL/Docker），
+    返回 None 走本机执行，避免所有命令失败。
+    """
     try:
         cfg = Config()
         s = cfg.data.get("settings", {})
@@ -725,6 +729,19 @@ def _container_context():
             return None
         ctype = s.get("container_type", "auto")
         distro = (s.get("container_distro") or "").strip()
+        import shutil
+        if ctype in ("auto", "wsl"):
+            if os.name == "nt" and shutil.which("wsl"):
+                return {"type": "wsl", "distro": distro}
+            if os.name != "nt" and ctype == "auto" and shutil.which("docker"):
+                return {"type": "docker", "distro": distro}
+            return None
+        if ctype == "docker":
+            if shutil.which("docker"):
+                return {"type": "docker", "distro": distro}
+            return None
+        if ctype == "wsl":
+            return None
         return {"type": ctype, "distro": distro}
     except Exception:
         return None
@@ -1114,6 +1131,46 @@ def _estimate_tokens(messages):
         if isinstance(c, str):
             total += len(c)
     return max(1, int(total / 1.8))
+
+
+def compress_messages(messages, max_tokens):
+    """任意 messages 列表压缩：估算超限时保留开头（system）与结尾，中间折叠。
+    与 _compress_history 不同：适用于对话中途（工具/搜索循环后）再次压缩。
+    返回压缩后的新列表（不修改原列表）。
+    """
+    if not messages:
+        return messages
+    if _estimate_tokens(messages) <= max_tokens:
+        return messages
+    # 保留开头最多 4 条（system/角色/工具说明）与结尾最多 8 条（最近对话）
+    head = list(messages[:4])
+    tail = list(messages[-8:])
+    mid = list(messages[4:-8]) if len(messages) > 12 else []
+    budget = max_tokens - _estimate_tokens(head) - _estimate_tokens(tail) - 200
+    # 中间消息：尽量保留最近的，超预算就截断长文本
+    kept_mid = []
+    for m in reversed(mid):
+        est = _estimate_tokens([m])
+        if est <= 0:
+            continue
+        if budget - est < 0 and kept_mid:
+            break
+        budget -= est
+        kept_mid.insert(0, m)
+    result = head + kept_mid + tail
+    # 若仍超限：对最长的单条消息做硬截断
+    if _estimate_tokens(result) > max_tokens:
+        longest = None
+        li = -1
+        for i, m in enumerate(result):
+            c = m.get("content", "")
+            if isinstance(c, str) and (longest is None or len(c) > len(longest)):
+                longest = c
+                li = i
+        if li >= 0 and len(longest) > 4000:
+            result[li] = dict(result[li])
+            result[li]["content"] = longest[:4000] + "\n...(过长内容已截断)"
+    return result
 
 
 def _compress_history(history, max_tokens):

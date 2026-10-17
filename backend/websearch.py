@@ -88,7 +88,11 @@ def search(query, settings=None, max_results=5):
 
 
 def detect_container():
-    """自动检测容器环境：Windows -> WSL 发行版；Linux -> Docker。"""
+    """自动检测容器环境：Windows -> WSL 发行版；Linux -> Docker。
+
+    - WSL 输出可能是 UTF-16LE（新 wsl.exe）或 ANSI/UTF-8（WSL 1 旧版），
+      这里统一解析；并过滤 docker-desktop 等虚拟发行版。
+    """
     import shutil
     import subprocess
     out = {
@@ -104,10 +108,35 @@ def detect_container():
             try:
                 r = subprocess.run(["wsl", "--list", "--quiet"],
                                    capture_output=True, timeout=15)
-                text = r.stdout.decode("utf-8", "replace")
+                raw = r.stdout
+                # WSL1 旧版输出 UTF-16LE（常带 BOM）；新版可能带 UTF-8 BOM 或纯 UTF-8。
+                # 按 BOM 探测优先，避免把纯 UTF-8 误判成 UTF-16 产生乱码
+                text = None
+                if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+                    text = raw.decode("utf-16", "replace")
+                elif raw.startswith(b"\xef\xbb\xbf"):
+                    text = raw.decode("utf-8-sig", "replace")
+                else:
+                    try:
+                        text = raw.decode("utf-8")
+                    except UnicodeDecodeError:
+                        # 无 BOM 的 UTF-16LE（部分 WSL1 版本）
+                        try:
+                            text = raw.decode("utf-16-le", "replace")
+                        except Exception:
+                            text = raw.decode("utf-8", "replace")
+                if text is None:
+                    text = raw.decode("utf-8", "replace")
+                seen = set()
                 for line in text.splitlines():
-                    line = line.strip().replace("\x00", "")
-                    if line and not line.lower().startswith("windows"):
+                    line = line.strip().replace("\x00", "").lstrip("\ufeff")
+                    low = line.lower()
+                    if not line or low.startswith("windows") or low.startswith("docker"):
+                        continue
+                    if low in ("wsl", "wsl2", "wsl1"):
+                        continue
+                    if line not in seen:
+                        seen.add(line)
                         out["distros"].append(line)
             except Exception:
                 pass

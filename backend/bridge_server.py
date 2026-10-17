@@ -167,14 +167,30 @@ def _chat_once_stream(job, messages, settings, provider):
     except Exception:
         retries = 1
     markers = core.plugin_markers_for_request()
+    # 每轮请求前都做上下文压缩：工具/搜索循环后消息会暴涨，防止超限中断
+    try:
+        threshold = int(settings.get("context_compress_threshold", 60000))
+    except Exception:
+        threshold = 60000
+    req_messages = core.compress_messages(messages, max_tokens=threshold)
+    compressed_once = req_messages is not messages
     for attempt in range(1 + retries):
         for stream in (True, False):
             try:
                 tokens = core.chat_request(
-                    provider, job.model["name"], messages, settings, stream=stream)
+                    provider, job.model["name"], req_messages, settings, stream=stream)
                 return stream_collect(tokens, extra_markers=markers,
                                       on_visible=lambda s: _emit(job, "token", text=s))
             except Exception as e:
+                err = str(e)
+                # 上下文超长：压缩后重试一次
+                if (not compressed_once and any(k in err.lower() for k in (
+                        "context length", "maximum context", "token", "too long",
+                        "prompt is too", "400"))):
+                    _emit(job, "state", text="上下文较长，已自动压缩后继续…")
+                    req_messages = core.compress_messages(messages, max_tokens=threshold)
+                    compressed_once = True
+                    continue
                 _emit(job, "error", text=core._friendly_error(e))
                 if attempt < retries:
                     time.sleep(1)
@@ -279,6 +295,16 @@ def stream_agent(job):
                     ran_any = True
                 else:
                     pname, tname, content = blk
+                    # 内置联网搜索已启用时：跳过插件联网搜索（search/deep_search），
+                    # 避免重复搜索 + 上下文翻倍导致对话中断；fetch 保留（不同能力）
+                    if job.web_results and pname == "联网搜索" and tname in ("search", "deep_search"):
+                        messages.append({"role": "user", "content":
+                                         "[提示] 本次对话已使用内置联网搜索提供了搜索结果，请直接基于已有搜索结果回答，无需重复联网搜索。"})
+                        history.append(messages[-1])
+                        _emit(job, "tool", title="插件 · 联网搜索",
+                              content="内置联网搜索已启用，跳过插件重复搜索，直接使用已有结果", ok=True)
+                        ran_any = True
+                        continue
                     handler_fn = None
                     for p in core.load_plugins():
                         if p["name"] == pname:

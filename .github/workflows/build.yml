@@ -1,10 +1,10 @@
-name: build-3.1.9
+name: build-3.2.0
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v3.1.9*'
+      - 'v3.2.0*'
 
 permissions:
   contents: write
@@ -46,7 +46,7 @@ jobs:
 
       - name: Assemble dist
         run: |
-          $DIST = "dist\darling-ai-3.1.9"
+          $DIST = "dist\darling-ai-3.2.0"
           New-Item -ItemType Directory -Force $DIST | Out-Null
           New-Item -ItemType Directory -Force "$DIST\backend" | Out-Null
           New-Item -ItemType Directory -Force "$DIST\plugins" | Out-Null
@@ -57,7 +57,7 @@ jobs:
 
       - name: Pack portable zip
         run: |
-          Compress-Archive -Path "dist\darling-ai-3.1.9\*" -DestinationPath "darling-ai-3.1.9-portable.zip" -Force
+          Compress-Archive -Path "dist\darling-ai-3.2.0\*" -DestinationPath "darling-ai-3.2.0-portable.zip" -Force
         shell: pwsh
 
       - name: Build installer (Chinese UI)
@@ -68,7 +68,7 @@ jobs:
           $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langFile`""
           $iss = @"
           #define MyAppName "darling-ai"
-          #define MyAppVersion "3.1.9"
+          #define MyAppVersion "3.2.0"
           #define MyAppPublisher "darling"
           #define MyAppExeName "darling_ai.exe"
           [Setup]
@@ -82,7 +82,7 @@ jobs:
           AllowNoIcons=yes
           DisableProgramGroupPage=yes
           OutputDir=.
-          OutputBaseFilename=darling-ai-3.1.9-setup
+          OutputBaseFilename=darling-ai-3.2.0-setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -96,7 +96,7 @@ jobs:
           [Tasks]
           Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional tasks:"; Flags: checkedonce
           [Files]
-          Source: "dist\darling-ai-3.1.9\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+          Source: "dist\darling-ai-3.2.0\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
           [Icons]
           Name: "{group}\darling-ai"; Filename: "{app}\{#MyAppExeName}"
           Name: "{group}\Uninstall darling-ai"; Filename: "{uninstallexe}"
@@ -126,10 +126,10 @@ jobs:
       - name: Upload windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.1.9-windows
+          name: darling-ai-3.2.0-windows
           path: |
-            darling-ai-3.1.9-portable.zip
-            darling-ai-3.1.9-setup.exe
+            darling-ai-3.2.0-portable.zip
+            darling-ai-3.2.0-setup.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -171,17 +171,17 @@ jobs:
 
       - name: Assemble tar.gz
         run: |
-          DIST=dist/darling-ai-3.1.9
+          DIST=dist/darling-ai-3.2.0
           rm -rf dist
           mkdir -p $DIST/backend $DIST/plugins
           cp -r app/build/linux/x64/release/bundle/. $DIST/
           cp backend/dist/darling-backend $DIST/backend/
           chmod +x $DIST/backend/darling-backend
           cp backend/plugins/*.json $DIST/plugins/ 2>/dev/null || true
-          tar czf darling-ai-3.1.9-linux-x64.tar.gz dist/
+          tar czf darling-ai-3.2.0-linux-x64.tar.gz dist/
 
       - name: Upload linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.1.9-linux
-          path: darling-ai-3.1.9-linux-x64.tar.gz
+          name: darling-ai-3.2.0-linux
+          path: darling-ai-3.2.0-linux-x64.tar.gz

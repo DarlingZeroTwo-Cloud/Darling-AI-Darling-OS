@@ -101,71 +101,126 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ==================== 消息列表 ====================
-class _MessageList extends StatelessWidget {
+class _MessageList extends StatefulWidget {
   final AppState state;
   const _MessageList({required this.state});
 
   @override
+  State<_MessageList> createState() => _MessageListState();
+}
+
+class _MessageListState extends State<_MessageList> {
+  final ScrollController _sc = ScrollController();
+  int _lastCount = 0;
+  bool _firstFrame = true;
+
+  AppState get state => widget.state;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastCount = state.messages.length;
+    state.addListener(_onStateChanged);
+    // 进入对话后自动滚动到底部（而不是停在顶部）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_sc.hasClients) {
+        _sc.jumpTo(_sc.position.maxScrollExtent);
+      }
+      _firstFrame = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    state.removeListener(_onStateChanged);
+    _sc.dispose();
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (!mounted) return;
+    final msgs = state.messages;
+    final changed = msgs.length != _lastCount;
+    _lastCount = msgs.length;
+    if (changed || state.busy || state.thinkingText.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
+  }
+
+  void _scrollToBottom() {
+    if (!_sc.hasClients) return;
+    final pos = _sc.position;
+    final max = pos.maxScrollExtent;
+    if (max <= 0) return;
+    if (_firstFrame) {
+      _sc.jumpTo(max);
+      _firstFrame = false;
+      return;
+    }
+    // 用户往上翻看历史时不打扰；接近底部才自动跟随
+    if (pos.pixels >= max - 180) {
+      _sc.animateTo(max,
+          duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: state,
-      builder: (context, _) {
-        final msgs = state.messages;
-        // ask 确认弹窗
-        if (state.askPending) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showAskDialog(context);
-          });
+    final msgs = state.messages;
+    // ask 确认弹窗
+    if (state.askPending) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAskDialog(context);
+      });
+    }
+    if (msgs.isEmpty) {
+      return const Center(
+          child: Text('选择模型开始对话', style: TextStyle(color: Color(0xFF9AA1AC))));
+    }
+    return ListView.builder(
+      controller: _sc,
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      itemCount: msgs.length + (state.busy ? 1 : 0),
+      itemBuilder: (context, i) {
+        if (i == msgs.length) {
+          return ThinkingRow(text: state.thinkingText);
         }
-        if (msgs.isEmpty) {
-          return const Center(
-              child: Text('选择模型开始对话', style: TextStyle(color: Color(0xFF9AA1AC))));
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-          itemCount: msgs.length + (state.busy ? 1 : 0),
-          itemBuilder: (context, i) {
-            if (i == msgs.length) {
-              return ThinkingRow(text: state.thinkingText);
-            }
-            final msg = msgs[i];
-            switch (msg.kind) {
-              case MsgKind.user:
-                return MessageBubble(role: 'user', text: msg.text, ts: msg.ts,
-                    showTimestamp: state.settings['show_timestamp'] != false,
-                    onResend: () => state.send(msg.text),
-                    onEdit: () => state.editMessage(msg.text));
-              case MsgKind.ai:
-                return MessageBubble(role: 'ai', text: msg.text, ts: msg.ts,
-                    showTimestamp: state.settings['show_timestamp'] != false,
-                    onRegenerate: () => state.regenerate());
-              case MsgKind.tool:
-                return ToolCard(title: msg.title, content: msg.text, ok: msg.ok);
-              case MsgKind.error:
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.error),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(msg.text,
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                color: Theme.of(context).colorScheme.error)),
-                      ),
-                    ],
+        final msg = msgs[i];
+        switch (msg.kind) {
+          case MsgKind.user:
+            return MessageBubble(role: 'user', text: msg.text, ts: msg.ts,
+                showTimestamp: state.settings['show_timestamp'] != false,
+                onResend: () => state.send(msg.text),
+                onEdit: () => state.editMessage(msg.text));
+          case MsgKind.ai:
+            return MessageBubble(role: 'ai', text: msg.text, ts: msg.ts,
+                showTimestamp: state.settings['show_timestamp'] != false,
+                onRegenerate: () => state.regenerate());
+          case MsgKind.tool:
+            return ToolCard(title: msg.title, content: msg.text, ok: msg.ok);
+          case MsgKind.error:
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(msg.text,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            color: Theme.of(context).colorScheme.error)),
                   ),
+                ],
+                ),
                 );
               case MsgKind.think:
                 return const SizedBox.shrink();
             }
           },
         );
-      },
-    );
   }
 
   Future<void> _showAskDialog(BuildContext context) async {

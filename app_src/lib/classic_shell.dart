@@ -62,18 +62,49 @@ class _ClassicShellState extends State<ClassicShell> {
   }
 
   Widget _buildRight() {
-    switch (_rightPage) {
-      case 'settings':
-        return SettingsPage(state: widget.state);
-      case 'models':
-        return ModelsPage(state: widget.state);
-      case 'plugins':
-        return PluginsPage(state: widget.state);
-      case 'local':
-        return LocalModelsPage(state: widget.state);
-      default:
-        return ChatPage(state: widget.state);
+    if (_rightPage == 'chat') {
+      return ChatPage(state: widget.state);
     }
+    // 非对话页：顶部返回栏，可一键回到对话
+    final pageTitle = switch (_rightPage) {
+      'settings' => '设置',
+      'models' => '模型',
+      'plugins' => '插件',
+      'local' => '本地模型',
+      _ => '',
+    };
+    final Widget page = switch (_rightPage) {
+      'settings' => SettingsPage(state: widget.state),
+      'models' => ModelsPage(state: widget.state),
+      'plugins' => PluginsPage(state: widget.state),
+      'local' => LocalModelsPage(state: widget.state),
+      _ => const SizedBox.shrink(),
+    };
+    return Column(
+      children: [
+        // 返回栏
+        SizedBox(
+          height: 40,
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, size: 18),
+                tooltip: '返回对话',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _rightPage = 'chat'),
+              ),
+              Text(pageTitle,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              const Spacer(),
+            ],
+          ),
+        ),
+        Expanded(child: page),
+      ],
+    );
   }
 }
 
@@ -100,7 +131,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.1.9',
+          Text('v3.2.0',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           const SizedBox(width: 16),
