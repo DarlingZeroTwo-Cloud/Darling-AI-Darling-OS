@@ -210,7 +210,12 @@ class _MessageListState extends State<_MessageList> {
         itemCount: msgs.length + (state.busy ? 1 : 0),
         itemBuilder: (context, i) {
           if (i == msgs.length) {
-            return ThinkingRow(text: state.thinkingText);
+            // 思考过程（设置可隐藏）
+            if (state.settings['show_thinking'] != false &&
+                state.thinkingText.isNotEmpty) {
+              return ThinkingRow(text: state.thinkingText);
+            }
+            return const SizedBox.shrink();
           }
         final msg = msgs[i];
         switch (msg.kind) {

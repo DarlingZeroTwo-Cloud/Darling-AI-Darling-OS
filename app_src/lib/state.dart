@@ -297,8 +297,16 @@ class AppState extends ChangeNotifier {
         '${ts.year}${ts.month.toString().padLeft(2, '0')}${ts.day.toString().padLeft(2, '0')}-'
         '${ts.hour.toString().padLeft(2, '0')}${ts.minute.toString().padLeft(2, '0')}';
     if (format == 'json') {
-      final items = messages.where((m) => m.kind == MsgKind.user || m.kind == MsgKind.ai).map((m) {
-        return {'role': m.kind == MsgKind.user ? 'user' : 'assistant', 'content': m.text};
+      final items = messages.where((m) =>
+          m.kind == MsgKind.user ||
+          m.kind == MsgKind.ai ||
+          m.kind == MsgKind.tool).map((m) {
+        final role = switch (m.kind) {
+          MsgKind.user => 'user',
+          MsgKind.ai => 'assistant',
+          _ => 'tool',
+        };
+        return {'role': role, 'content': m.text};
       }).toList();
       final payload = {
         'app': 'darling-ai',
