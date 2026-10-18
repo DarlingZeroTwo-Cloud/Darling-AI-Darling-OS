@@ -385,7 +385,8 @@ class _ComposerState extends State<_Composer> {
         }
         return KeyEventResult.ignored;
       }
-      final ctrl = ev.isControlPressed || ev.isMetaPressed;
+      final ctrl = HardwareKeyboard.instance.isControlPressed ||
+          HardwareKeyboard.instance.isMetaPressed;
       if (ctrl) {
         if (key == LogicalKeyboardKey.keyL) {
           if (_ctl.text.isNotEmpty) {
