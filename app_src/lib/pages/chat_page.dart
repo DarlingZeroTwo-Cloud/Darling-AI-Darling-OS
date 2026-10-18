@@ -472,6 +472,14 @@ class _ComposerState extends State<_Composer> {
       _runCommand(text.trim());
       return;
     }
+    // 未配置模型时提示（避免静默无响应）
+    if (widget.state.currentModelId == null ||
+        widget.state.model(widget.state.currentModelId) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('请先在“模型”页添加并选择模型'),
+          duration: Duration(seconds: 3)));
+      return;
+    }
     final images = List<String>.from(_images);
     if (images.isNotEmpty) {
       _images.clear();
