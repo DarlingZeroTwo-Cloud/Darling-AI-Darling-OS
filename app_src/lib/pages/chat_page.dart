@@ -336,7 +336,7 @@ class _ComposerState extends State<_Composer> {
   bool _optimizing = false;
   final List<String> _images = [];
 
-  /// 导出菜单：Markdown / JSON，成功后提示文件路径
+  /// 导出菜单：Markdown / JSON / HTML，成功后提示文件路径
   void _showExportMenu(BuildContext context, AppState state) {
     showMenu<String>(
       context: context,
@@ -344,6 +344,7 @@ class _ComposerState extends State<_Composer> {
       items: [
         PopupMenuItem(value: 'md', child: const Text('导出为 Markdown (.md)')),
         PopupMenuItem(value: 'json', child: const Text('导出为 JSON (.json)')),
+        PopupMenuItem(value: 'html', child: const Text('导出为 HTML (.html)')),
       ],
     ).then((fmt) async {
       if (fmt == null) return;

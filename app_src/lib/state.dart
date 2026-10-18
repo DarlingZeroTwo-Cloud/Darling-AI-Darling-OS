@@ -279,7 +279,7 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  /// 导出当前对话为文件。format: 'md' 或 'json'。
+  /// 导出当前对话为文件。format: 'md' / 'json' / 'html'。
   /// 返回成功时的文件路径，失败返回 null（错误信息通过抛异常由调用方捕获）。
   Future<String?> exportConversation({String format = 'md'}) async {
     if (messages.isEmpty) return null;
@@ -300,13 +300,60 @@ class AppState extends ChangeNotifier {
       }).toList();
       final payload = {
         'app': 'darling-ai',
-        'version': '3.2.10',
+        'version': '3.3.2',
         'exported_at': ts.toIso8601String(),
         'model_id': currentModelId,
         'messages': items,
       };
       final file = File('$dir/darling-ai-对话-$stamp.json');
       await file.writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
+      return file.path;
+    }
+    if (format == 'html') {
+      String esc(String s) => s
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;');
+      final buf = StringBuffer();
+      buf.writeln('<!DOCTYPE html>');
+      buf.writeln('<html lang="zh-CN"><head><meta charset="utf-8">');
+      buf.writeln('<meta name="viewport" content="width=device-width, initial-scale=1">');
+      buf.writeln('<title>darling-ai 对话导出</title>');
+      buf.writeln('<style>');
+      buf.writeln('body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;');
+      buf.writeln('max-width:860px;margin:0 auto;padding:24px 16px 48px;color:#24292f;background:#fff}');
+      buf.writeln('h1{font-size:20px;margin:0 0 4px}');
+      buf.writeln('.meta{font-size:12px;color:#888;margin-bottom:24px}');
+      buf.writeln('.msg{margin:12px 0;padding:12px 14px;border-radius:10px;line-height:1.6;font-size:14px;white-space:pre-wrap;word-break:break-word}');
+      buf.writeln('.user{background:#e8f4fd;border:1px solid #d0e8f8}');
+      buf.writeln('.ai{background:#f2f4f7;border:1px solid #e4e7ec}');
+      buf.writeln('.tool{background:#fbf3e6;border:1px solid #f2e2c0;font-size:12.5px}');
+      buf.writeln('.role{font-size:12px;font-weight:600;margin-bottom:6px;color:#57606a}');
+      buf.writeln('pre{background:#0d1117;color:#e6edf3;padding:10px 12px;border-radius:8px;overflow-x:auto;font-size:12.5px}');
+      buf.writeln('code{font-family:"SF Mono",Consolas,"Courier New",monospace}');
+      buf.writeln('</style></head><body>');
+      buf.writeln('<h1>darling-ai 对话导出</h1>');
+      buf.writeln('<div class="meta">模型：${esc(currentModelId ?? '未知')} · 导出时间：${ts.toIso8601String()}</div>');
+      for (final m in messages) {
+        final body = esc(m.text).replaceAll('\n', '<br>');
+        switch (m.kind) {
+          case MsgKind.user:
+            buf.writeln('<div class="msg user"><div class="role">👤 用户</div>$body</div>');
+            break;
+          case MsgKind.ai:
+            buf.writeln('<div class="msg ai"><div class="role">🤖 AI</div>$body</div>');
+            break;
+          case MsgKind.tool:
+            buf.writeln('<div class="msg tool"><div class="role">🛠️ ${esc(m.title ?? '')}</div>$body</div>');
+            break;
+          default:
+            break;
+        }
+      }
+      buf.writeln('</body></html>');
+      final file = File('$dir/darling-ai-对话-$stamp.html');
+      await file.writeAsString(buf.toString());
       return file.path;
     }
     final buf = StringBuffer();
