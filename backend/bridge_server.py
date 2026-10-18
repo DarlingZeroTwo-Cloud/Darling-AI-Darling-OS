@@ -505,6 +505,32 @@ class Handler(BaseHTTPRequestHandler):
             cfg.save()
             self._json(200, {"ok": True})
             return
+        if p.path == "/api/provider/test":
+            cfg = self._cfg()
+            pid = data.get("provider_id")
+            prov = next(
+                (p for p in cfg.data.get("providers", []) if p.get("id") == pid),
+                None,
+            )
+            if not prov:
+                self._json(404, {"error": "provider not found"})
+                return
+            base = (prov.get("base_url") or "").rstrip("/")
+            key = prov.get("api_key") or ""
+            try:
+                import urllib.request as _ur
+
+                req = _ur.Request(
+                    base + "/models",
+                    headers={"Authorization": f"Bearer {key}"},
+                )
+                with _ur.urlopen(req, timeout=10) as r:
+                    payload = json.loads(r.read().decode("utf-8", "ignore"))
+                    names = [m.get("id") for m in payload.get("data", [])][:8]
+                    self._json(200, {"ok": True, "models": names})
+            except Exception as e:
+                self._json(200, {"ok": False, "error": str(e)[:200]})
+            return
         if p.path == "/api/provider/delete":
             cfg = self._cfg()
             pid = data.get("provider_id")

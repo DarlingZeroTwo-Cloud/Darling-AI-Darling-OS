@@ -259,6 +259,18 @@ class _ProviderRow extends StatelessWidget {
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const SizedBox(width: 8),
           OutlinedButton(
+            onPressed: () async {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => _TestDialog(
+                    api: state.api, providerId: provider['id'] as String),
+              );
+            },
+            child: const Text('测试连接'),
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton(
             onPressed: () => showDialog(
               context: context,
               builder: (_) => AddModelDialog(state: state, provider: provider),
@@ -359,5 +371,83 @@ class _ModelRow extends StatelessWidget {
       state.models.removeWhere((x) => x['id'] == m['id']);
       await state.saveProvidersModels();
     }
+  }
+}
+
+/// 测试供应商连接对话框：自动发起请求并显示结果
+class _TestDialog extends StatefulWidget {
+  final dynamic api;
+  final String providerId;
+  const _TestDialog({required this.api, required this.providerId});
+
+  @override
+  State<_TestDialog> createState() => _TestDialogState();
+}
+
+class _TestDialogState extends State<_TestDialog> {
+  bool _busy = true;
+  bool? _ok;
+  String _info = '正在测试连接…';
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    setState(() => _busy = true);
+    final r = await widget.api.testProvider(widget.providerId);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _ok = r['ok'] == true;
+      if (_ok == true) {
+        final models = (r['models'] as List<dynamic>? ?? []);
+        _info = models.isEmpty
+            ? '连接成功（未返回模型列表）'
+            : '连接成功，识别到 ${models.length} 个模型：\n${models.join('、')}';
+      } else {
+        _info = '连接失败：${r['error'] ?? '未知错误'}';
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: const Text('测试连接'),
+      content: SizedBox(
+        width: 360,
+        child: _busy
+            ? const Row(children: [
+                SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 12),
+                Text('正在测试连接…'),
+              ])
+            : Text(
+                _info,
+                style: TextStyle(
+                    color: _ok == true ? cs.primary : cs.error,
+                    fontSize: 13,
+                    height: 1.5),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(_busy ? '关闭' : '确定'),
+        ),
+        if (!_busy && _ok != true)
+          TextButton(
+            onPressed: _run,
+            child: const Text('重试'),
+          ),
+      ],
+    );
   }
 }

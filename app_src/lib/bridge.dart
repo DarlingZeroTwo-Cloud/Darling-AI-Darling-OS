@@ -200,4 +200,13 @@ class BridgeClient {
     final r = await postJson('/api/provider/delete', {'provider_id': providerId});
     return r['ok'] == true;
   }
+
+  /// 测试供应商连接：尝试列出模型，返回 {ok, models?, error?}
+  Future<Map<String, dynamic>> testProvider(String providerId) async {
+    try {
+      return await postJson('/api/provider/test', {'provider_id': providerId});
+    } catch (e) {
+      return {'ok': false, 'error': '$e'};
+    }
+  }
 }
