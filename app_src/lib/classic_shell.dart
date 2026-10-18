@@ -19,8 +19,15 @@ class ClassicShell extends StatefulWidget {
 }
 
 class _ClassicShellState extends State<ClassicShell> {
-  bool _sidebarCollapsed = false;
+  // 侧边栏折叠状态从设置恢复（记忆上次选择）
+  bool get _sidebarCollapsed =>
+      widget.state.settings['sidebar_collapsed'] == true;
   String _rightPage = 'chat'; // chat / settings / models / plugins / local
+
+  void _toggleSidebar() {
+    widget.state.settings['sidebar_collapsed'] = !_sidebarCollapsed;
+    widget.state.saveSettings();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +52,7 @@ class _ClassicShellState extends State<ClassicShell> {
                     _ClassicSidebar(
                       state: widget.state,
                       collapsed: _sidebarCollapsed,
-                      onToggle: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+                      onToggle: () { setState(() {}); _toggleSidebar(); },
                       onSelectPage: (p) => setState(() => _rightPage = p),
                       onSelectChat: () => setState(() => _rightPage = 'chat'),
                     ),
@@ -128,7 +135,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.2.10',
+          Text('v3.2.11',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 清空当前对话
