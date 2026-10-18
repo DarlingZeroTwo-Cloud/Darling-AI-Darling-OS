@@ -285,12 +285,6 @@ class _SidebarContentState extends State<_SidebarContent> {
                       fontWeight: FontWeight.w700,
                       color: cs.onSurfaceVariant)),
               const Spacer(),
-              IconButton(
-                icon: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
-                onPressed: () => state.newConversation(),
-                tooltip: '新对话',
-                visualDensity: VisualDensity.compact,
-              ),
             ],
           ),
         ),

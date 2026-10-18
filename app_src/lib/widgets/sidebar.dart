@@ -224,14 +224,6 @@ class _SidebarState extends State<Sidebar> {
                           fontSize: 12.5,
                           color: widget.nav == 3 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
                 ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.smart_toy_outlined, color: cs.onSurfaceVariant),
-                  selectedIcon: Icon(Icons.smart_toy, color: cs.primary),
-                  label: Text('本地',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          color: widget.nav == 4 ? cs.onSecondaryContainer : cs.onSurfaceVariant)),
-                ),
               ],
             ),
           ),

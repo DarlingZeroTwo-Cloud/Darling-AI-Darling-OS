@@ -333,8 +333,6 @@ class _ComposerState extends State<_Composer> {
   final MenuController _roleMenu = MenuController();
   bool _showSlash = false;
   int _slashSel = 0;
-  bool _webSearch = false;
-  bool _searching = false;
   bool _optimizing = false;
   final List<String> _images = [];
 
@@ -423,21 +421,7 @@ class _ComposerState extends State<_Composer> {
       return;
     }
     _ctl.clear();
-    if (_webSearch) {
-      setState(() => _searching = true);
-      try {
-        final r = await widget.state.api.webSearch(text);
-        final results = (r['results'] is List ? r['results'] as List<dynamic> : <dynamic>[])
-            .cast<Map<String, dynamic>>();
-        widget.state.sendWithWeb(text, results);
-      } catch (_) {
-        widget.state.send(text);
-      } finally {
-        if (mounted) setState(() => _searching = false);
-      }
-    } else {
-      widget.state.send(text);
-    }
+    widget.state.send(text);
   }
 
   /// AI 优化提示词：把当前输入交给当前模型改写得更结构化
@@ -1001,34 +985,6 @@ class _ComposerState extends State<_Composer> {
                           padding: const EdgeInsets.all(6),
                           child: Icon(Icons.lightbulb_outline,
                               size: 17, color: cs.onSurfaceVariant),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    // 联网搜索开关（地球）
-                    Tooltip(
-                      message: _webSearch ? '联网搜索已开启' : '开启联网搜索',
-                      child: InkWell(
-                        onTap: busy
-                            ? null
-                            : () => setState(() => _webSearch = !_webSearch),
-                        borderRadius: BorderRadius.circular(6),
-                        child: Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: _searching
-                              ? SizedBox(
-                                  width: 15,
-                                  height: 15,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: cs.primary),
-                                )
-                              : Icon(
-                                  Icons.public,
-                                  size: 17,
-                                  color: _webSearch
-                                      ? cs.primary
-                                      : cs.onSurfaceVariant,
-                                ),
                         ),
                       ),
                     ),

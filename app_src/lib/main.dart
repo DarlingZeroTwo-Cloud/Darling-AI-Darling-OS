@@ -344,14 +344,6 @@ class _HomeShellState extends State<HomeShell> {
                       ]),
                     ),
                     PopupMenuItem(
-                      value: 4,
-                      child: Row(children: [
-                        Icon(Icons.smart_toy_outlined, size: 18, color: _nav == 4 ? cs.primary : cs.onSurfaceVariant),
-                        const SizedBox(width: 10),
-                        Text('本地', style: TextStyle(fontWeight: _nav == 4 ? FontWeight.w600 : FontWeight.w400)),
-                      ]),
-                    ),
-                    PopupMenuItem(
                       value: 3,
                       child: Row(children: [
                         Icon(Icons.settings_outlined, size: 18, color: _nav == 3 ? cs.primary : cs.onSurfaceVariant),
