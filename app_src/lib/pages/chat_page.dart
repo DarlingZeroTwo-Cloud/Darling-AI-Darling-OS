@@ -312,6 +312,30 @@ class _ComposerState extends State<_Composer> {
   bool _optimizing = false;
   final List<String> _images = [];
 
+  /// 导出菜单：Markdown / JSON，成功后提示文件路径
+  void _showExportMenu(BuildContext context, AppState state) {
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(0, 0, 0, 0),
+      items: [
+        PopupMenuItem(value: 'md', child: const Text('导出为 Markdown (.md)')),
+        PopupMenuItem(value: 'json', child: const Text('导出为 JSON (.json)')),
+      ],
+    ).then((fmt) async {
+      if (fmt == null) return;
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        final path = await state.exportConversation(format: fmt);
+        messenger.showSnackBar(SnackBar(
+          content: Text(path == null ? '当前对话为空' : '已导出：$path'),
+          duration: const Duration(seconds: 4),
+        ));
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('导出失败：$e')));
+      }
+    });
+  }
+
   static const _slashItems = [
     ('/new', '新建对话', Icons.add_comment_outlined),
     ('/rename', '重命名当前对话', Icons.edit_outlined),
@@ -465,7 +489,7 @@ class _ComposerState extends State<_Composer> {
         _ctl.clear();
         break;
       case '/export':
-        state.exportConversation();
+        _showExportMenu(context, widget.state);
         _ctl.clear();
         break;
       case '/help':
@@ -927,11 +951,11 @@ class _ComposerState extends State<_Composer> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    // 导出对话为 Markdown
+                    // 导出当前对话（Markdown / JSON）
                     Tooltip(
-                      message: '导出当前对话为 Markdown',
+                      message: '导出当前对话（Markdown / JSON）',
                       child: InkWell(
-                        onTap: busy ? null : widget.state.exportConversation,
+                        onTap: busy ? null : () => _showExportMenu(context, state),
                         borderRadius: BorderRadius.circular(6),
                         child: Padding(
                           padding: const EdgeInsets.all(6),

@@ -279,9 +279,36 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  /// 导出当前对话为 Markdown
-  Future<void> exportConversation() async {
-    if (messages.isEmpty) return;
+  /// 导出当前对话为文件。format: 'md' 或 'json'。
+  /// 返回成功时的文件路径，失败返回 null（错误信息通过抛异常由调用方捕获）。
+  Future<String?> exportConversation({String format = 'md'}) async {
+    if (messages.isEmpty) return null;
+    final home = Platform.environment['USERPROFILE'] ??
+        Platform.environment['HOME'] ??
+        '.';
+    final dir = '$home/Documents';
+    if (!Directory(dir).existsSync()) {
+      Directory(dir).createSync(recursive: true);
+    }
+    final ts = DateTime.now();
+    final stamp =
+        '${ts.year}${ts.month.toString().padLeft(2, '0')}${ts.day.toString().padLeft(2, '0')}-'
+        '${ts.hour.toString().padLeft(2, '0')}${ts.minute.toString().padLeft(2, '0')}';
+    if (format == 'json') {
+      final items = messages.where((m) => m.kind == MsgKind.user || m.kind == MsgKind.ai).map((m) {
+        return {'role': m.kind == MsgKind.user ? 'user' : 'assistant', 'content': m.text};
+      }).toList();
+      final payload = {
+        'app': 'darling-ai',
+        'version': '3.2.5',
+        'exported_at': ts.toIso8601String(),
+        'model_id': currentModelId,
+        'messages': items,
+      };
+      final file = File('$dir/darling-ai-对话-$stamp.json');
+      await file.writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
+      return file.path;
+    }
     final buf = StringBuffer();
     buf.writeln('# 对话导出');
     buf.writeln();
@@ -300,18 +327,9 @@ class AppState extends ChangeNotifier {
           break;
       }
     }
-    try {
-      final home = Platform.environment['USERPROFILE'] ??
-          Platform.environment['HOME'] ??
-          '.';
-      final dir = '$home/Documents';
-      if (!Directory(dir).existsSync()) {
-        Directory(dir).createSync(recursive: true);
-      }
-      final file = File(
-          '$dir/darling-ai-对话-${DateTime.now().millisecondsSinceEpoch}.md');
-      await file.writeAsString(buf.toString());
-    } catch (_) {}
+    final file = File('$dir/darling-ai-对话-$stamp.md');
+    await file.writeAsString(buf.toString());
+    return file.path;
   }
 
   /// 删除一个模型（保存配置；若删的是当前模型则回退到第一个）
