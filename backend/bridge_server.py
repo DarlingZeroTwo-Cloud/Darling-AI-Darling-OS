@@ -343,6 +343,8 @@ def stream_agent(job):
                             if isinstance(raw, list):
                                 raw = next((p.get("text", "") for p in raw if isinstance(p, dict) and p.get("type") == "text"), "")
                             c["title"] = str(raw)[:20]
+                            # 首条消息全文（截断 300 字）供侧边栏搜索
+                            c["first"] = str(raw)[:300]
                             break
                 cfg.save()
                 break

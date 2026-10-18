@@ -128,7 +128,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.2.3',
+          Text('v3.2.4',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           const SizedBox(width: 16),
@@ -200,7 +200,7 @@ class _CollapsedBar extends StatelessWidget {
   }
 }
 
-class _SidebarContent extends StatelessWidget {
+class _SidebarContent extends StatefulWidget {
   final AppState state;
   final VoidCallback onToggle;
   final void Function(String) onSelectPage;
@@ -213,7 +213,23 @@ class _SidebarContent extends StatelessWidget {
   });
 
   @override
+  State<_SidebarContent> createState() => _SidebarContentState();
+}
+
+class _SidebarContentState extends State<_SidebarContent> {
+  // 历史对话搜索关键词（按标题/摘要过滤）
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -245,12 +261,53 @@ class _SidebarContent extends StatelessWidget {
             ],
           ),
         ),
+        // 历史对话搜索框
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+          child: TextField(
+            controller: _searchCtrl,
+            style: TextStyle(fontSize: 12.5, color: cs.onSurface),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: '搜索历史对话…',
+              hintStyle: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              prefixIcon: Icon(Icons.search, size: 15, color: cs.onSurfaceVariant),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: Icon(Icons.close, size: 14, color: cs.onSurfaceVariant),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        setState(() => _query = '');
+                      },
+                    ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.6))),
+            ),
+            onChanged: (v) => setState(() => _query = v.trim()),
+          ),
+        ),
         // 历史对话列表
         Expanded(
           child: ListenableBuilder(
             listenable: state,
             builder: (context, _) {
-              final convs = state.conversations;
+              final q = _query.toLowerCase();
+              final all = state.conversations;
+              final convs = q.isEmpty
+                  ? all
+                  : all.where((c) {
+                      final title = (c['title'] ?? '').toString().toLowerCase();
+                      final first = (c['first'] ?? '').toString().toLowerCase();
+                      final model = (c['model_id'] ?? '').toString().toLowerCase();
+                      return title.contains(q) || first.contains(q) || model.contains(q);
+                    }).toList();
               if (convs.isEmpty) {
                 return const Center(
                     child: Text('暂无历史对话',
