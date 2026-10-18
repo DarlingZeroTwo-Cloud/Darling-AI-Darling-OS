@@ -495,6 +495,16 @@ class Handler(BaseHTTPRequestHandler):
             cfg.save()
             self._json(200, {"ok": True})
             return
+        if p.path == "/api/settings/reset":
+            cfg = self._cfg()
+            keep = {k: cfg.data.get("settings", {}).get(k)
+                    for k in ("api_host", "api_port", "api_key")
+                    if k in cfg.data.get("settings", {})}
+            cfg.data["settings"] = dict(core.DEFAULT_SETTINGS)
+            cfg.data["settings"].update(keep)
+            cfg.save()
+            self._json(200, {"ok": True})
+            return
         if p.path == "/api/provider/delete":
             cfg = self._cfg()
             pid = data.get("provider_id")

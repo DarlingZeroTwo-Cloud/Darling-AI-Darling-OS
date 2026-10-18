@@ -550,6 +550,13 @@ class AppState extends ChangeNotifier {
   String? _jobId;
 
   // ---------------- 设置 ----------------
+  /// 恢复默认设置（后端重置 settings，保留服务监听配置）
+  Future<void> restoreDefaultSettings() async {
+    await api.postJson('/api/settings/reset', {});
+    await reload();
+    notifyListeners();
+  }
+
   Future<void> saveSettings() async {
     await api.postJson('/api/config', {'settings': settings});
     await reload();

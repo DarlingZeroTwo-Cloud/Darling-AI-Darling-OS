@@ -253,6 +253,35 @@ class _SettingsPageState extends State<SettingsPage> {
           OutlinedButton(onPressed: () { state.settings['bg_image'] = ''; state.saveSettings(); }, child: const Text('清除')),
         ])),
         _Row(label: '背景不透明度', desc: '设置了背景图片时的不透明度（0.1 ~ 1.0）。', trailing: SizedBox(width: 200, child: Slider(value: _num(s, 'bg_opacity', 0.9).toDouble().clamp(0.1, 1.0), min: 0.1, max: 1.0, divisions: 9, label: '${(_num(s, 'bg_opacity', 0.9) * 100).round()}%', onChanged: (v) { state.settings['bg_opacity'] = v; state.saveSettings(); }))),
+        const SizedBox(height: 14),
+        Row(children: [
+          const SizedBox(width: 120, child: Text('恢复默认设置', style: TextStyle(fontSize: 13))),
+          const SizedBox(width: 12),
+          OutlinedButton(
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('恢复默认设置'),
+                  content: const Text('将清除所有自定义设置并恢复默认值（模型/对话数据不受影响）。确定继续？'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('恢复默认')),
+                  ],
+                ),
+              );
+              if (ok == true) {
+                await state.restoreDefaultSettings();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('已恢复默认设置')),
+                  );
+                }
+              }
+            },
+            child: const Text('恢复默认'),
+          ),
+        ]),
       ]),
     ]);
   }
@@ -271,7 +300,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.3.9', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.3.10', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -292,7 +321,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.3.9';
+    const current = '3.3.10';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -358,7 +387,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.3.9' ≥ '3.3.9'）
+  /// latest 是否 ≥ current（如 '3.3.10' ≥ '3.3.10'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')
