@@ -202,14 +202,16 @@ class _MessageListState extends State<_MessageList> {
       return const Center(
           child: Text('选择模型开始对话', style: TextStyle(color: Color(0xFF9AA1AC))));
     }
-    return ListView.builder(
-      controller: _sc,
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-      itemCount: msgs.length + (state.busy ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i == msgs.length) {
-          return ThinkingRow(text: state.thinkingText);
-        }
+    // SelectionArea：鼠标可拖选消息文本直接复制（与按钮复制互补）
+    return SelectionArea(
+      child: ListView.builder(
+        controller: _sc,
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+        itemCount: msgs.length + (state.busy ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i == msgs.length) {
+            return ThinkingRow(text: state.thinkingText);
+          }
         final msg = msgs[i];
         switch (msg.kind) {
           case MsgKind.user:
@@ -245,7 +247,8 @@ class _MessageListState extends State<_MessageList> {
                 return const SizedBox.shrink();
             }
           },
-        );
+        ),
+    );
   }
 
   Future<void> _showAskDialog(BuildContext context) async {
