@@ -38,10 +38,34 @@ class _RichMarkdownState extends State<RichMarkdown> {
           if (seg is _CodeBlock)
             Stack(
               children: [
+                if (seg.lang != null && seg.lang!.isNotEmpty)
+                  Positioned(
+                    top: 2,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: dark ? const Color(0xFF3FD0C2) : const Color(0xFFE0F2F1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(seg.lang!,
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: dark
+                                  ? const Color(0xFF0B2E2B)
+                                  : const Color(0xFF0E5E58))),
+                    ),
+                  ),
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.symmetric(vertical: 5),
-                  padding: const EdgeInsets.all(10),
+                  padding: EdgeInsets.fromLTRB(
+                      10,
+                      (seg.lang != null && seg.lang!.isNotEmpty) ? 24 : 10,
+                      10,
+                      10),
                   decoration: BoxDecoration(
                     color: dark ? const Color(0x66111318) : const Color(0x88FAFBFC),
                     borderRadius: BorderRadius.circular(8),
@@ -179,7 +203,8 @@ class _InlineRichState extends State<_InlineRich> {
 
 class _CodeBlock {
   final String code;
-  _CodeBlock(this.code);
+  final String? lang;
+  _CodeBlock(this.code, [this.lang]);
 }
 
 class _TextSeg {
@@ -189,11 +214,11 @@ class _TextSeg {
 
 List<Object> _parse(String text) {
   final out = <Object>[];
-  final re = RegExp(r'```[a-zA-Z0-9_\-]*\n?([\s\S]*?)```');
+  final re = RegExp(r'```([a-zA-Z0-9_\-]*)\n?([\s\S]*?)```');
   var last = 0;
   for (final m in re.allMatches(text)) {
     if (m.start > last) out.add(_TextSeg(text.substring(last, m.start)));
-    out.add(_CodeBlock(m.group(1)!.trimRight()));
+    out.add(_CodeBlock(m.group(2)!.trimRight(), m.group(1)!.trim()));
     last = m.end;
   }
   if (last < text.length) out.add(_TextSeg(text.substring(last)));
