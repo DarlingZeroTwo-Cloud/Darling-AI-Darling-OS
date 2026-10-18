@@ -335,12 +335,12 @@ class _SettingsPageState extends State<SettingsPage> {
           label: const Text('Gitee 仓库'),
         ),
         OutlinedButton.icon(
-          onPressed: () => _exportBackup(context),
+          onPressed: () => _exportBackup(context, state),
           icon: const Icon(Icons.save_alt, size: 14),
           label: const Text('导出备份'),
         ),
         OutlinedButton.icon(
-          onPressed: () => _importBackup(context),
+          onPressed: () => _importBackup(context, state),
           icon: const Icon(Icons.settings_backup_restore, size: 14),
           label: const Text('导入备份'),
         ),
@@ -383,7 +383,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// 导出全部数据备份到 Documents/darling-ai-backup-<时间>.json
-  Future<void> _exportBackup(BuildContext context) async {
+  Future<void> _exportBackup(BuildContext context, AppState state) async {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在导出备份…'), duration: Duration(seconds: 2)));
@@ -413,7 +413,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// 从本地 JSON 文件导入备份
-  Future<void> _importBackup(BuildContext context) async {
+  Future<void> _importBackup(BuildContext context, AppState state) async {
     final messenger = ScaffoldMessenger.of(context);
     final pick = await _pickBackupFile();
     if (pick == null) return;
