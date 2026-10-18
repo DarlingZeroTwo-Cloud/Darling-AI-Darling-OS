@@ -313,7 +313,7 @@ class _SettingsPageState extends State<SettingsPage> {
       const SizedBox(height: 6),
       const Text('GitHub: DarlingZeroTwo-Cloud/Darling-ai', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
       const SizedBox(height: 10),
-      Text('平台：${Platform.operatingSystem} · 后端：${s['api_host'] ?? '127.0.0.1'}:${s['api_port'] ?? '18923'}',
+      Text('平台：${Platform.operatingSystem} · 后端：${state.settings['api_host'] ?? '127.0.0.1'}:${state.settings['api_port'] ?? '18923'}',
           style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
       const SizedBox(height: 16),
       Wrap(spacing: 10, runSpacing: 8, children: [
