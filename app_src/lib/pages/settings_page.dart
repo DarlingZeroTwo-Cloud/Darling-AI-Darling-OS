@@ -305,7 +305,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.4.9', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.4.10', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -334,8 +334,114 @@ class _SettingsPageState extends State<SettingsPage> {
           icon: const Icon(Icons.open_in_new, size: 14),
           label: const Text('Gitee 仓库'),
         ),
+        OutlinedButton.icon(
+          onPressed: () => _exportBackup(context),
+          icon: const Icon(Icons.save_alt, size: 14),
+          label: const Text('导出备份'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _importBackup(context),
+          icon: const Icon(Icons.settings_backup_restore, size: 14),
+          label: const Text('导入备份'),
+        ),
       ]),
     ]);
+  }
+
+  /// 导出全部数据备份到 Documents/darling-ai-backup-<时间>.json
+  Future<void> _exportBackup(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+        content: Text('正在导出备份…'), duration: Duration(seconds: 2)));
+    final data = await state.api.exportBackup();
+    if (!context.mounted) return;
+    if (data.containsKey('error')) {
+      messenger.showSnackBar(SnackBar(content: Text('导出失败：${data['error']}')));
+      return;
+    }
+    try {
+      final home = Platform.environment['USERPROFILE'] ??
+          Platform.environment['HOME'] ??
+          '.';
+      final dir = '$home/Documents';
+      final ts = DateTime.now();
+      final stamp =
+          '${ts.year}${ts.month.toString().padLeft(2, '0')}${ts.day.toString().padLeft(2, '0')}-'
+          '${ts.hour.toString().padLeft(2, '0')}${ts.minute.toString().padLeft(2, '0')}';
+      final file = File('$dir/darling-ai-backup-$stamp.json');
+      file.writeAsStringSync(jsonEncode(data));
+      messenger.showSnackBar(SnackBar(
+          content: Text('备份已保存：${file.path}'),
+          duration: const Duration(seconds: 4)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('保存失败：$e')));
+    }
+  }
+
+  /// 从本地 JSON 文件导入备份
+  Future<void> _importBackup(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final pick = await _pickBackupFile();
+    if (pick == null) return;
+    try {
+      final data = jsonDecode(
+              await File(pick).readAsString()) as Map<String, dynamic>;
+      final r = await state.api.importBackup(data);
+      if (!context.mounted) return;
+      if (r['ok'] == true) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('备份导入成功，重启应用后生效'),
+            duration: Duration(seconds: 3)));
+        await state.reload();
+      } else {
+        messenger.showSnackBar(
+            SnackBar(content: Text('导入失败：${r['error'] ?? '未知错误'}')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('读取备份失败：$e')));
+    }
+  }
+
+  /// 选择备份文件：优先用系统文件选择器，失败则提示手动输入路径
+  Future<String?> _pickBackupFile() async {
+    final home = Platform.environment['USERPROFILE'] ??
+        Platform.environment['HOME'] ??
+        '.';
+    final dir = Directory('$home/Documents');
+    if (dir.existsSync()) {
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.contains('darling-ai-backup'))
+          .toList();
+      if (files.isNotEmpty) {
+        // 取最新的备份文件
+        files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+        return files.first.path;
+      }
+    }
+    // 无系统选择器时：让用户输入路径
+    final ctl = TextEditingController();
+    final path = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('导入备份'),
+        content: TextField(
+          controller: ctl,
+          decoration: const InputDecoration(
+              labelText: '备份文件路径',
+              hintText: '如：C:\\Users\\xxx\\Documents\\darling-ai-backup-xxx.json'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+              onPressed: () =>
+                  Navigator.pop(ctx, ctl.text.trim().isEmpty ? null : ctl.text.trim()),
+              child: const Text('导入')),
+        ],
+      ),
+    );
+    return path;
   }
 
   /// 用系统浏览器打开外链
@@ -354,7 +460,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.4.9';
+    const current = '3.4.10';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -420,7 +526,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.4.9' ≥ '3.4.9'）
+  /// latest 是否 ≥ current（如 '3.4.10' ≥ '3.4.10'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')

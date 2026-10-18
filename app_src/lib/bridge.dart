@@ -209,4 +209,22 @@ class BridgeClient {
       return {'ok': false, 'error': '$e'};
     }
   }
+
+  /// 导出全部数据备份
+  Future<Map<String, dynamic>> exportBackup() async {
+    try {
+      return await getJson('/api/backup/export');
+    } catch (e) {
+      return {'error': '$e'};
+    }
+  }
+
+  /// 导入全部数据备份
+  Future<Map<String, dynamic>> importBackup(Map<String, dynamic> data) async {
+    try {
+      return await postJson('/api/backup/import', data);
+    } catch (e) {
+      return {'error': '$e'};
+    }
+  }
 }

@@ -406,6 +406,10 @@ class Handler(BaseHTTPRequestHandler):
         if p.path == "/api/ping":
             self._json(200, {"ok": True, "version": "1.1.0"})
             return
+        if p.path == "/api/backup/export":
+            # 导出全部数据备份（含对话/模型/设置），前端保存为 JSON 文件
+            self._json(200, self._cfg().data)
+            return
         if p.path == "/api/shutdown":
             # 前端关闭时调用：退出进程
             self._json(200, {"ok": True})
@@ -482,6 +486,26 @@ class Handler(BaseHTTPRequestHandler):
             self._json(401, {"error": "unauthorized"})
             return
         data = self._body()
+        if p.path == "/api/backup/import":
+            # 导入备份：整体替换数据，但保留网络配置与工作目录，防止导入后后端失联
+            if not isinstance(data, dict):
+                self._json(400, {"error": "invalid backup"})
+                return
+            cfg = self._cfg()
+            old = cfg.data.get("settings", {})
+            for k in ("providers", "models", "conversations", "histories", "active_conv"):
+                if k in data:
+                    cfg.data[k] = data[k]
+            # 合并 settings（导入覆盖，但保留网络关键项）
+            if isinstance(data.get("settings"), dict):
+                merged = dict(data["settings"])
+                for keep in ("api_host", "api_port", "api_key", "workspace"):
+                    if keep in old and not merged.get(keep):
+                        merged[keep] = old[keep]
+                cfg.data["settings"] = merged
+            cfg.save()
+            self._json(200, {"ok": True})
+            return
         if p.path == "/api/config":
             cfg = self._cfg()
             for k in ("providers", "models"):
