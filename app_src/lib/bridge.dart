@@ -71,7 +71,8 @@ class BridgeClient {
     while (true) {
       try {
         final req = http.Request('GET', Uri.parse('$base/api/stream?job=$job'));
-        final resp = await _client.send(req).timeout(const Duration(seconds: 30));
+        // 90 秒：长回复生成慢时避免误判超时
+        final resp = await _client.send(req).timeout(const Duration(seconds: 90));
         if (resp.statusCode != 200) {
           throw Exception('SSE 连接失败: ${resp.statusCode}');
         }
@@ -98,12 +99,16 @@ class BridgeClient {
         // 正常结束：收到 DONE / done 事件，或已经收到 token 后流自然关闭
         if (done || gotTokens) return;
         // 流关闭但没收到任何内容 → 真断线，重连
-        if (reconnects >= maxReconnects) return;
+        if (reconnects >= maxReconnects) {
+          throw Exception('连接中断，重连 $maxReconnects 次后仍失败');
+        }
         reconnects++;
         onEvent({'type': 'state', 'text': '连接中断，正在重连 ($reconnects/$maxReconnects)…'});
         await Future.delayed(const Duration(seconds: 1));
       } catch (_) {
-        if (reconnects >= maxReconnects) return;
+        if (reconnects >= maxReconnects) {
+          throw Exception('连接中断，重连 $maxReconnects 次后仍失败');
+        }
         reconnects++;
         onEvent({'type': 'state', 'text': '连接中断，正在重连 ($reconnects/$maxReconnects)…'});
         await Future.delayed(const Duration(seconds: 1));
