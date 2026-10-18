@@ -207,10 +207,11 @@ class MessageBubble extends StatefulWidget {
   final String text;
   final double ts;
   final bool showTimestamp;
+  final String? modelName; // AI 消息显示模型名（设置开启时）
   final VoidCallback? onResend;
   final VoidCallback? onEdit;
   final VoidCallback? onRegenerate;
-  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0, this.showTimestamp = true, this.onResend, this.onEdit, this.onRegenerate});
+  const MessageBubble({super.key, required this.role, required this.text, this.ts = 0, this.showTimestamp = true, this.modelName, this.onResend, this.onEdit, this.onRegenerate});
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -336,9 +337,25 @@ class _MessageBubbleState extends State<MessageBubble> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: RichMarkdown(text, fontSize: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.modelName != null &&
+                          widget.modelName!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(widget.modelName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: cs.onSurfaceVariant)),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: RichMarkdown(text, fontSize: 14),
+                      ),
+                    ],
                   ),
                 ),
                 // 复制按钮（常驻显示）

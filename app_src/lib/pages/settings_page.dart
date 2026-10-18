@@ -118,6 +118,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(label: '自动滚动到底部', desc: '新消息自动滚动到最新内容。', trailing: Switch(value: s['auto_scroll'] != false, onChanged: (v) { state.settings['auto_scroll'] = v; state.saveSettings(); })),
         _Row(label: '显示 token 用量', desc: '每条回复后显示消耗的 token 数。', trailing: Switch(value: s['show_tokens'] == true, onChanged: (v) { state.settings['show_tokens'] = v; state.saveSettings(); })),
         _Row(label: '显示思考过程', desc: '流式回复时显示 AI 的思考过程（支持时）。', trailing: Switch(value: s['show_thinking'] != false, onChanged: (v) { state.settings['show_thinking'] = v; state.saveSettings(); })),
+        _Row(label: 'AI 消息显示模型名', desc: '在 AI 回复头部标注使用的模型。', trailing: Switch(value: s['show_ai_model'] == true, onChanged: (v) { state.settings['show_ai_model'] = v; state.saveSettings(); })),
         _Row(label: '消息时间戳', desc: '每条消息下方显示发送时间。', trailing: Switch(value: s['show_timestamp'] != false, onChanged: (v) { state.settings['show_timestamp'] = v; state.saveSettings(); })),
         _Row(label: '对话字体大小', desc: '聊天内容的字号（12 ~ 20）。', trailing: SpinField(min: 12, max: 20, value: _num(s, 'chat_font_size', 14).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['chat_font_size'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '历史消息保留条数', desc: '发给 AI 的最近消息数（默认 20）。', trailing: SpinField(min: 4, max: 100, value: _num(s, 'history_limit', 20).toDouble(), step: 2, decimals: 0, onChanged: (v) { state.settings['history_limit'] = v.toInt(); state.saveSettings(); })),
@@ -304,7 +305,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.4.3', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.4.4', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -350,7 +351,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.4.3';
+    const current = '3.4.4';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -416,7 +417,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.4.3' ≥ '3.4.3'）
+  /// latest 是否 ≥ current（如 '3.4.4' ≥ '3.4.4'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')

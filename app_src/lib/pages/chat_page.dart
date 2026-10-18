@@ -227,6 +227,9 @@ class _MessageListState extends State<_MessageList> {
           case MsgKind.ai:
             return MessageBubble(role: 'ai', text: msg.text, ts: msg.ts,
                 showTimestamp: state.settings['show_timestamp'] != false,
+                modelName: state.settings['show_ai_model'] == true
+                    ? (state.model(state.currentModelId)?['display'] ?? '').toString()
+                    : null,
                 onRegenerate: () => state.regenerate());
           case MsgKind.tool:
             return ToolCard(title: msg.title, content: msg.text, ok: msg.ok);
