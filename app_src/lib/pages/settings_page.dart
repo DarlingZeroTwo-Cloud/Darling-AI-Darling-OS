@@ -305,13 +305,16 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.4.4', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.4.5', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
       const Text('本地 AI 工作台 · Flutter + Python 桥接', style: TextStyle(fontSize: 13)),
       const SizedBox(height: 6),
       const Text('GitHub: DarlingZeroTwo-Cloud/Darling-ai', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+      const SizedBox(height: 10),
+      Text('平台：${Platform.operatingSystem} · 后端：${s['api_host'] ?? '127.0.0.1'}:${s['api_port'] ?? '18923'}',
+          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
       const SizedBox(height: 16),
       Wrap(spacing: 10, runSpacing: 8, children: [
         OutlinedButton.icon(
@@ -351,7 +354,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.4.4';
+    const current = '3.4.5';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -417,7 +420,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.4.4' ≥ '3.4.4'）
+  /// latest 是否 ≥ current（如 '3.4.5' ≥ '3.4.5'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')
