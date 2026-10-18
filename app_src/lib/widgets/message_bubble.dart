@@ -172,6 +172,16 @@ class _InlineRichState extends State<_InlineRich> {
                   return r;
                 })(),
               )
+            else if (p.$2 == 'code')
+              TextSpan(
+                text: p.$1,
+                style: TextStyle(
+                    fontSize: widget.fontSize - 1,
+                    fontFamily: 'monospace',
+                    color: dark ? const Color(0xFF7DE2D6) : const Color(0xFF0E5E58),
+                    backgroundColor:
+                        dark ? const Color(0x33111318) : const Color(0x33E8EAED)),
+              )
             else
               TextSpan(
                 text: p.$1,
@@ -184,13 +194,15 @@ class _InlineRichState extends State<_InlineRich> {
 
   List<(String, String)> _parseInline(String s) {
     final out = <(String, String)>[];
-    final re = RegExp(r'(\*\*[^*]+\*\*|https?://[^\s<]+)');
+    final re = RegExp(r'(\*\*[^*]+\*\*|`[^`]+`|https?://[^\s<]+)');
     var last = 0;
     for (final m in re.allMatches(s)) {
       if (m.start > last) out.add((s.substring(last, m.start), 'plain'));
       final tok = m.group(0)!;
       if (tok.startsWith('**')) {
         out.add((tok.substring(2, tok.length - 2), 'bold'));
+      } else if (tok.startsWith('`')) {
+        out.add((tok.substring(1, tok.length - 1), 'code'));
       } else {
         out.add((tok, 'link'));
       }
