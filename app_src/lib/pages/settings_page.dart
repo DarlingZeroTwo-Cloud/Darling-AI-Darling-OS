@@ -113,6 +113,8 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(label: '最大回复 tokens', desc: '单次回复长度上限。', trailing: SpinField(min: 256, max: 131072, value: _num(s, 'max_tokens', 4096).toDouble(), step: 512, onChanged: (v) { state.settings['max_tokens'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '思考强度', desc: '控制 AI 思考深度（0=关闭, 3=最强）。', trailing: SpinField(min: 0, max: 3, value: _num(s, 'reasoning_effort', 1).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['reasoning_effort'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '流式输出', desc: '逐字显示 AI 回复。', trailing: Switch(value: s['stream'] != false, onChanged: (v) { state.settings['stream'] = v; state.saveSettings(); })),
+        _Row(label: '回车发送', desc: '输入框按 Enter 直接发送；关闭后 Enter 换行。', trailing: Switch(value: s['enter_to_send'] != false, onChanged: (v) { state.settings['enter_to_send'] = v; state.saveSettings(); })),
+        _Row(label: '新对话自动聚焦输入框', desc: '切换/新建对话后自动把光标放到输入框。', trailing: Switch(value: s['auto_focus_input'] != false, onChanged: (v) { state.settings['auto_focus_input'] = v; state.saveSettings(); })),
         _Row(label: '自动滚动到底部', desc: '新消息自动滚动到最新内容。', trailing: Switch(value: s['auto_scroll'] != false, onChanged: (v) { state.settings['auto_scroll'] = v; state.saveSettings(); })),
         _Row(label: '显示 token 用量', desc: '每条回复后显示消耗的 token 数。', trailing: Switch(value: s['show_tokens'] == true, onChanged: (v) { state.settings['show_tokens'] = v; state.saveSettings(); })),
         _Row(label: '消息时间戳', desc: '每条消息下方显示发送时间。', trailing: Switch(value: s['show_timestamp'] != false, onChanged: (v) { state.settings['show_timestamp'] = v; state.saveSettings(); })),
@@ -219,6 +221,8 @@ class _SettingsPageState extends State<SettingsPage> {
       _Card(title: '个性化', children: [
         _Row(label: 'UI 模式', desc: '精简：顶部菜单切换；经典：左侧历史对话栏。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'compact', label: Text('精简')), ButtonSegment(value: 'classic', label: Text('经典'))], selected: {state.uiMode}, onSelectionChanged: (sel) { state.setUiMode(sel.first); })),
         const SizedBox(height: 14),
+        _Row(label: '侧边栏默认折叠', desc: '经典模式下启动时侧边栏默认收起为窄条（可随时展开）。', trailing: Switch(value: s['sidebar_collapsed'] == true, onChanged: (v) { state.settings['sidebar_collapsed'] = v; state.saveSettings(); })),
+        const SizedBox(height: 14),
         _Row(label: '界面主题', desc: '跟随系统，或手动固定深浅色。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'system', label: Text('跟随系统')), ButtonSegment(value: 'light', label: Text('浅色')), ButtonSegment(value: 'dark', label: Text('深色'))], selected: {_opt(s, 'theme_mode', 'system', const {'system', 'light', 'dark'})}, onSelectionChanged: (sel) { state.setThemeMode(sel.first); })),
         const SizedBox(height: 14),
         // 强调色
@@ -267,7 +271,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.3.6', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.3.7', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -288,7 +292,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.3.6';
+    const current = '3.3.7';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -354,7 +358,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.3.6' ≥ '3.3.6'）
+  /// latest 是否 ≥ current（如 '3.3.7' ≥ '3.3.7'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')

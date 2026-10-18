@@ -334,6 +334,7 @@ class _ComposerState extends State<_Composer> {
   bool _showSlash = false;
   int _slashSel = 0;
   bool _optimizing = false;
+  String? _lastConvId;
   final List<String> _images = [];
 
   /// 导出菜单：Markdown / JSON / HTML，成功后提示文件路径
@@ -373,6 +374,7 @@ class _ComposerState extends State<_Composer> {
   @override
   void initState() {
     super.initState();
+    _lastConvId = widget.state.activeConvId;
     widget.state.addListener(_onStateChanged);
     // 键盘快捷键：Esc 清空输入框；Ctrl+L 清空；Ctrl+N 新对话；Ctrl+K 切换模型；Ctrl+Enter 发送
     _focus.onKeyEvent = (node, ev) {
@@ -409,8 +411,11 @@ class _ComposerState extends State<_Composer> {
           return KeyEventResult.handled;
         }
         if (key == LogicalKeyboardKey.enter) {
-          _send();
-          return KeyEventResult.handled;
+          // 回车发送（设置里可关闭，关闭后回车换行）
+          if (widget.state.settings['enter_to_send'] != false) {
+            _send();
+            return KeyEventResult.handled;
+          }
         }
       }
       return KeyEventResult.ignored;
@@ -424,6 +429,15 @@ class _ComposerState extends State<_Composer> {
       _ctl.text = d;
       _ctl.selection = TextSelection.collapsed(offset: d.length);
       _focus.requestFocus();
+    }
+    // 切换/新建对话后自动聚焦输入框（设置可关）
+    final cid = widget.state.activeConvId;
+    if (cid != _lastConvId &&
+        widget.state.settings['auto_focus_input'] != false) {
+      _lastConvId = cid;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focus.requestFocus();
+      });
     }
   }
 
@@ -835,7 +849,9 @@ class _ComposerState extends State<_Composer> {
                 maxLines: 6,
                 enabled: !busy,
                 onChanged: _onTextChanged,
-                onSubmitted: (_) => _send(),
+                onSubmitted: (_) {
+                  if (widget.state.settings['enter_to_send'] != false) _send();
+                },
                 style: TextStyle(fontSize: 14, color: cs.onSurface),
                 decoration: InputDecoration(
                   border: InputBorder.none,

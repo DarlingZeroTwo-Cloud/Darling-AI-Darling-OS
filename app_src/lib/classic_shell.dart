@@ -135,15 +135,32 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.3.6',
+          Text('v3.3.7',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
-          // 清空当前对话
+          // 清空当前对话（二次确认防误触）
           if (state.messages.isNotEmpty)
             Tooltip(
               message: '清空当前对话',
               child: InkWell(
-                onTap: () => state.clearActiveConversation(),
+                onTap: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('清空当前对话'),
+                      content: const Text('确定清空当前对话的所有消息？此操作不可恢复。'),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('取消')),
+                        FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('清空')),
+                      ],
+                    ),
+                  );
+                  if (ok == true) state.clearActiveConversation();
+                },
                 borderRadius: BorderRadius.circular(6),
                 child: Padding(
                   padding: const EdgeInsets.all(6),
