@@ -240,6 +240,21 @@ class _MessageListState extends State<_MessageList> {
                             fontSize: 12.5,
                             color: Theme.of(context).colorScheme.error)),
                   ),
+                  // 重试：重新生成（重发最后一条用户消息）
+                  if (!state.busy)
+                    Tooltip(
+                      message: '重试',
+                      child: InkWell(
+                        onTap: () => state.regenerate(),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(5),
+                          child: Icon(Icons.refresh,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
                 ],
                 ),
                 );
