@@ -373,12 +373,41 @@ class _ComposerState extends State<_Composer> {
   void initState() {
     super.initState();
     widget.state.addListener(_onStateChanged);
-    // Esc 清空输入框（FocusNode.onKeyEvent 兼容旧版 Flutter）
+    // 键盘快捷键：Esc 清空输入框；Ctrl+L 清空；Ctrl+N 新对话；Ctrl+K 切换模型；Ctrl+Enter 发送
     _focus.onKeyEvent = (node, ev) {
-      if (ev is KeyDownEvent && ev.logicalKey == LogicalKeyboardKey.escape) {
+      if (ev is! KeyDownEvent) return KeyEventResult.ignored;
+      final key = ev.logicalKey;
+      if (key == LogicalKeyboardKey.escape) {
         if (_ctl.text.isNotEmpty) {
           _ctl.clear();
           setState(() {});
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      }
+      final ctrl = ev.isControlPressed || ev.isMetaPressed;
+      if (ctrl) {
+        if (key == LogicalKeyboardKey.keyL) {
+          if (_ctl.text.isNotEmpty) {
+            _ctl.clear();
+            setState(() {});
+            return KeyEventResult.handled;
+          }
+        }
+        if (key == LogicalKeyboardKey.keyN) {
+          widget.state.newConversation();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.keyK) {
+          if (_modelMenu.isOpen) {
+            _modelMenu.close();
+          } else {
+            _modelMenu.open();
+          }
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.enter) {
+          _send();
           return KeyEventResult.handled;
         }
       }
@@ -808,7 +837,7 @@ class _ComposerState extends State<_Composer> {
                 style: TextStyle(fontSize: 14, color: cs.onSurface),
                 decoration: InputDecoration(
                   border: InputBorder.none,
-                  hintText: busy ? 'AI 正在回复…' : '随便问点什么，/可查看命令，@可添加上下文...',
+                  hintText: busy ? 'AI 正在回复…' : '随便问点什么，/可查看命令，Ctrl+Enter 发送',
                   hintStyle:
                       TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   contentPadding:
