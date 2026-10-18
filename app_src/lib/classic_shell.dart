@@ -128,7 +128,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.2.6',
+          Text('v3.2.7',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           const SizedBox(width: 16),
@@ -313,11 +313,20 @@ class _SidebarContentState extends State<_SidebarContent> {
                     child: Text('暂无历史对话',
                         style: TextStyle(fontSize: 12, color: Color(0xFF9AA1AC))));
               }
+              // 排序：置顶优先，其余按最后活跃时间降序（无时间戳的排最后）
+              final sorted = List<Map<String, dynamic>>.from(convs)
+                ..sort((a, b) {
+                  final ap = a['pinned'] == true, bp = b['pinned'] == true;
+                  if (ap != bp) return ap ? -1 : 1;
+                  final at = (a['ts'] as num?)?.toDouble() ?? 0.0;
+                  final bt = (b['ts'] as num?)?.toDouble() ?? 0.0;
+                  return bt.compareTo(at);
+                });
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
-                itemCount: convs.length,
+                itemCount: sorted.length,
                 itemBuilder: (context, i) {
-                  final c = convs[i] as Map<String, dynamic>;
+                  final c = sorted[i] as Map<String, dynamic>;
                   final id = c['id'] as String?;
                   final active = id == state.activeConvId;
                   return _ClassicConvItem(

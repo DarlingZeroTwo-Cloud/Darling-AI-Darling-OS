@@ -336,6 +336,7 @@ def stream_agent(job):
             if c["id"] == aid:
                 c["hist"] = history[-core.HISTORY_LIMIT:]
                 c["model_id"] = model["id"]
+                c["ts"] = time.time()  # 最后活跃时间（侧边栏排序用）
                 if c.get("title", "新对话") == "新对话":
                     for msg in history:
                         if msg.get("role") == "user":
