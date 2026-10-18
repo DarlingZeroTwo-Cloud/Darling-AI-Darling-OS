@@ -122,6 +122,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _Row(label: '对话字体大小', desc: '聊天内容的字号（12 ~ 20）。', trailing: SpinField(min: 12, max: 20, value: _num(s, 'chat_font_size', 14).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['chat_font_size'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '历史消息保留条数', desc: '发给 AI 的最近消息数（默认 20）。', trailing: SpinField(min: 4, max: 100, value: _num(s, 'history_limit', 20).toDouble(), step: 2, decimals: 0, onChanged: (v) { state.settings['history_limit'] = v.toInt(); state.saveSettings(); })),
         _Row(label: '自动压缩阈值', desc: '历史 token 超过此值时自动压缩（默认 60000）。', trailing: SpinField(min: 4000, max: 200000, value: _num(s, 'context_compress_threshold', 60000).toDouble(), step: 2000, onChanged: (v) { state.settings['context_compress_threshold'] = v.toInt(); state.saveSettings(); })),
+        _Row(label: '自动生成对话标题', desc: '新对话根据首条消息自动命名；关闭后保持"新对话"。', trailing: Switch(value: s['auto_title'] != false, onChanged: (v) { state.settings['auto_title'] = v; state.saveSettings(); })),
         _Row(label: '助手角色', desc: '预设角色决定 AI 的行为风格；自定义角色可在下方编辑。', trailing: _RolePicker(state: state)),
         if ((s['assistant_role'] ?? 'general') == 'custom')
           Padding(
@@ -303,7 +304,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.4.2', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.4.3', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -349,7 +350,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.4.2';
+    const current = '3.4.3';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -415,7 +416,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.4.2' ≥ '3.4.2'）
+  /// latest 是否 ≥ current（如 '3.4.3' ≥ '3.4.3'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')
