@@ -241,7 +241,7 @@ class _SidebarContentState extends State<_SidebarContent> {
             children: [
               IconButton(
                 icon: Icon(Icons.chevron_left, size: 18, color: cs.onSurfaceVariant),
-                onPressed: onToggle,
+                onPressed: widget.onToggle,
                 tooltip: '收起侧边栏',
                 visualDensity: VisualDensity.compact,
               ),
@@ -324,7 +324,7 @@ class _SidebarContentState extends State<_SidebarContent> {
                     id: id,
                     title: (c['title'] ?? '新对话').toString(),
                     active: active,
-                    onTap: () { state.loadConversation(id!); onSelectChat(); },
+                    onTap: () { state.loadConversation(id!); widget.onSelectChat(); },
                     onRename: () => state.renameActiveConversationFor(
                         context, id!, (c['title'] ?? '新对话').toString()),
                     onDelete: () => state.confirmDeleteConversation(
@@ -346,17 +346,17 @@ class _SidebarContentState extends State<_SidebarContent> {
               _SidebarEntry(
                 icon: Icons.settings_outlined,
                 label: '设置',
-                onTap: () => onSelectPage('settings'),
+                onTap: () => widget.onSelectPage('settings'),
               ),
               _SidebarEntry(
                 icon: Icons.model_training_outlined,
                 label: '模型供应商',
-                onTap: () => onSelectPage('models'),
+                onTap: () => widget.onSelectPage('models'),
               ),
               _SidebarEntry(
                 icon: Icons.extension_outlined,
                 label: '插件',
-                onTap: () => onSelectPage('plugins'),
+                onTap: () => widget.onSelectPage('plugins'),
               ),
             ],
           ),
