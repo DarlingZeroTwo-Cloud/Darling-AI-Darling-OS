@@ -224,6 +224,8 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 14),
         _Row(label: '侧边栏默认折叠', desc: '经典模式下启动时侧边栏默认收起为窄条（可随时展开）。', trailing: Switch(value: s['sidebar_collapsed'] == true, onChanged: (v) { state.settings['sidebar_collapsed'] = v; state.saveSettings(); })),
         const SizedBox(height: 14),
+        _Row(label: '启动时自动检查更新', desc: '打开应用后静默检查 GitHub 是否有新版本，有则提示。', trailing: Switch(value: s['auto_check_update'] == true, onChanged: (v) { state.settings['auto_check_update'] = v; state.saveSettings(); })),
+        const SizedBox(height: 14),
         _Row(label: '界面主题', desc: '跟随系统，或手动固定深浅色。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'system', label: Text('跟随系统')), ButtonSegment(value: 'light', label: Text('浅色')), ButtonSegment(value: 'dark', label: Text('深色'))], selected: {_opt(s, 'theme_mode', 'system', const {'system', 'light', 'dark'})}, onSelectionChanged: (sel) { state.setThemeMode(sel.first); })),
         const SizedBox(height: 14),
         // 强调色
@@ -301,7 +303,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.4.1', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.4.2', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -309,12 +311,37 @@ class _SettingsPageState extends State<SettingsPage> {
       const SizedBox(height: 6),
       const Text('GitHub: DarlingZeroTwo-Cloud/Darling-ai', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
       const SizedBox(height: 16),
-      OutlinedButton.icon(
-        onPressed: () => _checkUpdate(context),
-        icon: const Icon(Icons.system_update_alt, size: 14),
-        label: const Text('检查更新'),
-      ),
+      Wrap(spacing: 10, runSpacing: 8, children: [
+        OutlinedButton.icon(
+          onPressed: () => _checkUpdate(context),
+          icon: const Icon(Icons.system_update_alt, size: 14),
+          label: const Text('检查更新'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _openUrl(
+              'https://github.com/DarlingZeroTwo-Cloud/Darling-ai'),
+          icon: const Icon(Icons.open_in_new, size: 14),
+          label: const Text('项目主页'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () =>
+              _openUrl('https://gitee.com/darling-cloud/Darling-ai'),
+          icon: const Icon(Icons.open_in_new, size: 14),
+          label: const Text('Gitee 仓库'),
+        ),
+      ]),
     ]);
+  }
+
+  /// 用系统浏览器打开外链
+  void _openUrl(String url) {
+    try {
+      if (Platform.isWindows) {
+        Process.start('cmd', ['/c', 'start', '', url]);
+      } else {
+        Process.start('xdg-open', [url]);
+      }
+    } catch (_) {}
   }
 
   /// 检查更新：调 GitHub API 获取最新版本，与当前版本比对
@@ -322,7 +349,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.4.1';
+    const current = '3.4.2';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -388,7 +415,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.4.1' ≥ '3.4.1'）
+  /// latest 是否 ≥ current（如 '3.4.2' ≥ '3.4.2'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')

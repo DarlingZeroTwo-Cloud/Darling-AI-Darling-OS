@@ -52,6 +52,9 @@ class AppState extends ChangeNotifier {
   /// UI 模式：compact=精简（当前样式），classic=经典（Zed 风格侧边栏 + 独立窗口）
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
+  /// 当前应用版本号
+  String get appVersion => '3.4.2';
+
   Future<void> setUiMode(String mode) async {
     settings['ui_mode'] = mode;
     await saveSettings();

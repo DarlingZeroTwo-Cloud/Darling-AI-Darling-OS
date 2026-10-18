@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import 'bridge.dart';
 import 'state.dart';
@@ -274,6 +275,51 @@ class _HomeShellState extends State<HomeShell> {
   int _nav = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // 启动时静默检查更新（设置可关）
+    if (widget.state.settings['auto_check_update'] == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoCheckUpdate();
+      });
+    }
+  }
+
+  Future<void> _autoCheckUpdate() async {
+    try {
+      final resp = await http
+          .get(Uri.parse(
+              'https://api.github.com/repos/DarlingZeroTwo-Cloud/Darling-ai/releases/latest'))
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode != 200) return;
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final latest =
+          ((data['tag_name'] ?? '') as String).replaceFirst(RegExp(r'^v'), '');
+      final current = widget.state.appVersion;
+      if (latest.isNotEmpty && _versionAtLeast(latest, current) == false) {
+        final url = (data['html_url'] ?? '').toString();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('发现新版本 $latest（当前 $current）'),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: '查看',
+            onPressed: () {
+              try {
+                if (Platform.isWindows) {
+                  Process.start('cmd', ['/c', 'start', '', url]);
+                } else {
+                  Process.start('xdg-open', [url]);
+                }
+              } catch (_) {}
+            },
+          ),
+        ));
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     // 经典模式：Zed 风格侧边栏 + 独立窗口
     if (widget.state.uiMode == 'classic') {
@@ -420,4 +466,19 @@ class _HomeShellState extends State<HomeShell> {
     ),
     );
   }
+}
+
+/// 版本比较：latest 是否 >= current
+bool _versionAtLeast(String latest, String current) {
+  List<int> parse(String v) => v
+      .split('.')
+      .map((s) => int.tryParse(s.trim()) ?? 0)
+      .toList();
+  final a = parse(latest), b = parse(current);
+  for (var i = 0; i < a.length || i < b.length; i++) {
+    final x = i < a.length ? a[i] : 0;
+    final y = i < b.length ? b[i] : 0;
+    if (x != y) return x > y;
+  }
+  return true;
 }
