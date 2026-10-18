@@ -28,14 +28,21 @@ class _ChatPageState extends State<ChatPage> {
       listenable: state,
       builder: (context, _) {
         final empty = state.messages.isEmpty && !state.busy;
+        // 对话字体大小：设置里 chat_font_size（12~20，默认 14），作用于整个消息区
+        final fontRaw = (state.settings['chat_font_size'] as num?)?.toDouble() ?? 14.0;
+        final scale = (fontRaw / 14.0).clamp(0.7, 1.8);
         return Column(
           children: [
             Expanded(
-              child: empty
-                  ? _EmptyState(state: state)
-                  : _MessageList(
-                      key: ValueKey(state.activeConvId ?? 'conv'),
-                      state: state),
+              child: MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: TextScaler.linear(scale)),
+                child: empty
+                    ? _EmptyState(state: state)
+                    : _MessageList(
+                        key: ValueKey(state.activeConvId ?? 'conv'),
+                        state: state),
+              ),
             ),
             if (!empty) _Composer(state: state),
           ],
