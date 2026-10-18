@@ -33,6 +33,17 @@ class AppState extends ChangeNotifier {
   String? activeConvId;
   String? currentModelId;
 
+  /// 当前活动对话的标题（导出文件名用）
+  String get activeConvTitle {
+    if (activeConvId == null) return '对话';
+    for (final c in conversations) {
+      if (c is Map && c['id'] == activeConvId) {
+        return (c['title'] ?? '对话').toString();
+      }
+    }
+    return '对话';
+  }
+
   List<ChatMsg> messages = [];
   bool busy = false;
   String thinkingText = '';
@@ -53,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '3.4.6';
+  String get appVersion => '3.4.7';
 
   Future<void> setUiMode(String mode) async {
     settings['ui_mode'] = mode;
@@ -299,6 +310,12 @@ class AppState extends ChangeNotifier {
     final stamp =
         '${ts.year}${ts.month.toString().padLeft(2, '0')}${ts.day.toString().padLeft(2, '0')}-'
         '${ts.hour.toString().padLeft(2, '0')}${ts.minute.toString().padLeft(2, '0')}';
+    // 文件名带当前对话标题（不含非法字符）
+    String safeTitle(String s) =>
+        s.replaceAll(RegExp(r'[\\/:*?"<>|]'), '').trim();
+    final convTitle = safeTitle(
+        (activeConvTitle ?? '对话').toString());
+    final base = 'darling-ai-$convTitle-$stamp';
     if (format == 'json') {
       final items = messages.where((m) =>
           m.kind == MsgKind.user ||
@@ -318,7 +335,7 @@ class AppState extends ChangeNotifier {
         'model_id': currentModelId,
         'messages': items,
       };
-      final file = File('$dir/darling-ai-对话-$stamp.json');
+      final file = File('$dir/$base.json');
       await file.writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
       return file.path;
     }
@@ -365,7 +382,7 @@ class AppState extends ChangeNotifier {
         }
       }
       buf.writeln('</body></html>');
-      final file = File('$dir/darling-ai-对话-$stamp.html');
+      final file = File('$dir/$base.html');
       await file.writeAsString(buf.toString());
       return file.path;
     }
@@ -387,7 +404,7 @@ class AppState extends ChangeNotifier {
           break;
       }
     }
-    final file = File('$dir/darling-ai-对话-$stamp.md');
+    final file = File('$dir/$base.md');
     await file.writeAsString(buf.toString());
     return file.path;
   }
