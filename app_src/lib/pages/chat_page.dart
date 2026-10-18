@@ -365,10 +365,27 @@ class _ComposerState extends State<_Composer> {
           return;
         }
         final path = await state.exportConversation(format: fmt);
-        messenger.showSnackBar(SnackBar(
-          content: Text(path == null ? '当前对话为空' : '已导出：$path'),
-          duration: const Duration(seconds: 4),
-        ));
+        if (path == null) {
+          messenger.showSnackBar(const SnackBar(content: Text('当前对话为空')));
+        } else {
+          messenger.showSnackBar(SnackBar(
+            content: Text('已导出：$path'),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: '打开文件夹',
+              onPressed: () {
+                final dir = File(path).parent.path;
+                Process.start(
+                  Platform.isWindows
+                      ? 'explorer'
+                      : 'xdg-open',
+                  Platform.isWindows ? [dir] : [dir],
+                  runInShell: false,
+                );
+              },
+            ),
+          ));
+        }
       } catch (e) {
         messenger.showSnackBar(SnackBar(content: Text('导出失败：$e')));
       }
@@ -878,7 +895,11 @@ class _ComposerState extends State<_Composer> {
                 style: TextStyle(fontSize: 14, color: cs.onSurface),
                 decoration: InputDecoration(
                   border: InputBorder.none,
-                  hintText: busy ? 'AI 正在回复…' : '随便问点什么，/可查看命令，Ctrl+Enter 发送',
+                  hintText: busy
+                      ? 'AI 正在回复…'
+                      : (widget.state.settings['enter_to_send'] != false
+                          ? '随便问点什么，/可查看命令，Enter 发送'
+                          : '随便问点什么，/可查看命令，Enter 换行，Ctrl+Enter 发送'),
                   hintStyle:
                       TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   contentPadding:
