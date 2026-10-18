@@ -1,10 +1,10 @@
-name: build-3.4.7
+name: build-3.4.8
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v3.4.7*'
+      - 'v3.4.8*'
 
 permissions:
   contents: write
@@ -46,7 +46,7 @@ jobs:
 
       - name: Assemble dist
         run: |
-          $DIST = "dist\darling-ai-3.4.7"
+          $DIST = "dist\darling-ai-3.4.8"
           New-Item -ItemType Directory -Force $DIST | Out-Null
           New-Item -ItemType Directory -Force "$DIST\backend" | Out-Null
           New-Item -ItemType Directory -Force "$DIST\plugins" | Out-Null
@@ -57,7 +57,7 @@ jobs:
 
       - name: Pack portable zip
         run: |
-          Compress-Archive -Path "dist\darling-ai-3.4.7\*" -DestinationPath "darling-ai-3.4.7-portable.zip" -Force
+          Compress-Archive -Path "dist\darling-ai-3.4.8\*" -DestinationPath "darling-ai-3.4.8-portable.zip" -Force
         shell: pwsh
 
       - name: Build installer (Chinese UI)
@@ -68,7 +68,7 @@ jobs:
           $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langFile`""
           $iss = @"
           #define MyAppName "darling-ai"
-          #define MyAppVersion "3.4.7"
+          #define MyAppVersion "3.4.8"
           #define MyAppPublisher "darling"
           #define MyAppExeName "darling_ai.exe"
           [Setup]
@@ -82,7 +82,7 @@ jobs:
           AllowNoIcons=yes
           DisableProgramGroupPage=yes
           OutputDir=.
-          OutputBaseFilename=darling-ai-3.4.7-setup
+          OutputBaseFilename=darling-ai-3.4.8-setup
           Compression=lzma2
           SolidCompression=yes
           WizardStyle=modern
@@ -96,7 +96,7 @@ jobs:
           [Tasks]
           Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional tasks:"; Flags: checkedonce
           [Files]
-          Source: "dist\darling-ai-3.4.7\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+          Source: "dist\darling-ai-3.4.8\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
           [Icons]
           Name: "{group}\darling-ai"; Filename: "{app}\{#MyAppExeName}"
           Name: "{group}\Uninstall darling-ai"; Filename: "{uninstallexe}"
@@ -126,10 +126,10 @@ jobs:
       - name: Upload windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.4.7-windows
+          name: darling-ai-3.4.8-windows
           path: |
-            darling-ai-3.4.7-portable.zip
-            darling-ai-3.4.7-setup.exe
+            darling-ai-3.4.8-portable.zip
+            darling-ai-3.4.8-setup.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -170,19 +170,19 @@ jobs:
 
       - name: Assemble tar.gz
         run: |
-          DIST=dist/darling-ai-3.4.7
+          DIST=dist/darling-ai-3.4.8
           rm -rf dist
           mkdir -p $DIST/backend $DIST/plugins
           cp -r app/build/linux/x64/release/bundle/. $DIST/
           cp backend/dist/darling-backend $DIST/backend/
           chmod +x $DIST/backend/darling-backend
           cp backend/plugins/*.json $DIST/plugins/ 2>/dev/null || true
-          tar czf darling-ai-3.4.7-linux-x64.tar.gz dist/
+          tar czf darling-ai-3.4.8-linux-x64.tar.gz dist/
 
       - name: Build deb package (all runtime deps bundled, offline install)
         run: |
-          DIST=dist/darling-ai-3.4.7
-          PKG=darling-ai_3.4.7_amd64
+          DIST=dist/darling-ai-3.4.8
+          PKG=darling-ai_3.4.8_amd64
           rm -rf $PKG
           mkdir -p $PKG/DEBIAN $PKG/usr/share/darling-ai $PKG/usr/bin $PKG/usr/share/applications
           # 应用本体（Flutter bundle 自带全部 Flutter 库；backend 为 PyInstaller onefile，自带 Python 解释器）
@@ -205,7 +205,7 @@ jobs:
           # control：仅声明最基础的 GTK 系统库（绝大多数发行版自带，无需联网装 Python/Flutter）
           cat > $PKG/DEBIAN/control <<'EOS'
           Package: darling-ai
-          Version: 3.4.7
+          Version: 3.4.8
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -216,28 +216,28 @@ jobs:
           chmod +x $PKG/usr/share/darling-ai/darling_ai
           chmod +x $PKG/usr/share/darling-ai/backend/darling-backend
           chmod 644 $PKG/usr/share/applications/darling-ai.desktop
-          dpkg-deb --build --root-owner-group $PKG darling-ai-3.4.7-amd64.deb
+          dpkg-deb --build --root-owner-group $PKG darling-ai-3.4.8-amd64.deb
 
       - name: Verify deb package (install + dependency check)
         run: |
           echo "===== dpkg-deb info ====="
-          dpkg-deb --info darling-ai-3.4.7-amd64.deb
+          dpkg-deb --info darling-ai-3.4.8-amd64.deb
           echo "===== contents (head) ====="
-          dpkg-deb --contents darling-ai-3.4.7-amd64.deb | head -20
+          dpkg-deb --contents darling-ai-3.4.8-amd64.deb | head -20
           echo "===== actually install ====="
-          sudo dpkg -i darling-ai-3.4.7-amd64.deb
+          sudo dpkg -i darling-ai-3.4.8-amd64.deb
           which darling-ai
           dpkg -s darling-ai | grep -E "Package|Version|Status"
           echo "===== dependency check (ldd) ====="
           ldd /usr/share/darling-ai/darling_ai 2>&1 | grep -i "not found" && { echo "GUI LIBS MISSING"; exit 1; } || echo "GUI libs OK"
           ldd /usr/share/darling-ai/backend/darling-backend 2>&1 | grep -i "not found" && { echo "BACKEND LIBS MISSING"; exit 1; } || echo "Backend libs OK"
           echo "===== tar.gz lib check ====="
-          tar tzf darling-ai-3.4.7-linux-x64.tar.gz | head -10
+          tar tzf darling-ai-3.4.8-linux-x64.tar.gz | head -10
 
       - name: Upload linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-3.4.7-linux
+          name: darling-ai-3.4.8-linux
           path: |
-            darling-ai-3.4.7-linux-x64.tar.gz
-            darling-ai-3.4.7-amd64.deb
+            darling-ai-3.4.8-linux-x64.tar.gz
+            darling-ai-3.4.8-amd64.deb
