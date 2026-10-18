@@ -159,6 +159,14 @@ class _MessageListState extends State<_MessageList> {
     final msgs = state.messages;
     final changed = msgs.length != _lastCount;
     _lastCount = msgs.length;
+    if (_firstFrame) {
+      // 刚进入对话：等历史消息异步加载完成后无条件滚到底部
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_sc.hasClients) _sc.jumpTo(_sc.position.maxScrollExtent);
+        _firstFrame = false;
+      });
+      return;
+    }
     if (changed || state.busy || state.thinkingText.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     }
