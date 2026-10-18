@@ -574,6 +574,20 @@ class Handler(BaseHTTPRequestHandler):
                     return
             self._json(200, {"ok": False, "error": "conversation not found"})
             return
+        if p.path == "/api/convo/pin":
+            cfg = self._cfg()
+            conv_id = data.get("conv_id")
+            if not conv_id:
+                self._json(200, {"ok": False, "error": "缺少 conv_id"})
+                return
+            for c in cfg.data.setdefault("conversations", []):
+                if c["id"] == conv_id:
+                    c["pinned"] = not (c.get("pinned") is True)
+                    cfg.save()
+                    self._json(200, {"ok": True, "pinned": c["pinned"] is True})
+                    return
+            self._json(200, {"ok": False, "error": "conversation not found"})
+            return
         if p.path == "/api/convo/delete":
             cfg = self._cfg()
             conv_id = data.get("conv_id")

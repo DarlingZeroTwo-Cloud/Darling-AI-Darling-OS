@@ -135,7 +135,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.3.4',
+          Text('v3.3.5',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 清空当前对话
@@ -360,12 +360,14 @@ class _SidebarContentState extends State<_SidebarContent> {
                     id: id,
                     title: (c['title'] ?? '新对话').toString(),
                     model: (c['model_id'] ?? '').toString(),
+                    pinned: c['pinned'] == true,
                     active: active,
                     onTap: () { state.loadConversation(id!); widget.onSelectChat(); },
                     onRename: () => state.renameActiveConversationFor(
                         context, id!, (c['title'] ?? '新对话').toString()),
                     onDelete: () => state.confirmDeleteConversation(
                         context, id!, (c['title'] ?? '新对话').toString()),
+                    onPin: () => state.togglePinConversation(id!),
                   );
                 },
               );
@@ -434,18 +436,22 @@ class _ClassicConvItem extends StatefulWidget {
   final String? id;
   final String title;
   final String model;
+  final bool pinned;
   final bool active;
   final VoidCallback onTap;
   final VoidCallback onRename;
   final VoidCallback onDelete;
+  final VoidCallback onPin;
   const _ClassicConvItem({
     required this.id,
     required this.title,
     required this.model,
+    required this.pinned,
     required this.active,
     required this.onTap,
     required this.onRename,
     required this.onDelete,
+    required this.onPin,
   });
 
   @override
@@ -520,6 +526,21 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                   ),
                 ),
                 if (widget.active || _hover) ...[
+                  IconButton(
+                    onPressed: widget.onPin,
+                    icon: Icon(
+                      widget.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                      size: 13,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: widget.pinned ? '取消置顶' : '置顶',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(22, 22),
+                      padding: EdgeInsets.zero,
+                      foregroundColor:
+                          widget.pinned ? cs.primary : cs.onSurfaceVariant,
+                    ),
+                  ),
                   IconButton(
                     onPressed: widget.onRename,
                     icon: const Icon(Icons.edit_outlined, size: 13),

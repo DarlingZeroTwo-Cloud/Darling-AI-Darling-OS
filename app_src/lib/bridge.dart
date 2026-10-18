@@ -159,6 +159,13 @@ class BridgeClient {
     } catch (_) {}
   }
 
+  /// 切换对话置顶（后端持久化）
+  Future<void> setConversationPin(String convId) async {
+    try {
+      await postJson('/api/convo/pin', {'conv_id': convId});
+    } catch (_) {}
+  }
+
   /// 联网搜索
   Future<Map<String, dynamic>> webSearch(String q) async {
     try {

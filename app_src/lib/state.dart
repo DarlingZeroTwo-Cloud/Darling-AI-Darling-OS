@@ -167,16 +167,18 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// 切换对话置顶
+  /// 切换对话置顶（持久化到后端 + 本地同步）
   Future<void> togglePinConversation(String convId) async {
+    var newVal = false;
     for (final c in conversations) {
       if (c is Map && c['id'] == convId) {
-        c['pinned'] = !(c['pinned'] == true);
+        newVal = !(c['pinned'] == true);
+        c['pinned'] = newVal;
         break;
       }
     }
-    await saveProvidersModels();
     notifyListeners();
+    await api.setConversationPin(convId);
   }
 
   void setModel(String? modelId) {
