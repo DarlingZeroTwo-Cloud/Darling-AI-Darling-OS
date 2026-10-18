@@ -343,6 +343,7 @@ class _ComposerState extends State<_Composer> {
       context: context,
       position: RelativeRect.fromLTRB(0, 0, 0, 0),
       items: [
+        PopupMenuItem(value: 'copy', child: const Text('复制为 Markdown')),
         PopupMenuItem(value: 'md', child: const Text('导出为 Markdown (.md)')),
         PopupMenuItem(value: 'json', child: const Text('导出为 JSON (.json)')),
         PopupMenuItem(value: 'html', child: const Text('导出为 HTML (.html)')),
@@ -351,6 +352,18 @@ class _ComposerState extends State<_Composer> {
       if (fmt == null) return;
       final messenger = ScaffoldMessenger.of(context);
       try {
+        if (fmt == 'copy') {
+          final text = state.conversationToMarkdown();
+          if (text.isEmpty) {
+            messenger.showSnackBar(const SnackBar(content: Text('当前对话为空')));
+          } else {
+            await Clipboard.setData(ClipboardData(text: text));
+            messenger.showSnackBar(const SnackBar(
+                content: Text('已复制为 Markdown'),
+                duration: Duration(seconds: 2)));
+          }
+          return;
+        }
         final path = await state.exportConversation(format: fmt);
         messenger.showSnackBar(SnackBar(
           content: Text(path == null ? '当前对话为空' : '已导出：$path'),
@@ -430,14 +443,16 @@ class _ComposerState extends State<_Composer> {
       _ctl.selection = TextSelection.collapsed(offset: d.length);
       _focus.requestFocus();
     }
-    // 切换/新建对话后自动聚焦输入框（设置可关）
+    // 切换/新建对话后自动聚焦输入框（设置可关）；草稿不跨对话
     final cid = widget.state.activeConvId;
-    if (cid != _lastConvId &&
-        widget.state.settings['auto_focus_input'] != false) {
+    if (cid != _lastConvId) {
       _lastConvId = cid;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _focus.requestFocus();
-      });
+      if (widget.state.editDraft.isEmpty) _ctl.clear();
+      if (widget.state.settings['auto_focus_input'] != false) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focus.requestFocus();
+        });
+      }
     }
   }
 

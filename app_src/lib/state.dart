@@ -302,7 +302,7 @@ class AppState extends ChangeNotifier {
       }).toList();
       final payload = {
         'app': 'darling-ai',
-        'version': '3.3.2',
+        'version': '3.3.8',
         'exported_at': ts.toIso8601String(),
         'model_id': currentModelId,
         'messages': items,
@@ -379,6 +379,29 @@ class AppState extends ChangeNotifier {
     final file = File('$dir/darling-ai-对话-$stamp.md');
     await file.writeAsString(buf.toString());
     return file.path;
+  }
+
+  /// 把当前对话拼成 Markdown 文本（用于复制到剪贴板）
+  String conversationToMarkdown() {
+    final buf = StringBuffer();
+    buf.writeln('# 对话导出');
+    buf.writeln();
+    for (final m in messages) {
+      switch (m.kind) {
+        case MsgKind.user:
+          buf.writeln('## 用户\n\n${m.text}\n');
+          break;
+        case MsgKind.ai:
+          buf.writeln('## AI\n\n${m.text}\n');
+          break;
+        case MsgKind.tool:
+          buf.writeln('### ${m.title}\n\n${m.text}\n');
+          break;
+        default:
+          break;
+      }
+    }
+    return buf.toString().trimRight();
   }
 
   /// 删除一个模型（保存配置；若删的是当前模型则回退到第一个）
