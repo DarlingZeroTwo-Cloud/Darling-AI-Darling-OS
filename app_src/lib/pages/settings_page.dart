@@ -305,7 +305,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.4.10', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.5.0', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -344,8 +344,42 @@ class _SettingsPageState extends State<SettingsPage> {
           icon: const Icon(Icons.settings_backup_restore, size: 14),
           label: const Text('导入备份'),
         ),
+        OutlinedButton.icon(
+          onPressed: () => _showShortcuts(context),
+          icon: const Icon(Icons.keyboard_outlined, size: 14),
+          label: const Text('快捷键'),
+        ),
       ]),
     ]);
+  }
+
+  /// 快捷键说明对话框
+  void _showShortcuts(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('键盘快捷键'),
+        content: const SizedBox(
+          width: 340,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ShortcutRow(k: 'Ctrl+N', d: '新建对话'),
+              _ShortcutRow(k: 'Ctrl+T', d: '对话页'),
+              _ShortcutRow(k: 'Ctrl+M', d: '模型市场'),
+              _ShortcutRow(k: 'Ctrl+O', d: '插件页'),
+              _ShortcutRow(k: 'Ctrl+,', d: '设置'),
+              _ShortcutRow(k: 'Enter', d: '发送消息（设置可改）'),
+              _ShortcutRow(k: 'Esc', d: '清空输入框'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('知道了')),
+        ],
+      ),
+    );
   }
 
   /// 导出全部数据备份到 Documents/darling-ai-backup-<时间>.json
@@ -460,7 +494,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.4.10';
+    const current = '3.5.0';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -526,7 +560,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.4.10' ≥ '3.4.10'）
+  /// latest 是否 ≥ current（如 '3.5.0' ≥ '3.5.0'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')
@@ -807,6 +841,40 @@ class _RolePicker extends StatelessWidget {
       onChanged: (v) {
         if (v != null) state.setAssistantRole(v);
       },
+    );
+  }
+}
+
+/// 快捷键说明行
+class _ShortcutRow extends StatelessWidget {
+  final String k;
+  final String d;
+  const _ShortcutRow({required this.k, required this.d});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: cs.outlineVariant),
+            ),
+            child: Text(k,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface)),
+          ),
+          const SizedBox(width: 12),
+          Text(d, style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant)),
+        ],
+      ),
     );
   }
 }

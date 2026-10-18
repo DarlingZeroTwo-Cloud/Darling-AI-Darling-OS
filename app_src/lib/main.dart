@@ -336,6 +336,14 @@ class _HomeShellState extends State<HomeShell> {
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyN, control: true):
             () => widget.state.newConversation(),
+        const SingleActivator(LogicalKeyboardKey.keyT, control: true):
+            () => setState(() => _nav = 0),
+        const SingleActivator(LogicalKeyboardKey.keyM, control: true):
+            () => setState(() => _nav = 1),
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true):
+            () => setState(() => _nav = 2),
+        const SingleActivator(LogicalKeyboardKey.comma, control: true):
+            () => setState(() => _nav = 3),
       },
       child: Scaffold(
       backgroundColor: dark ? const Color(0xFF15171C) : const Color(0xFFF4F5F7),
