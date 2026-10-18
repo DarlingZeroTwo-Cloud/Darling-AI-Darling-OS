@@ -135,7 +135,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.3.5',
+          Text('v3.3.6',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 清空当前对话
@@ -525,6 +525,7 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     ],
                   ),
                 ),
+                // 操作按钮常驻显示（hover 显示容易点不到）
                 if (widget.active || _hover) ...[
                   IconButton(
                     onPressed: widget.onPin,

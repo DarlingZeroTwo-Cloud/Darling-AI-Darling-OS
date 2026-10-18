@@ -247,8 +247,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  // hover 重新发送
-                  if ((_hover || _copied) && widget.onResend != null)
+                  // 重新发送（常驻显示）
+                  if (widget.onResend != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Tooltip(
@@ -263,8 +263,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                         ),
                       ),
                     ),
-                  // hover 编辑
-                  if ((_hover || _copied) && widget.onEdit != null)
+                  // 编辑（常驻显示）
+                  if (widget.onEdit != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Tooltip(
@@ -341,9 +341,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                     child: RichMarkdown(text, fontSize: 14),
                   ),
                 ),
-                // hover 复制按钮
-                if (_hover || _copied)
-                  Padding(
+                // 复制按钮（常驻显示）
+                Padding(
                     padding: const EdgeInsets.only(left: 4),
                     child: Tooltip(
                       message: _copied ? '已复制' : '复制',
@@ -361,8 +360,8 @@ class _MessageBubbleState extends State<MessageBubble> {
                       ),
                     ),
                   ),
-                // hover 重新生成
-                if ((_hover || _copied) && widget.onRegenerate != null)
+                // 重新生成（常驻显示）
+                if (widget.onRegenerate != null)
                   Padding(
                     padding: const EdgeInsets.only(left: 4),
                     child: Tooltip(
