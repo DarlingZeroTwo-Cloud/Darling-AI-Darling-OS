@@ -955,7 +955,7 @@ class _ComposerState extends State<_Composer> {
                     Tooltip(
                       message: '导出当前对话（Markdown / JSON）',
                       child: InkWell(
-                        onTap: busy ? null : () => _showExportMenu(context, state),
+                        onTap: busy ? null : () => _showExportMenu(context, widget.state),
                         borderRadius: BorderRadius.circular(6),
                         child: Padding(
                           padding: const EdgeInsets.all(6),
