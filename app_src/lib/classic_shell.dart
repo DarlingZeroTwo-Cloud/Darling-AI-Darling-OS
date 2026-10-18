@@ -359,6 +359,7 @@ class _SidebarContentState extends State<_SidebarContent> {
                   return _ClassicConvItem(
                     id: id,
                     title: (c['title'] ?? '新对话').toString(),
+                    model: (c['model_id'] ?? '').toString(),
                     active: active,
                     onTap: () { state.loadConversation(id!); widget.onSelectChat(); },
                     onRename: () => state.renameActiveConversationFor(
@@ -432,6 +433,7 @@ class _SidebarEntry extends StatelessWidget {
 class _ClassicConvItem extends StatefulWidget {
   final String? id;
   final String title;
+  final String model;
   final bool active;
   final VoidCallback onTap;
   final VoidCallback onRename;
@@ -439,6 +441,7 @@ class _ClassicConvItem extends StatefulWidget {
   const _ClassicConvItem({
     required this.id,
     required this.title,
+    required this.model,
     required this.active,
     required this.onTap,
     required this.onRename,
@@ -479,15 +482,41 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     color: widget.active ? cs.primary : cs.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    widget.title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: widget.active ? cs.primary : cs.onSurface,
-                      fontWeight: widget.active ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          widget.title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: widget.active ? cs.primary : cs.onSurface,
+                            fontWeight: widget.active ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (widget.model.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: dark ? const Color(0x26FFFFFF) : const Color(0x11000000),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            widget.model,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: cs.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (widget.active || _hover) ...[

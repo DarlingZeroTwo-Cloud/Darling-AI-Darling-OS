@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -390,11 +389,6 @@ class _ComposerState extends State<_Composer> {
       final ctrl = HardwareKeyboard.instance.isControlPressed ||
           HardwareKeyboard.instance.isMetaPressed;
       if (ctrl) {
-        if (key == LogicalKeyboardKey.keyV && !busy) {
-          // Ctrl+V：剪贴板有图片则粘贴为附件，否则手动插入文本（避免阻断文本粘贴）
-          unawaited(_pasteOrInsert());
-          return KeyEventResult.handled;
-        }
         if (key == LogicalKeyboardKey.keyL) {
           if (_ctl.text.isNotEmpty) {
             _ctl.clear();
@@ -503,33 +497,6 @@ class _ComposerState extends State<_Composer> {
       } catch (_) {}
     }
     if (mounted) setState(() {});
-  }
-
-  /// Ctrl+V：剪贴板有图片则粘贴为附件（data URI），否则手动插入文本
-  Future<void> _pasteOrInsert() async {
-    try {
-      final data = await Clipboard.getData(Clipboard.kImagePng);
-      if (data?.image != null && data!.image!.isNotEmpty) {
-        final b64 = base64Encode(data.image!);
-        if (mounted) {
-          setState(() => _images.add('data:image/png;base64,$b64'));
-        }
-        return;
-      }
-    } catch (_) {}
-    try {
-      final t = await Clipboard.getData(Clipboard.kTextPlain);
-      final txt = t?.text ?? '';
-      if (txt.isNotEmpty && mounted) {
-        final sel = _ctl.selection;
-        final start = sel.isValid ? sel.start : _ctl.text.length;
-        final end = sel.isValid ? sel.end : _ctl.text.length;
-        final newText = _ctl.text.replaceRange(start, end, txt);
-        _ctl.text = newText;
-        _ctl.selection = TextSelection.collapsed(offset: start + txt.length);
-        setState(() {});
-      }
-    } catch (_) {}
   }
 
   String _mimeOf(String path) {
