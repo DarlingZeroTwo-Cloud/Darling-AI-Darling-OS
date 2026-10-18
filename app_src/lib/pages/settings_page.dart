@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../main.dart';
 import '../state.dart';
@@ -265,7 +267,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.3.2', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 3.3.3', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -274,20 +276,97 @@ class _SettingsPageState extends State<SettingsPage> {
       const Text('GitHub: DarlingZeroTwo-Cloud/Darling-ai', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
       const SizedBox(height: 16),
       OutlinedButton.icon(
-        onPressed: () async {
-          const url = 'https://github.com/DarlingZeroTwo-Cloud/Darling-ai/releases/latest';
-          try {
-            if (Platform.isWindows) {
-              await Process.start('cmd', ['/c', 'start', '', url]);
-            } else {
-              await Process.start('xdg-open', [url]);
-            }
-          } catch (_) {}
-        },
-        icon: const Icon(Icons.open_in_new, size: 14),
+        onPressed: () => _checkUpdate(context),
+        icon: const Icon(Icons.system_update_alt, size: 14),
         label: const Text('检查更新'),
       ),
     ]);
+  }
+
+  /// 检查更新：调 GitHub API 获取最新版本，与当前版本比对
+  Future<void> _checkUpdate(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+        content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
+    const current = '3.3.3';
+    try {
+      final resp = await http
+          .get(Uri.parse(
+              'https://api.github.com/repos/DarlingZeroTwo-Cloud/Darling-ai/releases/latest'))
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
+      final data = _decodeMap(resp.body);
+      final latest = ((data['tag_name'] ?? '') as String)
+          .replaceFirst(RegExp(r'^v'), '');
+      if (latest.isEmpty) throw Exception('未获取到版本号');
+      if (_versionAtLeast(latest, current)) {
+        showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('已是最新版本'),
+            content: Text('当前版本 $current，没有可用更新。'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('知道了')),
+            ],
+          ),
+        );
+      } else {
+        final url = (data['html_url'] ?? 'https://github.com/DarlingZeroTwo-Cloud/Darling-ai/releases/latest')
+            .toString();
+        showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('发现新版本'),
+            content: Text('当前版本 $current，最新版本 $latest。\n\n可前往下载页获取最新安装包。'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('稍后')),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  try {
+                    if (Platform.isWindows) {
+                      await Process.start('cmd', ['/c', 'start', '', url]);
+                    } else {
+                      await Process.start('xdg-open', [url]);
+                    }
+                  } catch (_) {}
+                },
+                child: const Text('前往下载'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('检查更新失败：$e')));
+    }
+  }
+
+  Map<String, dynamic> _decodeMap(String body) {
+    try {
+      return (jsonDecode(body) as Map).cast<String, dynamic>();
+    } catch (_) {
+      throw Exception('响应解析失败');
+    }
+  }
+
+  /// latest 是否 ≥ current（如 '3.3.3' ≥ '3.3.3'）
+  bool _versionAtLeast(String latest, String current) {
+    List<int> parse(String v) => v
+        .split('.')
+        .map((s) => int.tryParse(s.trim()) ?? 0)
+        .toList();
+    final a = parse(latest), b = parse(current);
+    for (var i = 0; i < a.length || i < b.length; i++) {
+      final x = i < a.length ? a[i] : 0;
+      final y = i < b.length ? b[i] : 0;
+      if (x != y) return x > y;
+    }
+    return true;
   }
 }
 
