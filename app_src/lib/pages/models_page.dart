@@ -270,6 +270,26 @@ class _ProviderRow extends StatelessWidget {
             child: const Text('测试连接'),
           ),
           const SizedBox(width: 6),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 17),
+            color: cs.onSurfaceVariant,
+            tooltip: '编辑供应商',
+            onPressed: () async {
+              final p = await showDialog<Map<String, dynamic>>(
+                context: context,
+                builder: (_) =>
+                    ProviderDialog(state: state, existing: provider),
+              );
+              if (p == null) return;
+              final idx = state.providers
+                  .indexWhere((x) => x['id'] == provider['id']);
+              if (idx >= 0) {
+                state.providers[idx] = p;
+                await state.saveProvidersModels();
+              }
+            },
+          ),
+          const SizedBox(width: 6),
           OutlinedButton(
             onPressed: () => showDialog(
               context: context,

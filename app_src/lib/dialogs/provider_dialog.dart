@@ -16,7 +16,8 @@ const List<Map<String, String>> kDefaultProviders = [
 /// 添加供应商对话框
 class ProviderDialog extends StatefulWidget {
   final AppState state;
-  const ProviderDialog({super.key, required this.state});
+  final Map<String, dynamic>? existing; // 传入时进入编辑模式
+  const ProviderDialog({super.key, required this.state, this.existing});
 
   @override
   State<ProviderDialog> createState() => _ProviderDialogState();
@@ -30,6 +31,31 @@ class _ProviderDialogState extends State<ProviderDialog> {
   final TextEditingController _urlCtl = TextEditingController();
   final TextEditingController _keyCtl = TextEditingController();
   bool _fullEndpoint = false;
+
+  /// 编辑模式下保留原 id（否则改地址后模型关联丢失）
+  String? get _existingId => widget.existing?['id'] as String?;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    if (e != null) {
+      final eid = e['id'] as String? ?? '';
+      final preset = kDefaultProviders.where((p) => p['id'] == eid);
+      if (preset.isNotEmpty) {
+        // 预设供应商：只允许改 Key
+        _presetId = eid;
+        _apiKey = (e['api_key'] ?? '').toString();
+      } else {
+        // 自定义供应商：可改全部字段
+        _custom = true;
+        _nameCtl.text = (e['name'] ?? '').toString();
+        _urlCtl.text = (e['base_url'] ?? '').toString();
+        _keyCtl.text = (e['api_key'] ?? '').toString();
+        _fullEndpoint = e['full_endpoint'] == true;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -45,7 +71,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
       if (pid == null) return null;
       final preset = kDefaultProviders.firstWhere((p) => p['id'] == pid);
       return {
-        'id': pid,
+        'id': _existingId ?? pid,
         'name': preset['name'],
         'base_url': preset['base_url'],
         'api_key': _apiKey.trim(),
@@ -57,7 +83,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
     if (name.isEmpty || url.isEmpty) return null;
     final slug = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
     return {
-      'id': 'custom-$slug',
+      'id': _existingId ?? 'custom-$slug',
       'name': name,
       'base_url': url,
       'api_key': _keyCtl.text.trim(),
@@ -70,7 +96,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return AlertDialog(
-      title: const Text('添加供应商'),
+      title: Text(widget.existing == null ? '添加供应商' : '编辑供应商'),
       content: SizedBox(
         width: 430,
         child: SingleChildScrollView(
@@ -154,7 +180,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
             if (p == null) return;
             Navigator.pop(context, p);
           },
-          child: const Text('添加'),
+          child: Text(widget.existing == null ? '添加' : '保存'),
         ),
       ],
     );
