@@ -300,7 +300,7 @@ class AppState extends ChangeNotifier {
       }).toList();
       final payload = {
         'app': 'darling-ai',
-        'version': '3.2.5',
+        'version': '3.2.10',
         'exported_at': ts.toIso8601String(),
         'model_id': currentModelId,
         'messages': items,

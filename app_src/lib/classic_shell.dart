@@ -128,9 +128,35 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.2.9',
+          Text('v3.2.10',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
+          // 清空当前对话
+          if (state.messages.isNotEmpty)
+            Tooltip(
+              message: '清空当前对话',
+              child: InkWell(
+                onTap: () => state.clearActiveConversation(),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(Icons.delete_sweep_outlined,
+                      size: 17, color: cs.onSurfaceVariant),
+                ),
+              ),
+            ),
+          // 新对话
+          Tooltip(
+            message: '新对话',
+            child: InkWell(
+              onTap: () => state.newConversation(),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
+              ),
+            ),
+          ),
           const SizedBox(width: 16),
         ],
       ),
