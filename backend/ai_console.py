@@ -358,6 +358,47 @@ DEFAULT_PLUGINS = [
             }
         ],
     },
+    {
+        "id": "file-git",
+        "name": "文件 / Git 工具",
+        "version": "1.0.0",
+        "description": "读取工作区文件、查看 Git 状态/历史/提交",
+        "author": "darling",
+        "tools": [
+            {
+                "name": "read_file",
+                "description": "读取工作区内文件：在回复中输出 [[READ_FILE]]相对路径[[/READ_FILE]]（如 [[READ_FILE]]src/main.py[[/READ_FILE]]）。仅限工作区范围，200KB 以内。",
+                "pattern": "[[READ_FILE]]",
+                "close": "[[/READ_FILE]]",
+                "handler": "read_file",
+                "enabled": True,
+            },
+            {
+                "name": "git_status",
+                "description": "查看 Git 工作区状态：在回复中输出 [[GIT_STATUS]]x[[/GIT_STATUS]]。",
+                "pattern": "[[GIT_STATUS]]",
+                "close": "[[/GIT_STATUS]]",
+                "handler": "git_status",
+                "enabled": True,
+            },
+            {
+                "name": "git_log",
+                "description": "查看 Git 提交历史：在回复中输出 [[GIT_LOG]]数量[[/GIT_LOG]]（数量可选，默认 20，最多 100）。",
+                "pattern": "[[GIT_LOG]]",
+                "close": "[[/GIT_LOG]]",
+                "handler": "git_log",
+                "enabled": True,
+            },
+            {
+                "name": "git_commit",
+                "description": "提交全部更改到 Git：在回复中输出 [[GIT_COMMIT]]提交消息[[/GIT_COMMIT]]。",
+                "pattern": "[[GIT_COMMIT]]",
+                "close": "[[/GIT_COMMIT]]",
+                "handler": "git_commit",
+                "enabled": True,
+            },
+        ],
+    },
 ]
 
 
@@ -1044,11 +1085,76 @@ def handler_make_plugin(content, workspace=None):
     return True, f"插件“{name}”(id: {pid}) 已自动安装到插件目录 {path}，立即生效，可直接调用其工具。"
 
 
+# ==================== 文件 / Git 工具 ====================
+
+def _resolve_ws_path(workspace, rel):
+    """把相对工作区的路径解析为绝对路径；越界返回 None。"""
+    rel = (rel or "").strip().strip("'\"")
+    if not rel:
+        return None, ""
+    base = os.path.abspath(workspace) if workspace else os.getcwd()
+    p = os.path.abspath(os.path.join(base, rel))
+    if p == base or p.startswith(base + os.sep):
+        return p, rel
+    return None, rel
+
+
+def handler_read_file(content, workspace=None):
+    """读取工作区内文件内容（限 200KB 以内）。"""
+    p, rel = _resolve_ws_path(workspace, content)
+    if p is None:
+        return False, f"路径 {rel or '(空)'} 超出工作区范围或为空，已拒绝"
+    if not os.path.isfile(p):
+        return False, f"文件不存在: {rel or p}"
+    try:
+        size = os.path.getsize(p)
+        if size > 200_000:
+            return False, f"文件过大（{size} 字节），仅支持读取 200KB 以内文件"
+        with open(p, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+        if len(text) > 60000:
+            text = text[:60000] + "\n...(内容过长，已截断)"
+        return True, text
+    except Exception as e:
+        return False, f"读取失败: {e}"
+
+
+def handler_git_status(content, workspace=None):
+    return run_command("git status --short", workspace or os.getcwd())
+
+
+def handler_git_log(content, workspace=None):
+    n = content.strip() or "20"
+    try:
+        n = max(1, min(int(n), 100))
+    except ValueError:
+        n = 20
+    return run_command(f"git log --oneline -{n}", workspace or os.getcwd())
+
+
+def handler_git_commit(content, workspace=None):
+    msg = content.strip().strip("'\"")
+    if not msg:
+        return False, "请提供 commit 消息，例如：GIT_COMMIT 修复登录bug"
+    ws = workspace or os.getcwd()
+    ok1, out1 = run_command("git add -A", ws)
+    if not ok1:
+        return False, f"git add 失败: {out1}"
+    ok2, out2 = run_command(f'git commit -m "{msg.replace(chr(34), chr(39))}"', ws)
+    if not ok2:
+        return False, f"git commit 失败: {out2}"
+    return True, f"已提交: {out2}"
+
+
 # 注册处理器
 PLUGIN_HANDLERS["web_search"] = handler_web_search
 PLUGIN_HANDLERS["web_search_deep"] = handler_web_search_deep
 PLUGIN_HANDLERS["fetch_page"] = handler_fetch_page
 PLUGIN_HANDLERS["make_plugin"] = handler_make_plugin
+PLUGIN_HANDLERS["read_file"] = handler_read_file
+PLUGIN_HANDLERS["git_status"] = handler_git_status
+PLUGIN_HANDLERS["git_log"] = handler_git_log
+PLUGIN_HANDLERS["git_commit"] = handler_git_commit
 
 
 def ask(prompt):
