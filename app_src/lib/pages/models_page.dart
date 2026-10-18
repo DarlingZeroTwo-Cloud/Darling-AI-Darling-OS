@@ -5,9 +5,35 @@ import '../state.dart';
 import '../dialogs/provider_dialog.dart';
 import '../dialogs/add_model_dialog.dart';
 
-class ModelsPage extends StatelessWidget {
+class ModelsPage extends StatefulWidget {
   final AppState state;
   const ModelsPage({super.key, required this.state});
+
+  @override
+  State<ModelsPage> createState() => _ModelsPageState();
+}
+
+class _ModelsPageState extends State<ModelsPage> {
+  String _query = '';
+
+  AppState get state => widget.state;
+
+  /// 按名称/ID/供应商名过滤模型
+  List<dynamic> _filteredModels(List<dynamic> models) {
+    if (_query.isEmpty) return models;
+    final q = _query.toLowerCase();
+    return models.where((m) {
+      final display = (m['display'] ?? '').toString().toLowerCase();
+      final name = (m['name'] ?? '').toString().toLowerCase();
+      final pname = (state.provider(m['provider_id']) ?? const {})['name']
+              ?.toString()
+              .toLowerCase() ??
+          '';
+      return display.contains(q) ||
+          name.contains(q) ||
+          pname.contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,14 +94,32 @@ class ModelsPage extends StatelessWidget {
                 _SectionCard(
                   title: '已添加模型',
                   pill: '${state.models.length} 个',
-                  child: state.models.isEmpty
-                      ? _EmptyNote('还没有模型。为供应商点击“+ 添加模型”，拉取列表或手动输入模型名称。')
-                      : Column(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (state.models.isNotEmpty) ...[
+                        TextField(
+                          onChanged: (v) => setState(() => _query = v.trim()),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            prefixIcon: Icon(Icons.search, size: 18),
+                            hintText: '搜索模型名称 / ID…',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (state.models.isEmpty)
+                        _EmptyNote('还没有模型。为供应商点击“+ 添加模型”，拉取列表或手动输入模型名称。')
+                      else
+                        Column(
                           children: [
-                            for (final raw in state.models)
+                            for (final raw in _filteredModels(state.models))
                               _ModelRow(state: state, m: raw as Map<String, dynamic>),
                           ],
                         ),
+                    ],
+                  ),
                 ),
               ],
             ),
