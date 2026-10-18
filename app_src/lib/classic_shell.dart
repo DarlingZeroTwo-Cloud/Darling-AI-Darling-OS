@@ -135,7 +135,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v3.4.5',
+          Text('v3.4.6',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 清空当前对话（二次确认防误触）
@@ -350,7 +350,22 @@ class _SidebarContentState extends State<_SidebarContent> {
                       final title = (c['title'] ?? '').toString().toLowerCase();
                       final first = (c['first'] ?? '').toString().toLowerCase();
                       final model = (c['model_id'] ?? '').toString().toLowerCase();
-                      return title.contains(q) || first.contains(q) || model.contains(q);
+                      if (title.contains(q) || first.contains(q) || model.contains(q)) {
+                        return true;
+                      }
+                      // 全文：搜索该对话最近消息内容
+                      final hist = c['hist'];
+                      if (hist is List) {
+                        for (final m in hist) {
+                          if (m is Map) {
+                            final t = (m['content'] ?? '')
+                                .toString()
+                                .toLowerCase();
+                            if (t.contains(q)) return true;
+                          }
+                        }
+                      }
+                      return false;
                     }).toList();
               if (convs.isEmpty) {
                 return const Center(

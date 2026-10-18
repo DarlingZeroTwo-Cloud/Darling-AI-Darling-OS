@@ -53,7 +53,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '3.4.5';
+  String get appVersion => '3.4.6';
 
   Future<void> setUiMode(String mode) async {
     settings['ui_mode'] = mode;
