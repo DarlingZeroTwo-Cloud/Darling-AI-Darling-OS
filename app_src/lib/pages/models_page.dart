@@ -18,6 +18,15 @@ class _ModelsPageState extends State<ModelsPage> {
 
   AppState get state => widget.state;
 
+  @override
+  void initState() {
+    super.initState();
+    // 进入模型市场时，如果已登录，自动刷新云端模型列表
+    if (state.cloudLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => state.refreshCloud());
+    }
+  }
+
   /// 按名称/ID/供应商名过滤模型
   List<dynamic> _filteredModels(List<dynamic> models) {
     if (_query.isEmpty) return models;

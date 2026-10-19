@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.0.1';
+  String get appVersion => '4.0.2';
 
   // ---------------- 4.0 云端账号 ----------------
   String get cloudServer => (settings['cloud_server'] ?? '').toString().trim();
@@ -99,21 +99,23 @@ class AppState extends ChangeNotifier {
   /// 调云端接口
   Future<Map<String, dynamic>> cloudGet(String path) async {
     final uri = Uri.parse('$cloudServer$path');
-    final client = HttpClient();
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
     try {
       final req = await client.getUrl(uri);
       req.headers.set('Authorization', 'Bearer $cloudToken');
-      final resp = await req.close();
+      final resp = await req.close().timeout(const Duration(seconds: 20));
       final body = await resp.transform(utf8.decoder).join();
       return {'status': resp.statusCode, 'data': jsonDecode(body)};
     } finally {
-      client.close();
+      client.close(force: true);
     }
   }
 
   Future<Map<String, dynamic>> cloudPost(String path, Map<String, dynamic> body) async {
     final uri = Uri.parse('$cloudServer$path');
-    final client = HttpClient();
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
     try {
       final req = await client.postUrl(uri);
       req.headers.set('Content-Type', 'application/json');
@@ -121,11 +123,11 @@ class AppState extends ChangeNotifier {
         req.headers.set('Authorization', 'Bearer $cloudToken');
       }
       req.write(jsonEncode(body));
-      final resp = await req.close();
+      final resp = await req.close().timeout(const Duration(seconds: 120));
       final raw = await resp.transform(utf8.decoder).join();
       return {'status': resp.statusCode, 'data': jsonDecode(raw)};
     } finally {
-      client.close();
+      client.close(force: true);
     }
   }
 
