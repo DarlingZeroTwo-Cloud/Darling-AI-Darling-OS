@@ -64,7 +64,88 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '3.5.3';
+  String get appVersion => '4.0.0';
+
+  // ---------------- 4.0 云端账号 ----------------
+  String get cloudServer => (settings['cloud_server'] ?? '').toString().trim();
+  String get cloudToken => (settings['cloud_token'] ?? '').toString();
+  String get cloudEmail => (settings['cloud_email'] ?? '').toString();
+  bool get cloudLoggedIn => cloudToken.isNotEmpty && cloudServer.isNotEmpty;
+  Map<String, dynamic> cloudQuota = {};
+  List<dynamic> cloudModels = [];
+
+  Future<void> setCloudServer(String v) async {
+    settings['cloud_server'] = v.trim().replaceAll(RegExp(r'/+$'), '');
+    await saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setCloudAuth({required String token, required String email}) async {
+    settings['cloud_token'] = token;
+    settings['cloud_email'] = email;
+    await saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> cloudLogout() async {
+    settings['cloud_token'] = '';
+    settings['cloud_email'] = '';
+    cloudQuota = {};
+    cloudModels = [];
+    await saveSettings();
+    notifyListeners();
+  }
+
+  /// 调云端接口
+  Future<Map<String, dynamic>> cloudGet(String path) async {
+    final uri = Uri.parse('$cloudServer$path');
+    final client = HttpClient();
+    try {
+      final req = await client.getUrl(uri);
+      req.headers.set('Authorization', 'Bearer $cloudToken');
+      final resp = await req.close();
+      final body = await resp.transform(utf8.decoder).join();
+      return {'status': resp.statusCode, 'data': jsonDecode(body)};
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<Map<String, dynamic>> cloudPost(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('$cloudServer$path');
+    final client = HttpClient();
+    try {
+      final req = await client.postUrl(uri);
+      req.headers.set('Content-Type', 'application/json');
+      if (cloudToken.isNotEmpty) {
+        req.headers.set('Authorization', 'Bearer $cloudToken');
+      }
+      req.write(jsonEncode(body));
+      final resp = await req.close();
+      final raw = await resp.transform(utf8.decoder).join();
+      return {'status': resp.statusCode, 'data': jsonDecode(raw)};
+    } finally {
+      client.close();
+    }
+  }
+
+  /// 拉云端用户信息（额度）+ 模型列表
+  Future<void> refreshCloud() async {
+    if (!cloudLoggedIn) return;
+    try {
+      final me = await cloudGet('/api/me');
+      if (me['status'] == 200) cloudQuota = (me['data']['quota'] as Map).cast<String, dynamic>();
+      final ms = await cloudGet('/api/models');
+      if (ms['status'] == 200) cloudModels = (ms['data']['models'] as List);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// 判断某模型 ID 是否为云端官方模型（格式 darling-N）
+  bool isCloudModel(String? id) {
+    if (id == null) return false;
+    return RegExp(r'^darling-\d+$').hasMatch(id);
+  }
 
   Future<void> setUiMode(String mode) async {
     settings['ui_mode'] = mode;
@@ -502,6 +583,47 @@ class AppState extends ChangeNotifier {
 
   Future<void> _send(
       String text, List<Map<String, dynamic>> webResults, List<String> images) async {
+    // 4.0 云端官方模型：走云端网关，不经过本地桥接
+    if (isCloudModel(currentModelId)) {
+      if (busy || text.trim().isEmpty) return;
+      if (!cloudLoggedIn) {
+        messages.add(ChatMsg(MsgKind.error, '请先到 设置 → 账号 登录后使用官方模型'));
+        notifyListeners();
+        return;
+      }
+      busy = true;
+      messages.add(ChatMsg(MsgKind.user, text, ts: DateTime.now().millisecondsSinceEpoch / 1000.0));
+      messages.add(ChatMsg(MsgKind.ai, ''));
+      notifyListeners();
+      try {
+        final hist = messages
+            .where((e) =>
+                (e.kind == MsgKind.user || e.kind == MsgKind.ai) && e.text.isNotEmpty)
+            .map((e) => {
+                  'role': e.kind == MsgKind.user ? 'user' : 'assistant',
+                  'content': e.text,
+                })
+            .toList();
+        final r = await cloudPost('/api/chat', {
+          'model_id': currentModelId,
+          'messages': hist,
+        });
+        if (r['status'] == 200) {
+          messages.last.text = (r['data']['content'] ?? '').toString();
+        } else {
+          messages.last.kind = MsgKind.error;
+          messages.last.text = (r['data']['error'] ?? '请求失败').toString();
+        }
+        await refreshCloud();
+      } catch (e) {
+        messages.last.kind = MsgKind.error;
+        messages.last.text = '网络错误：$e';
+      } finally {
+        busy = false;
+        notifyListeners();
+      }
+      return;
+    }
     final m = model(currentModelId);
     if (m == null || busy || text.trim().isEmpty) return;
     busy = true;

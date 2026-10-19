@@ -43,6 +43,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ('高级功能', Icons.auto_awesome),
     ('服务', Icons.dns_outlined),
     ('个性化', Icons.palette_outlined),
+    ('账号', Icons.account_circle_outlined),
     ('关于', Icons.info_outline),
   ];
 
@@ -99,9 +100,149 @@ class _SettingsPageState extends State<SettingsPage> {
       case 3: return _advancedPage(state);
       case 4: return _serverPage(state);
       case 5: return _appearancePage(state);
-      case 6: return _aboutPage(state);
+      case 6: return _accountPage(state);
+      case 7: return _aboutPage(state);
       default: return _chatPage(state);
     }
+  }
+
+  // ===== 账号（4.0 云端） =====
+  Widget _accountPage(AppState state) {
+    final emailCtl = TextEditingController();
+    final pwCtl = TextEditingController();
+    return Column(children: [
+      _Card(title: '服务器地址', children: [
+        TextField(
+          controller: TextEditingController(text: state.cloudServer),
+          decoration: const InputDecoration(
+            isDense: true,
+            hintText: 'http://你的服务器:611',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.cloud_outlined, size: 18),
+          ),
+          onSubmitted: (v) => state.setCloudServer(v),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          FilledButton(
+            onPressed: () async {
+              try {
+                final r = await state.cloudGet('/api/health');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(r['status'] == 200 ? '连接成功' : '服务器返回 ${r['status']}')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('连接失败：$e')));
+              }
+            },
+            child: const Text('测试连接'),
+          ),
+          const SizedBox(width: 12),
+          Text('未登录状态下，所有老功能（自填 API Key）照常使用。',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ]),
+      ]),
+      const SizedBox(height: 12),
+      if (!state.cloudLoggedIn)
+        _Card(title: '登录 / 注册（邮箱密码）', children: [
+          TextField(
+            controller: emailCtl,
+            decoration: const InputDecoration(
+              isDense: true, labelText: '邮箱', border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: pwCtl,
+            obscureText: true,
+            decoration: const InputDecoration(
+              isDense: true, labelText: '密码（至少 6 位）', border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(children: [
+            FilledButton(
+              onPressed: () async {
+                final r = await state.cloudPost('/api/login', {
+                  'email': emailCtl.text.trim(),
+                  'password': pwCtl.text,
+                });
+                if (r['status'] == 200) {
+                  await state.setCloudAuth(
+                      token: r['data']['token'], email: r['data']['email']);
+                  await state.refreshCloud();
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('登录成功')));
+                } else {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(r['data']['error'] ?? '登录失败')));
+                }
+              },
+              child: const Text('登录'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: () async {
+                final r = await state.cloudPost('/api/register', {
+                  'email': emailCtl.text.trim(),
+                  'password': pwCtl.text,
+                });
+                if (r['status'] == 200) {
+                  await state.setCloudAuth(
+                      token: r['data']['token'], email: r['data']['email']);
+                  await state.refreshCloud();
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('注册成功，已自动登录')));
+                } else {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(r['data']['error'] ?? '注册失败')));
+                }
+              },
+              child: const Text('注册'),
+            ),
+          ]),
+        ])
+      else
+        _Card(title: '已登录', children: [
+          Row(children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(state.cloudEmail,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            TextButton(onPressed: () => state.refreshCloud(), child: const Text('刷新')),
+            TextButton(
+              onPressed: () async {
+                await state.cloudPost('/api/logout', {});
+                await state.cloudLogout();
+              },
+              child: const Text('登出'),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          Builder(builder: (_) {
+            final q = state.cloudQuota;
+            if (q.isEmpty) return const Text('拉取额度中…');
+            final used = (q['used'] as Map?) ?? const {};
+            final limit = (q['limit'] as Map?) ?? const {};
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _QuotaBar(label: '文本 token', used: (used['text_tokens'] ?? 0) as int, limit: (limit['text_tokens'] ?? 1) as int),
+                _QuotaBar(label: '图片张数', used: (used['images'] ?? 0) as int, limit: (limit['images'] ?? 1) as int),
+                _QuotaBar(label: '视频个数', used: (used['videos'] ?? 0) as int, limit: (limit['videos'] ?? 1) as int),
+                const SizedBox(height: 6),
+                Text(
+                  '每 5 小时自动重置',
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
+            );
+          }),
+          const SizedBox(height: 8),
+          Text('官方免费模型共 ${state.cloudModels.length} 个，在模型市场「官方免费模型」分组中选择。',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ]),
+    ]);
   }
 
   // ===== 对话 =====
@@ -305,7 +446,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 3.5.3', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 4.0.0', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -494,7 +635,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '3.5.3';
+    const current = '4.0.0';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -560,7 +701,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '3.5.3' ≥ '3.5.3'）
+  /// latest 是否 ≥ current（如 '4.0.0' ≥ '4.0.0'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')
@@ -606,6 +747,40 @@ class _NavItem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _QuotaBar extends StatelessWidget {
+  final String label;
+  final int used;
+  final int limit;
+  const _QuotaBar({required this.label, required this.used, required this.limit});
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = limit <= 0 ? 0.0 : (used / limit).clamp(0.0, 1.0);
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(children: [
+        SizedBox(width: 100, child: Text(label, style: const TextStyle(fontSize: 12))),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 8,
+              backgroundColor: cs.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation(
+                ratio > 0.9 ? Colors.red : cs.primary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text('$used / $limit', style: const TextStyle(fontSize: 12)),
+      ]),
     );
   }
 }
