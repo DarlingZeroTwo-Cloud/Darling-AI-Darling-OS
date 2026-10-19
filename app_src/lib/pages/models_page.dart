@@ -74,6 +74,30 @@ class _ModelsPageState extends State<ModelsPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               children: [
+                // ===== 4.0 官方免费模型分组（登录后显示） =====
+                if (state.cloudLoggedIn)
+                  _SectionCard(
+                    title: '⚡ 官方免费模型',
+                    pill: '${state.cloudModels.length} 个 · 5h 额度',
+                    child: state.cloudModels.isEmpty
+                        ? const _EmptyNote('服务端还没配置模型，等管理员添加。')
+                        : Column(
+                            children: [
+                              for (final raw in state.cloudModels)
+                                _CloudModelRow(
+                                  model: raw as Map<String, dynamic>,
+                                  state: state,
+                                ),
+                            ],
+                          ),
+                  )
+                else
+                  _SectionCard(
+                    title: '⚡ 官方免费模型',
+                    pill: '未登录',
+                    child: const _EmptyNote('到 设置 → 账号 登录后，即可使用官方免费模型（5h 每周期重置额度）。'),
+                  ),
+                if (state.cloudLoggedIn) const SizedBox(height: 16),
                 _SectionCard(
                   title: '已连接供应商',
                   pill: '${state.providers.length} 个',
@@ -363,6 +387,55 @@ class _ProviderRow extends StatelessWidget {
                 await state.reload();
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CloudModelRow extends StatelessWidget {
+  final AppState state;
+  final Map<String, dynamic> model;
+  const _CloudModelRow({required this.state, required this.model});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final id = (model['id'] ?? '').toString();
+    final selected = state.currentModelId == id;
+    final type = (model['type'] ?? 'text').toString();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.bolt, size: 18, color: Colors.amber.shade700),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text((model['name'] ?? '').toString(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface)),
+                Text('$type · $id',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          FilledButton.tonal(
+            onPressed: selected
+                ? null
+                : () {
+                    state.setModel(id);
+                  },
+            child: Text(selected ? '使用中' : '选用'),
           ),
         ],
       ),

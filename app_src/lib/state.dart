@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.0.0';
+  String get appVersion => '4.0.1';
 
   // ---------------- 4.0 云端账号 ----------------
   String get cloudServer => (settings['cloud_server'] ?? '').toString().trim();
