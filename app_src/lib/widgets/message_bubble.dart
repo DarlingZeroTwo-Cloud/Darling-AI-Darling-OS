@@ -178,9 +178,12 @@ class _InlineRichState extends State<_InlineRich> {
                 style: TextStyle(
                     fontSize: widget.fontSize - 1,
                     fontFamily: 'monospace',
-                    color: dark ? const Color(0xFF7DE2D6) : const Color(0xFF0E5E58),
-                    backgroundColor:
-                        dark ? const Color(0x33111318) : const Color(0x33E8EAED)),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF7DE2D6)
+                        : const Color(0xFF0E5E58),
+                    backgroundColor: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0x33111318)
+                        : const Color(0x33E8EAED)),
               )
             else
               TextSpan(
