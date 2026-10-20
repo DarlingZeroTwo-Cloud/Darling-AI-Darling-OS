@@ -136,5 +136,10 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-server/
-server/config.json
+
+# 打包产物
+rel-v*/
+darling-ai-server-v*.zip
+*.deb
+*.exe
+*.tar.gz

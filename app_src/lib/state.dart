@@ -594,6 +594,7 @@ class AppState extends ChangeNotifier {
         return;
       }
       busy = true;
+      thinkingText = '正在连接官方模型…';
       messages.add(ChatMsg(MsgKind.user, text, ts: DateTime.now().millisecondsSinceEpoch / 1000.0));
       messages.add(ChatMsg(MsgKind.ai, ''));
       notifyListeners();
@@ -610,6 +611,7 @@ class AppState extends ChangeNotifier {
           'model_id': currentModelId,
           'messages': hist,
         });
+        thinkingText = '';
         if (r['status'] == 200) {
           messages.last.text = (r['data']['content'] ?? '').toString();
         } else {
