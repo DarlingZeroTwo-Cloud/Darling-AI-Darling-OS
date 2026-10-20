@@ -64,10 +64,10 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.1.1';
+  String get appVersion => '4.1.2';
 
   // ---------------- 4.0 云端账号 ----------------
-  static const String kCloudServer = 'https://darling02.de5.net';
+  static const String kCloudServer = 'http://darling02.de5.net';
   String get cloudServer => kCloudServer;
   String get cloudToken => (settings['cloud_token'] ?? '').toString();
   String get cloudEmail => (settings['cloud_email'] ?? '').toString();
