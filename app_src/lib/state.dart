@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.1.2';
+  String get appVersion => '4.1.3';
 
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
@@ -73,6 +73,11 @@ class AppState extends ChangeNotifier {
     'http://darling02.de5.net',
   ];
   String get cloudServer => kCloudBases.first;
+
+  // 桌面应用：自定义域名证书可能不被 BoringSSL 信任，直接放行
+  HttpClient _makeClient() => HttpClient()
+    ..connectionTimeout = const Duration(seconds: 15)
+    ..badCertificateCallback = (cert, host, port) => true;
   String get cloudToken => (settings['cloud_token'] ?? '').toString();
   String get cloudEmail => (settings['cloud_email'] ?? '').toString();
   bool get cloudLoggedIn => cloudToken.isNotEmpty && cloudServer.isNotEmpty;
@@ -110,13 +115,17 @@ class AppState extends ChangeNotifier {
     Object? lastErr;
     for (final base in kCloudBases) {
       final uri = Uri.parse('$base$path');
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 15);
+      final client = _makeClient();
       try {
         final req = await client.getUrl(uri);
         req.headers.set('Authorization', 'Bearer $cloudToken');
         final resp = await req.close().timeout(const Duration(seconds: 20));
         final body = await resp.transform(utf8.decoder).join();
+        // 不是 JSON（HTML 错误页）就切下一个 base
+        final trimmed = body.trim();
+        if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+          throw Exception('non-json response');
+        }
         return {'status': resp.statusCode, 'data': jsonDecode(body)};
       } catch (e) {
         lastErr = e;
@@ -132,8 +141,7 @@ class AppState extends ChangeNotifier {
     Object? lastErr;
     for (final base in kCloudBases) {
       final uri = Uri.parse('$base$path');
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 15);
+      final client = _makeClient();
       try {
         final req = await client.postUrl(uri);
         req.headers.set('Content-Type', 'application/json');
@@ -143,6 +151,11 @@ class AppState extends ChangeNotifier {
         req.write(jsonEncode(body));
         final resp = await req.close().timeout(const Duration(seconds: 120));
         final raw = await resp.transform(utf8.decoder).join();
+        // 非 JSON 响应（HTML 错误页）切下一个 base
+        final trimmed = raw.trim();
+        if (!trimmed.startsWith('{') && !trimmed.startsWith('[') && !trimmed.startsWith('data:')) {
+          throw Exception('non-json response');
+        }
         // SSE 流（/api/chat）：解析所有 data: 行，拼 delta
         final ctype = resp.headers.contentType?.toString() ?? '';
         if (ctype.contains('text/event-stream') || raw.contains('data: ')) {
