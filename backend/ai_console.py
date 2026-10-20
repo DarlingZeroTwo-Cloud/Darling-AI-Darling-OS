@@ -780,8 +780,25 @@ def _container_context():
         return None
 
 
+def _wsl_path(p):
+    """把 Windows 路径转成 WSL 可访问路径（C:/x/y -> /mnt/c/x/y）。"""
+    if not p:
+        return ""
+    p = p.replace("\\", "/")
+    import re as _re
+    m = _re.match(r"^([A-Za-z]):(.*)$", p)
+    if m:
+        return "/mnt/" + m.group(1).lower() + m.group(2)
+    return p
+
+
 def _run_in_container(cmd, workspace, container, timeout):
-    """把命令送进 WSL 或 Docker 容器执行。"""
+    """把命令送进 WSL 或 Docker 容器执行。
+
+    - workspace 与容器互通：WSL 用 /mnt/c/... 映射宿主盘，Docker 用
+      -v 把宿主 workspace 挂载到 /workspace 并作为工作目录。
+    - 若 workspace 本身是容器内路径（如 /root/proj、~/proj），直接使用。
+    """
     import subprocess as sp
     try:
         ctype = container.get("type", "auto")
@@ -790,16 +807,25 @@ def _run_in_container(cmd, workspace, container, timeout):
         if ctype == "auto":
             ctype = "wsl" if os.name == "nt" else "docker"
         if ctype == "wsl" and os.name == "nt":
+            # 容器内工作目录：宿主路径转 /mnt/...；否则默认发行版 home
+            ws = _wsl_path(workspace) if workspace else ""
+            if ws and not ws.startswith("/"):
+                ws = ""
+            cwd = f"cd {ws} && " if ws else "cd ~ && "
             if distro:
-                argv = ["wsl", "-d", distro, "--", "bash", "-lc", cmd]
+                argv = ["wsl", "-d", distro, "--", "bash", "-lc", cwd + cmd]
             else:
-                argv = ["wsl", "--", "bash", "-lc", cmd]
+                argv = ["wsl", "--", "bash", "-lc", cwd + cmd]
             proc = sp.run(argv, capture_output=True, timeout=timeout)
         elif ctype == "docker":
-            if distro:
-                argv = ["docker", "run", "--rm", "-i", distro, "sh", "-lc", cmd]
+            image = distro or "ubuntu"
+            if workspace:
+                # 宿主 workspace 挂载到 /workspace 并作为工作目录（文件互通）
+                argv = ["docker", "run", "--rm", "-i",
+                        "-v", f"{workspace}:/workspace", "-w", "/workspace",
+                        image, "sh", "-lc", cmd]
             else:
-                argv = ["docker", "run", "--rm", "-i", "ubuntu", "sh", "-lc", cmd]
+                argv = ["docker", "run", "--rm", "-i", image, "sh", "-lc", cmd]
             proc = sp.run(argv, capture_output=True, timeout=timeout)
         else:
             return False, "(容器类型不支持)"

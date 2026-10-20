@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.0.2';
+  String get appVersion => '4.0.3';
 
   // ---------------- 4.0 云端账号 ----------------
   String get cloudServer => (settings['cloud_server'] ?? '').toString().trim();
@@ -147,6 +147,39 @@ class AppState extends ChangeNotifier {
   bool isCloudModel(String? id) {
     if (id == null) return false;
     return RegExp(r'^darling-\d+$').hasMatch(id);
+  }
+
+  /// AI 优化提示词：把输入改写为更结构化提示词（云端/本地双模式，不依赖桥接 job）
+  Future<String?> optimizePrompt(String text) async {
+    if (text.trim().isEmpty || busy) return null;
+    final prompt =
+        '请把下面的用户输入改写成一个更清晰、结构化的提示词（保持原意，不要执行任务本身），只输出改写结果：\n\n$text';
+    if (cloudLoggedIn && isCloudModel(currentModelId)) {
+      try {
+        final r = await cloudPost('/api/chat', {
+          'model_id': currentModelId,
+          'messages': [
+            {'role': 'user', 'content': prompt},
+          ],
+        });
+        if (r['status'] == 200) {
+          return (r['data']['content'] ?? '').toString().trim();
+        }
+      } catch (_) {}
+      return null;
+    }
+    final m = model(currentModelId);
+    if (m == null) return null;
+    final sb = StringBuffer();
+    try {
+      await api.chat(m['id'] as String, prompt, (ev) {
+        if (ev['type'] == 'token') sb.write(ev['text'] ?? '');
+      });
+    } catch (_) {
+      return null;
+    }
+    final out = sb.toString().trim();
+    return out.isEmpty ? null : out;
   }
 
   Future<void> setUiMode(String mode) async {

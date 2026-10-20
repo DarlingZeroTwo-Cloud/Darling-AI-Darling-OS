@@ -44,7 +44,7 @@ class _ClassicShellState extends State<ClassicShell> {
             Opacity(opacity: bgOpacity, child: Image.file(File(bgImage), fit: BoxFit.cover)),
           Column(
             children: [
-              _ClassicTopBar(state: widget.state),
+              _ClassicTopBar(state: widget.state, showChatActions: _rightPage == 'chat'),
               Expanded(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -115,7 +115,8 @@ class _ClassicShellState extends State<ClassicShell> {
 // ==================== 顶栏 ====================
 class _ClassicTopBar extends StatelessWidget {
   final AppState state;
-  const _ClassicTopBar({required this.state});
+  final bool showChatActions;
+  const _ClassicTopBar({required this.state, this.showChatActions = true});
 
   @override
   Widget build(BuildContext context) {
@@ -135,52 +136,55 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v4.0.2',
+          Text('v4.0.3',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
-          // 清空当前对话（二次确认防误触）
-          if (state.messages.isNotEmpty)
+          // 对话页专属操作（清空/新对话）：只在对话页显示
+          if (showChatActions) ...[
+            // 清空当前对话（二次确认防误触）
+            if (state.messages.isNotEmpty)
+              Tooltip(
+                message: '清空当前对话',
+                child: InkWell(
+                  onTap: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('清空当前对话'),
+                        content: const Text('确定清空当前对话的所有消息？此操作不可恢复。'),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('取消')),
+                          FilledButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('清空')),
+                        ],
+                      ),
+                    );
+                    if (ok == true) state.clearActiveConversation();
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(Icons.delete_sweep_outlined,
+                        size: 17, color: cs.onSurfaceVariant),
+                  ),
+                ),
+              ),
+            // 新对话
             Tooltip(
-              message: '清空当前对话',
+              message: '新对话',
               child: InkWell(
-                onTap: () async {
-                  final ok = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('清空当前对话'),
-                      content: const Text('确定清空当前对话的所有消息？此操作不可恢复。'),
-                      actions: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('取消')),
-                        FilledButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('清空')),
-                      ],
-                    ),
-                  );
-                  if (ok == true) state.clearActiveConversation();
-                },
+                onTap: () => state.newConversation(),
                 borderRadius: BorderRadius.circular(6),
                 child: Padding(
                   padding: const EdgeInsets.all(6),
-                  child: Icon(Icons.delete_sweep_outlined,
-                      size: 17, color: cs.onSurfaceVariant),
+                  child: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
                 ),
               ),
             ),
-          // 新对话
-          Tooltip(
-            message: '新对话',
-            child: InkWell(
-              onTap: () => state.newConversation(),
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
-              ),
-            ),
-          ),
+          ],
           const SizedBox(width: 16),
         ],
       ),
@@ -391,7 +395,6 @@ class _SidebarContentState extends State<_SidebarContent> {
                   return _ClassicConvItem(
                     id: id,
                     title: (c['title'] ?? '新对话').toString(),
-                    model: (c['model_id'] ?? '').toString(),
                     pinned: c['pinned'] == true,
                     active: active,
                     onTap: () { state.loadConversation(id!); widget.onSelectChat(); },
@@ -467,7 +470,6 @@ class _SidebarEntry extends StatelessWidget {
 class _ClassicConvItem extends StatefulWidget {
   final String? id;
   final String title;
-  final String model;
   final bool pinned;
   final bool active;
   final VoidCallback onTap;
@@ -477,7 +479,6 @@ class _ClassicConvItem extends StatefulWidget {
   const _ClassicConvItem({
     required this.id,
     required this.title,
-    required this.model,
     required this.pinned,
     required this.active,
     required this.onTap,
@@ -520,41 +521,15 @@ class _ClassicConvItemState extends State<_ClassicConvItem> {
                     color: widget.active ? cs.primary : cs.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          widget.title,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: widget.active ? cs.primary : cs.onSurface,
-                            fontWeight: widget.active ? FontWeight.w600 : FontWeight.w400,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (widget.model.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: dark ? const Color(0x26FFFFFF) : const Color(0x11000000),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            widget.model,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: widget.active ? cs.primary : cs.onSurface,
+                      fontWeight: widget.active ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 // 操作按钮常驻显示（hover 显示容易点不到）

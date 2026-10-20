@@ -342,14 +342,20 @@ class _ComposerState extends State<_Composer> {
   bool _showSlash = false;
   int _slashSel = 0;
   bool _optimizing = false;
+  final GlobalKey _exportBtnKey = GlobalKey();
   String? _lastConvId;
   final List<String> _images = [];
 
   /// 导出菜单：Markdown / JSON / HTML，成功后提示文件路径
   void _showExportMenu(BuildContext context, AppState state) {
+    final box = _exportBtnKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final pos = box.localToGlobal(Offset.zero);
+    final size = box.size;
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(0, 0, 0, 0),
+      position: RelativeRect.fromLTRB(
+          pos.dx, pos.dy + size.height + 4, pos.dx + size.width, pos.dy + size.height + 4 + 200),
       items: [
         PopupMenuItem(value: 'copy', child: const Text('复制为 Markdown')),
         PopupMenuItem(value: 'md', child: const Text('导出为 Markdown (.md)')),
@@ -523,20 +529,8 @@ class _ComposerState extends State<_Composer> {
     if (text.trim().isEmpty || widget.state.busy) return;
     setState(() => _optimizing = true);
     try {
-      final r = await widget.state.api.postJson('/api/chat', {
-        'model_id': widget.state.currentModelId,
-        'text':
-            '请把下面的用户输入改写成一个更清晰、结构化的提示词（保持原意，不要执行任务本身），只输出改写结果：\n\n$text',
-      });
-      final jobId = (r['job'] ?? r['job_id'] ?? '').toString();
-      if (jobId.isEmpty) return;
-      final sb = StringBuffer();
-      await widget.state.api.streamJob(jobId, (ev) {
-        final t = ev['text'];
-        if (t is String) sb.write(t);
-      });
-      final optimized = sb.toString().trim();
-      if (optimized.isNotEmpty) _ctl.text = optimized;
+      final optimized = await widget.state.optimizePrompt(text);
+      if (optimized != null && optimized.isNotEmpty) _ctl.text = optimized;
     } catch (_) {}
     if (mounted) setState(() => _optimizing = false);
   }
@@ -1064,6 +1058,7 @@ class _ComposerState extends State<_Composer> {
                     Tooltip(
                       message: '导出当前对话（Markdown / JSON）',
                       child: InkWell(
+                        key: _exportBtnKey,
                         onTap: busy ? null : () => _showExportMenu(context, widget.state),
                         borderRadius: BorderRadius.circular(6),
                         child: Padding(

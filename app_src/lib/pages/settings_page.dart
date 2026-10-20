@@ -41,7 +41,6 @@ class _SettingsPageState extends State<SettingsPage> {
     ('网络', Icons.public),
     ('权限', Icons.shield_outlined),
     ('高级功能', Icons.auto_awesome),
-    ('服务', Icons.dns_outlined),
     ('个性化', Icons.palette_outlined),
     ('账号', Icons.account_circle_outlined),
     ('关于', Icons.info_outline),
@@ -98,10 +97,9 @@ class _SettingsPageState extends State<SettingsPage> {
       case 1: return _networkPage(state);
       case 2: return _privacyPage(state);
       case 3: return _advancedPage(state);
-      case 4: return _serverPage(state);
-      case 5: return _appearancePage(state);
-      case 6: return _accountPage(state);
-      case 7: return _aboutPage(state);
+      case 4: return _appearancePage(state);
+      case 5: return _accountPage(state);
+      case 6: return _aboutPage(state);
       default: return _chatPage(state);
     }
   }
@@ -308,7 +306,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final s = state.settings;
     return Column(children: [
       _Card(title: '权限与隐私', children: [
-        _Row(label: '工作目录', desc: 'AI 可访问的文件根目录。', trailing: SizedBox(width: 260, child: TextFormField(initialValue: s['workspace'] ?? '', decoration: const InputDecoration(isDense: true, hintText: '留空 = 用户主目录'), onFieldSubmitted: (v) { state.settings['workspace'] = v.trim(); state.saveSettings(); }))),
+        _Row(label: '工作目录', desc: 'AI 可访问的文件根目录；容器模式下自动互通（WSL 映射 /mnt/c、Docker 挂载 /workspace），也可直接填容器内路径如 /root/proj。', trailing: SizedBox(width: 260, child: TextFormField(initialValue: s['workspace'] ?? '', decoration: const InputDecoration(isDense: true, hintText: '留空 = 用户主目录'), onFieldSubmitted: (v) { state.settings['workspace'] = v.trim(); state.saveSettings(); }))),
         _Row(label: '允许读取文件', desc: 'AI 可读工作目录下的文件内容。', trailing: Switch(value: s['allow_read'] != false, onChanged: (v) { state.settings['allow_read'] = v; state.saveSettings(); })),
         _Row(label: '允许写入文件', desc: 'AI 可创建/修改工作目录下的文件。', trailing: Switch(value: s['allow_write'] == true, onChanged: (v) { state.settings['allow_write'] = v; state.saveSettings(); })),
         _Row(label: '允许执行命令', desc: 'AI 可在容器或本机终端执行命令。', trailing: Switch(value: s['allow_exec'] == true, onChanged: (v) { state.settings['allow_exec'] = v; state.saveSettings(); })),
@@ -342,18 +340,6 @@ class _SettingsPageState extends State<SettingsPage> {
           _Row(label: '容器类型', desc: '自动检测当前系统可用的容器环境。', trailing: SegmentedButton<String>(segments: const [ButtonSegment(value: 'auto', label: Text('自动')), ButtonSegment(value: 'wsl', label: Text('WSL')), ButtonSegment(value: 'docker', label: Text('Docker'))], selected: {_opt(s, 'container_type', 'auto', const {'auto', 'wsl', 'docker'})}, onSelectionChanged: (sel) { state.settings['container_type'] = sel.first; state.saveSettings(); })),
           _Row(label: '自动配置国内镜像', desc: '容器内自动配置 apt/pip 国内源加速。', trailing: Switch(value: s['container_mirror'] != false, onChanged: (v) { state.settings['container_mirror'] = v; state.saveSettings(); })),
         ],
-      ]),
-    ]);
-  }
-
-  // ===== 服务 =====
-  Widget _serverPage(AppState state) {
-    final s = state.settings;
-    return Column(children: [
-      _Card(title: '服务监听', children: [
-        _Row(label: '监听地址', desc: '127.0.0.1 = 仅本机；0.0.0.0 = 局域网可连。重启后端生效。', trailing: SizedBox(width: 200, child: TextField(controller: TextEditingController(text: (s['api_host'] ?? '127.0.0.1').toString()), decoration: const InputDecoration(isDense: true, hintText: '127.0.0.1'), onSubmitted: (v) { state.settings['api_host'] = v.trim(); state.saveSettings(); }))),
-        _Row(label: '端口', desc: '后端 API 端口。重启后端生效。', trailing: SpinField(min: 1024, max: 65535, value: _num(s, 'api_port', 19730).toDouble(), step: 1, decimals: 0, onChanged: (v) { state.settings['api_port'] = v.toInt(); state.saveSettings(); })),
-        _Row(label: 'API Key', desc: '远程调用时的鉴权密钥（留空不校验）。', trailing: SizedBox(width: 200, child: TextField(controller: TextEditingController(text: (s['api_key'] ?? '').toString()), obscureText: true, decoration: const InputDecoration(isDense: true, hintText: '留空 = 不校验'), onSubmitted: (v) { state.settings['api_key'] = v.trim(); state.saveSettings(); }))),
       ]),
     ]);
   }
@@ -446,7 +432,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 4.0.2', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 4.0.3', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -635,7 +621,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '4.0.2';
+    const current = '4.0.3';
     try {
       final resp = await http
           .get(Uri.parse(
@@ -701,7 +687,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// latest 是否 ≥ current（如 '4.0.2' ≥ '4.0.2'）
+  /// latest 是否 ≥ current（如 '4.0.3' ≥ '4.0.3'）
   bool _versionAtLeast(String latest, String current) {
     List<int> parse(String v) => v
         .split('.')

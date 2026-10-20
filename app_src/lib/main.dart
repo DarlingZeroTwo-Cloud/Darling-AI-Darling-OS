@@ -449,31 +449,7 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ],
                 const Spacer(),
-                // 当前模型标签（对话页常驻显示）
-                if (_nav == 0 && widget.state.currentModelId != null)
-                  Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: cs.primary.withValues(alpha: 0.35)),
-                    ),
-                    child: Text(
-                      (widget.state
-                              .model(widget.state.currentModelId)?['display'] ??
-                          '')
-                          .toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: cs.primary),
-                    ),
-                  ),
+                // 新对话按钮：只在对话页显示
                 if (_nav == 0)
                   IconButton(
                     icon: Icon(Icons.add, size: 20, color: cs.onSurfaceVariant),
