@@ -120,7 +120,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: FilledButton(
                 onPressed: () async {
                   final ok = await Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const CloudLoginPage()));
+                      MaterialPageRoute(builder: (_) => CloudLoginPage(state: state)));
                   if (ok == true && mounted) setState(() {});
                 },
                 child: const Padding(
@@ -134,7 +134,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: OutlinedButton(
                 onPressed: () async {
                   final ok = await Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const CloudRegisterPage()));
+                      MaterialPageRoute(builder: (_) => CloudRegisterPage(state: state)));
                   if (ok == true && mounted) setState(() {});
                 },
                 child: const Padding(

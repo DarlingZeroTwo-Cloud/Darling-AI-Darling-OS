@@ -3,7 +3,8 @@ import '../state.dart';
 
 /// 登录页（独立页面）
 class CloudLoginPage extends StatefulWidget {
-  const CloudLoginPage({super.key});
+  final AppState state;
+  const CloudLoginPage({super.key, required this.state});
   @override
   State<CloudLoginPage> createState() => _CloudLoginPageState();
 }
@@ -56,7 +57,7 @@ class _CloudLoginPageState extends State<CloudLoginPage> {
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const CloudRegisterPage())),
+                MaterialPageRoute(builder: (_) => CloudRegisterPage(state: widget.state))),
             child: const Text('没有账号？注册'),
           ),
         ]),
@@ -67,17 +68,17 @@ class _CloudLoginPageState extends State<CloudLoginPage> {
   Future<void> doLogin() async {
     setState(() { busy = true; err = null; });
     try {
-      final r = await AppState.I.cloudPost('/api/auth/login', {
+      final r = await widget.state.cloudPost('/api/auth/login', {
         'email': emailCtl.text.trim(),
         'password': pwCtl.text,
       });
       if (r['status'] == 200 && r['data']['access'] != null) {
-        await AppState.I.setCloudAuth(
+        await widget.state.setCloudAuth(
           token: r['data']['access'],
           email: r['data']['email'] ?? emailCtl.text.trim(),
           refresh: r['data']['refresh'] ?? '',
         );
-        await AppState.I.refreshCloud();
+        await widget.state.refreshCloud();
         if (mounted) Navigator.pop(context, true);
       } else {
         setState(() => err = r['data']['error'] ?? '登录失败');
@@ -92,7 +93,8 @@ class _CloudLoginPageState extends State<CloudLoginPage> {
 
 /// 注册页（独立页面）
 class CloudRegisterPage extends StatefulWidget {
-  const CloudRegisterPage({super.key});
+  final AppState state;
+  const CloudRegisterPage({super.key, required this.state});
   @override
   State<CloudRegisterPage> createState() => _CloudRegisterPageState();
 }
@@ -165,7 +167,7 @@ class _CloudRegisterPageState extends State<CloudRegisterPage> {
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.pushReplacement(context,
-                MaterialPageRoute(builder: (_) => const CloudLoginPage())),
+                MaterialPageRoute(builder: (_) => CloudLoginPage(state: widget.state))),
             child: const Text('已有账号？登录'),
           ),
         ]),
@@ -184,19 +186,19 @@ class _CloudRegisterPageState extends State<CloudRegisterPage> {
     }
     setState(() { busy = true; err = null; });
     try {
-      final r = await AppState.I.cloudPost('/api/auth/register', {
+      final r = await widget.state.cloudPost('/api/auth/register', {
         'email': emailCtl.text.trim(),
         'password': pwCtl.text,
         'security_q': sqCtl.text.trim(),
         'security_a': saCtl.text.trim(),
       });
       if (r['status'] == 200 && r['data']['access'] != null) {
-        await AppState.I.setCloudAuth(
+        await widget.state.setCloudAuth(
           token: r['data']['access'],
           email: r['data']['email'] ?? emailCtl.text.trim(),
           refresh: r['data']['refresh'] ?? '',
         );
-        await AppState.I.refreshCloud();
+        await widget.state.refreshCloud();
         if (mounted) Navigator.pop(context, true);
       } else {
         setState(() => err = r['data']['error'] ?? '注册失败');
