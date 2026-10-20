@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -328,6 +329,25 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(width: 12),
           Expanded(child: TextFormField(initialValue: s['bg_image'] ?? '', decoration: const InputDecoration(hintText: '留空 = 纯色背景', isDense: true), onChanged: (v) { state.settings['bg_image'] = v; state.saveSettings(); })),
           const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: () async {
+              try {
+                final res = await openFile(
+                  acceptedTypeGroups: [
+                    XTypeGroup(extensions: ['png', 'jpg', 'jpeg', 'webp', 'bmp']),
+                  ],
+                  confirmButtonText: '选择',
+                );
+                if (res.path.isNotEmpty) {
+                  state.settings['bg_image'] = res.path;
+                  state.saveSettings();
+                  if (context.mounted) setState(() {});
+                }
+              } catch (_) {}
+            },
+            child: const Text('浏览'),
+          ),
+          const SizedBox(width: 8),
           OutlinedButton(onPressed: () { state.settings['bg_image'] = ''; state.saveSettings(); }, child: const Text('清除')),
         ])),
         _Row(label: '背景不透明度', desc: '设置了背景图片时的不透明度（0.1 ~ 1.0）。', trailing: SizedBox(width: 200, child: Slider(value: _num(s, 'bg_opacity', 0.9).toDouble().clamp(0.1, 1.0), min: 0.1, max: 1.0, divisions: 9, label: '${(_num(s, 'bg_opacity', 0.9) * 100).round()}%', onChanged: (v) { state.settings['bg_opacity'] = v; state.saveSettings(); }))),
@@ -489,22 +509,36 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _importBackup(BuildContext context, AppState state) async {
     final messenger = ScaffoldMessenger.of(context);
     final pick = await _pickBackupFile();
-    if (pick == null) return;
+    if (pick == null || !context.mounted) return;
+    // 显示 loading dialog，防止卡死时界面空白
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(children: [
+          SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+          SizedBox(width: 16),
+          Text('正在导入备份…'),
+        ]),
+      ),
+    );
     try {
       final data = jsonDecode(
               await File(pick).readAsString()) as Map<String, dynamic>;
       final r = await state.api.importBackup(data);
       if (!context.mounted) return;
+      Navigator.of(context).pop(); // 关 loading
       if (r['ok'] == true) {
         messenger.showSnackBar(const SnackBar(
-            content: Text('备份导入成功，重启应用后生效'),
-            duration: Duration(seconds: 3)));
+          content: Text('备份导入成功，重启应用后生效'),
+          duration: Duration(seconds: 3)));
         await state.reload();
       } else {
         messenger.showSnackBar(
             SnackBar(content: Text('导入失败：${r['error'] ?? '未知错误'}')));
       }
     } catch (e) {
+      if (context.mounted) Navigator.of(context).pop(); // 关 loading
       messenger.showSnackBar(SnackBar(content: Text('读取备份失败：$e')));
     }
   }
