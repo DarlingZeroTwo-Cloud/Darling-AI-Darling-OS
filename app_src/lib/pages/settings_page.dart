@@ -338,7 +338,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ],
                   confirmButtonText: '选择',
                 );
-                if (res.path.isNotEmpty) {
+                if (res != null && res.path.isNotEmpty) {
                   state.settings['bg_image'] = res.path;
                   state.saveSettings();
                   if (context.mounted) setState(() {});
