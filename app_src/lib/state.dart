@@ -64,10 +64,11 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.0.3';
+  String get appVersion => '4.1.0';
 
   // ---------------- 4.0 云端账号 ----------------
-  String get cloudServer => (settings['cloud_server'] ?? '').toString().trim();
+  static const String kCloudServer = 'https://darling-ai-cloud.18217186550.workers.dev';
+  String get cloudServer => kCloudServer;
   String get cloudToken => (settings['cloud_token'] ?? '').toString();
   String get cloudEmail => (settings['cloud_email'] ?? '').toString();
   bool get cloudLoggedIn => cloudToken.isNotEmpty && cloudServer.isNotEmpty;
@@ -80,16 +81,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setCloudAuth({required String token, required String email}) async {
+  Future<void> setCloudAuth({required String token, required String email, String refresh = ''}) async {
     settings['cloud_token'] = token;
     settings['cloud_email'] = email;
+    if (refresh.isNotEmpty) settings['cloud_refresh'] = refresh;
     await saveSettings();
     notifyListeners();
   }
 
+  String get cloudRefresh => (settings['cloud_refresh'] ?? '').toString();
+
   Future<void> cloudLogout() async {
     settings['cloud_token'] = '';
     settings['cloud_email'] = '';
+    settings['cloud_refresh'] = '';
     cloudQuota = {};
     cloudModels = [];
     await saveSettings();
@@ -125,6 +130,30 @@ class AppState extends ChangeNotifier {
       req.write(jsonEncode(body));
       final resp = await req.close().timeout(const Duration(seconds: 120));
       final raw = await resp.transform(utf8.decoder).join();
+      // SSE 流（/api/chat）：解析所有 data: 行，拼 delta
+      final ctype = resp.headers.contentType?.toString() ?? '';
+      if (ctype.contains('text/event-stream') || raw.contains('data: ')) {
+        String content = '';
+        Map<String, dynamic>? usage;
+        for (final line in raw.split('\n')) {
+          final t = line.trim();
+          if (!t.startsWith('data:')) continue;
+          final payload = t.substring(5).trim();
+          if (payload.isEmpty) continue;
+          try {
+            final j = jsonDecode(payload) as Map<String, dynamic>;
+            if (j['type'] == 'delta') {
+              content += (j['content'] ?? '').toString();
+            } else if (j['type'] == 'done') {
+              usage = (j['usage'] as Map?)?.cast<String, dynamic>();
+            }
+          } catch (_) {}
+        }
+        return {
+          'status': resp.statusCode,
+          'data': {'content': content, if (usage != null) 'usage': usage},
+        };
+      }
       return {'status': resp.statusCode, 'data': jsonDecode(raw)};
     } finally {
       client.close(force: true);
@@ -143,10 +172,11 @@ class AppState extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// 判断某模型 ID 是否为云端官方模型（格式 darling-N）
+  /// 判断某模型 ID 是否为云端官方模型（slug 在 cloudModels 列表里）
   bool isCloudModel(String? id) {
     if (id == null) return false;
-    return RegExp(r'^darling-\d+$').hasMatch(id);
+    return cloudModels.any((m) =>
+        (m is Map && (m['id']?.toString() == id || m['slug']?.toString() == id)));
   }
 
   /// AI 优化提示词：把输入改写为更结构化提示词（云端/本地双模式，不依赖桥接 job）

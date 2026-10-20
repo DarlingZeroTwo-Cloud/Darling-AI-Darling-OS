@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../main.dart';
 import '../state.dart';
 import '../widgets/spin_field.dart';
+import 'cloud_auth_page.dart';
 
 class SettingsPage extends StatefulWidget {
   final AppState state;
@@ -104,97 +105,43 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // ===== 账号（4.0 云端） =====
+  // ===== 账号（4.1 云端） =====
   Widget _accountPage(AppState state) {
-    final emailCtl = TextEditingController();
-    final pwCtl = TextEditingController();
     return Column(children: [
-      _Card(title: '服务器地址', children: [
-        TextField(
-          controller: TextEditingController(text: state.cloudServer),
-          decoration: const InputDecoration(
-            isDense: true,
-            hintText: 'http://你的服务器:611',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.cloud_outlined, size: 18),
-          ),
-          onSubmitted: (v) => state.setCloudServer(v),
-        ),
-        const SizedBox(height: 6),
-        Row(children: [
-          FilledButton(
-            onPressed: () async {
-              try {
-                final r = await state.cloudGet('/api/health');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(r['status'] == 200 ? '连接成功' : '服务器返回 ${r['status']}')),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('连接失败：$e')));
-              }
-            },
-            child: const Text('测试连接'),
-          ),
-          const SizedBox(width: 12),
-          Text('未登录状态下，所有老功能（自填 API Key）照常使用。',
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        ]),
-      ]),
-      const SizedBox(height: 12),
       if (!state.cloudLoggedIn)
-        _Card(title: '登录 / 注册（邮箱密码）', children: [
-          TextField(
-            controller: emailCtl,
-            decoration: const InputDecoration(
-              isDense: true, labelText: '邮箱', border: OutlineInputBorder(),
-            ),
+        _Card(title: '02 官方账号', children: [
+          const Text(
+            '登录后使用官方免费模型「02」\n每 5 小时：3000 万 token + 10 张图片\n不登录也可正常使用自填 API Key 的老功能。',
+            style: TextStyle(fontSize: 12.5, height: 1.6),
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: pwCtl,
-            obscureText: true,
-            decoration: const InputDecoration(
-              isDense: true, labelText: '密码（至少 6 位）', border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(children: [
-            FilledButton(
-              onPressed: () async {
-                final r = await state.cloudPost('/api/login', {
-                  'email': emailCtl.text.trim(),
-                  'password': pwCtl.text,
-                });
-                if (r['status'] == 200) {
-                  await state.setCloudAuth(
-                      token: r['data']['token'], email: r['data']['email']);
-                  await state.refreshCloud();
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('登录成功')));
-                } else {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(r['data']['error'] ?? '登录失败')));
-                }
-              },
-              child: const Text('登录'),
+            Expanded(
+              child: FilledButton(
+                onPressed: () async {
+                  final ok = await Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CloudLoginPage()));
+                  if (ok == true && mounted) setState(() {});
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Text('登录'),
+                ),
+              ),
             ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: () async {
-                final r = await state.cloudPost('/api/register', {
-                  'email': emailCtl.text.trim(),
-                  'password': pwCtl.text,
-                });
-                if (r['status'] == 200) {
-                  await state.setCloudAuth(
-                      token: r['data']['token'], email: r['data']['email']);
-                  await state.refreshCloud();
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('注册成功，已自动登录')));
-                } else {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(r['data']['error'] ?? '注册失败')));
-                }
-              },
-              child: const Text('注册'),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () async {
+                  final ok = await Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CloudRegisterPage()));
+                  if (ok == true && mounted) setState(() {});
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Text('注册'),
+                ),
+              ),
             ),
           ]),
         ])
@@ -210,8 +157,8 @@ class _SettingsPageState extends State<SettingsPage> {
             TextButton(onPressed: () => state.refreshCloud(), child: const Text('刷新')),
             TextButton(
               onPressed: () async {
-                await state.cloudPost('/api/logout', {});
                 await state.cloudLogout();
+                if (mounted) setState(() {});
               },
               child: const Text('登出'),
             ),
@@ -227,7 +174,6 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 _QuotaBar(label: '文本 token', used: (used['text_tokens'] ?? 0) as int, limit: (limit['text_tokens'] ?? 1) as int),
                 _QuotaBar(label: '图片张数', used: (used['images'] ?? 0) as int, limit: (limit['images'] ?? 1) as int),
-                _QuotaBar(label: '视频个数', used: (used['videos'] ?? 0) as int, limit: (limit['videos'] ?? 1) as int),
                 const SizedBox(height: 6),
                 Text(
                   '每 5 小时自动重置',

@@ -143,3 +143,5 @@ darling-ai-server-v*.zip
 *.deb
 *.exe
 *.tar.gz
+worker/
+worker/*
