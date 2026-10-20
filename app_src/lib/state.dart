@@ -67,8 +67,12 @@ class AppState extends ChangeNotifier {
   String get appVersion => '4.1.2';
 
   // ---------------- 4.0 云端账号 ----------------
-  static const String kCloudServer = 'http://darling02.de5.net';
-  String get cloudServer => kCloudServer;
+  // 双地址：先 https，握手失败自动切 http
+  static const List<String> kCloudBases = [
+    'https://darling02.de5.net',
+    'http://darling02.de5.net',
+  ];
+  String get cloudServer => kCloudBases.first;
   String get cloudToken => (settings['cloud_token'] ?? '').toString();
   String get cloudEmail => (settings['cloud_email'] ?? '').toString();
   bool get cloudLoggedIn => cloudToken.isNotEmpty && cloudServer.isNotEmpty;
@@ -103,61 +107,75 @@ class AppState extends ChangeNotifier {
 
   /// 调云端接口
   Future<Map<String, dynamic>> cloudGet(String path) async {
-    final uri = Uri.parse('$cloudServer$path');
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 15);
-    try {
-      final req = await client.getUrl(uri);
-      req.headers.set('Authorization', 'Bearer $cloudToken');
-      final resp = await req.close().timeout(const Duration(seconds: 20));
-      final body = await resp.transform(utf8.decoder).join();
-      return {'status': resp.statusCode, 'data': jsonDecode(body)};
-    } finally {
-      client.close(force: true);
+    Object? lastErr;
+    for (final base in kCloudBases) {
+      final uri = Uri.parse('$base$path');
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 15);
+      try {
+        final req = await client.getUrl(uri);
+        req.headers.set('Authorization', 'Bearer $cloudToken');
+        final resp = await req.close().timeout(const Duration(seconds: 20));
+        final body = await resp.transform(utf8.decoder).join();
+        return {'status': resp.statusCode, 'data': jsonDecode(body)};
+      } catch (e) {
+        lastErr = e;
+        continue;
+      } finally {
+        client.close(force: true);
+      }
     }
+    throw lastErr ?? Exception('cloud get failed');
   }
 
   Future<Map<String, dynamic>> cloudPost(String path, Map<String, dynamic> body) async {
-    final uri = Uri.parse('$cloudServer$path');
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 15);
-    try {
-      final req = await client.postUrl(uri);
-      req.headers.set('Content-Type', 'application/json');
-      if (cloudToken.isNotEmpty) {
-        req.headers.set('Authorization', 'Bearer $cloudToken');
-      }
-      req.write(jsonEncode(body));
-      final resp = await req.close().timeout(const Duration(seconds: 120));
-      final raw = await resp.transform(utf8.decoder).join();
-      // SSE 流（/api/chat）：解析所有 data: 行，拼 delta
-      final ctype = resp.headers.contentType?.toString() ?? '';
-      if (ctype.contains('text/event-stream') || raw.contains('data: ')) {
-        String content = '';
-        Map<String, dynamic>? usage;
-        for (final line in raw.split('\n')) {
-          final t = line.trim();
-          if (!t.startsWith('data:')) continue;
-          final payload = t.substring(5).trim();
-          if (payload.isEmpty) continue;
-          try {
-            final j = jsonDecode(payload) as Map<String, dynamic>;
-            if (j['type'] == 'delta') {
-              content += (j['content'] ?? '').toString();
-            } else if (j['type'] == 'done') {
-              usage = (j['usage'] as Map?)?.cast<String, dynamic>();
-            }
-          } catch (_) {}
+    Object? lastErr;
+    for (final base in kCloudBases) {
+      final uri = Uri.parse('$base$path');
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 15);
+      try {
+        final req = await client.postUrl(uri);
+        req.headers.set('Content-Type', 'application/json');
+        if (cloudToken.isNotEmpty) {
+          req.headers.set('Authorization', 'Bearer $cloudToken');
         }
-        return {
-          'status': resp.statusCode,
-          'data': {'content': content, if (usage != null) 'usage': usage},
-        };
+        req.write(jsonEncode(body));
+        final resp = await req.close().timeout(const Duration(seconds: 120));
+        final raw = await resp.transform(utf8.decoder).join();
+        // SSE 流（/api/chat）：解析所有 data: 行，拼 delta
+        final ctype = resp.headers.contentType?.toString() ?? '';
+        if (ctype.contains('text/event-stream') || raw.contains('data: ')) {
+          String content = '';
+          Map<String, dynamic>? usage;
+          for (final line in raw.split('\n')) {
+            final t = line.trim();
+            if (!t.startsWith('data:')) continue;
+            final payload = t.substring(5).trim();
+            if (payload.isEmpty) continue;
+            try {
+              final j = jsonDecode(payload) as Map<String, dynamic>;
+              if (j['type'] == 'delta') {
+                content += (j['content'] ?? '').toString();
+              } else if (j['type'] == 'done') {
+                usage = (j['usage'] as Map?)?.cast<String, dynamic>();
+              }
+            } catch (_) {}
+          }
+          return {
+            'status': resp.statusCode,
+            'data': {'content': content, if (usage != null) 'usage': usage},
+          };
+        }
+        return {'status': resp.statusCode, 'data': jsonDecode(raw)};
+      } catch (e) {
+        lastErr = e;
+        continue;
+      } finally {
+        client.close(force: true);
       }
-      return {'status': resp.statusCode, 'data': jsonDecode(raw)};
-    } finally {
-      client.close(force: true);
     }
+    throw lastErr ?? Exception('cloud post failed');
   }
 
   /// 拉云端用户信息（额度）+ 模型列表
