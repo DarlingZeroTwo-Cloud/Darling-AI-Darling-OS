@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.1.5';
+  String get appVersion => '4.1.6';
 
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
@@ -201,6 +201,11 @@ class AppState extends ChangeNotifier {
       if (me['status'] == 200) cloudQuota = (me['data']['quota'] as Map).cast<String, dynamic>();
       final ms = await cloudGet('/api/models');
       if (ms['status'] == 200) cloudModels = (ms['data']['models'] as List);
+      // 自动选第一个云端模型（如果当前没选云端模型）
+      if (cloudModels.isNotEmpty && !isCloudModel(currentModelId)) {
+        final first = cloudModels.first;
+        setModel((first['id'] ?? first['slug']).toString());
+      }
       notifyListeners();
     } catch (_) {}
   }
