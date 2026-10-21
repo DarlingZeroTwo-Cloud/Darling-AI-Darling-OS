@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.1.6';
+  String get appVersion => '4.1.7';
 
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
@@ -95,6 +95,37 @@ class AppState extends ChangeNotifier {
     settings['cloud_email'] = email;
     if (refresh.isNotEmpty) settings['cloud_refresh'] = refresh;
     await saveSettings();
+    // 自动配置官方供应商（OpenAI 兼容）
+    const pid = 'darling-official';
+    Map<String, dynamic>? existing;
+    for (final p in providers) {
+      if (p['id'] == pid) { existing = Map<String, dynamic>.from(p); break; }
+    }
+    if (existing != null) {
+      existing['api_key'] = token;
+    } else {
+      providers.add({
+        'id': pid,
+        'name': '02 官方',
+        'base_url': '${kCloudBases.first}/v1',
+        'api_key': token,
+        'full_endpoint': false,
+      });
+    }
+    // 自动添加 02 模型
+    const mid = 'darling-official-02';
+    var hasModel = false;
+    for (final m in models) { if (m['id'] == mid) { hasModel = true; break; } }
+    if (!hasModel) {
+      models.add({
+        'id': mid,
+        'provider_id': pid,
+        'name': '02',
+        'display': '02 官方 - 02',
+      });
+    }
+    await saveProvidersModels();
+    setModel(mid);
     notifyListeners();
   }
 
