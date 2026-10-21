@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.1.3';
+  String get appVersion => '4.1.4';
 
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
@@ -144,11 +144,11 @@ class AppState extends ChangeNotifier {
       final client = _makeClient();
       try {
         final req = await client.postUrl(uri);
-        req.headers.set('Content-Type', 'application/json');
+        req.headers.set('Content-Type', 'application/json; charset=utf-8');
         if (cloudToken.isNotEmpty) {
           req.headers.set('Authorization', 'Bearer $cloudToken');
         }
-        req.write(jsonEncode(body));
+        req.add(utf8.encode(jsonEncode(body)));
         final resp = await req.close().timeout(const Duration(seconds: 120));
         final raw = await resp.transform(utf8.decoder).join();
         // 非 JSON 响应（HTML 错误页）切下一个 base
