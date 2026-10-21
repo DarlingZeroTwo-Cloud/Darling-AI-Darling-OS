@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.1.4';
+  String get appVersion => '4.1.5';
 
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
@@ -124,7 +124,8 @@ class AppState extends ChangeNotifier {
         // 不是 JSON（HTML 错误页）就切下一个 base
         final trimmed = body.trim();
         if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
-          throw Exception('non-json response');
+          final snippet = trimmed.length > 200 ? trimmed.substring(0, 200) : trimmed;
+          throw Exception('HTTP ${resp.statusCode}: $snippet');
         }
         return {'status': resp.statusCode, 'data': jsonDecode(body)};
       } catch (e) {
@@ -154,7 +155,8 @@ class AppState extends ChangeNotifier {
         // 非 JSON 响应（HTML 错误页）切下一个 base
         final trimmed = raw.trim();
         if (!trimmed.startsWith('{') && !trimmed.startsWith('[') && !trimmed.startsWith('data:')) {
-          throw Exception('non-json response');
+          final snippet = trimmed.length > 200 ? trimmed.substring(0, 200) : trimmed;
+          throw Exception('HTTP ${resp.statusCode}: $snippet');
         }
         // SSE 流（/api/chat）：解析所有 data: 行，拼 delta
         final ctype = resp.headers.contentType?.toString() ?? '';
