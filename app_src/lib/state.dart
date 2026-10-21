@@ -69,8 +69,8 @@ class AppState extends ChangeNotifier {
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
   static const List<String> kCloudBases = [
-    'https://darling02.de5.net',
-    'http://darling02.de5.net',
+    'https://api.darling02.de5.net',
+    'http://api.darling02.de5.net',
   ];
   String get cloudServer => kCloudBases.first;
 
