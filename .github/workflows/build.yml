@@ -1,10 +1,10 @@
-name: build-4.1.8
+name: build-4.1.9
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v4.1.8*'
+      - 'v4.1.9*'
 
 permissions:
   contents: write
