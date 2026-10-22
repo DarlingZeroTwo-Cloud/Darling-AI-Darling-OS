@@ -136,7 +136,7 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v4.0.3',
+          Text('v${state.appVersion}',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
           // 对话页专属操作（清空/新对话）：只在对话页显示

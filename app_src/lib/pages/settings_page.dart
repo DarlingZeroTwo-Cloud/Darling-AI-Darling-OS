@@ -398,7 +398,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('darling-ai', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cs.onSurface)),
-          Text('版本 4.0.3', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          Text('版本 ${state.appVersion}', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
         ])),
       ]),
       const SizedBox(height: 16),
@@ -601,7 +601,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(const SnackBar(
         content: Text('正在检查更新…'), duration: Duration(seconds: 2)));
-    const current = '4.0.3';
+    const current = '4.1.8';
     try {
       final resp = await http
           .get(Uri.parse(
