@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 import 'bridge.dart';
 import 'state.dart';
@@ -11,7 +14,6 @@ import 'pages/chat_page.dart';
 import 'pages/models_page.dart';
 import 'pages/plugins_page.dart';
 import 'pages/settings_page.dart';
-import 'pages/local_models_page.dart';
 
 const Color kPrimaryLight = Color(0xFF0F766E);
 const Color kPrimaryDark = Color(0xFF2BBBAD);
@@ -37,12 +39,13 @@ const Color kMeBubbleLight = Color(0xFFEEF0F4);
 const Color kMeBubbleDark = Color(0xFF2A2E37);
 
 /// 跟随系统的深浅主题（MD3 + 高对比，色值映射自 Qt 版）
-ThemeData buildTheme(Brightness b) {
+ThemeData buildTheme(Brightness b, {int? accent}) {
   final dark = b == Brightness.dark;
-  final seed = dark ? kPrimaryDark : kPrimaryLight;
-  var scheme = ColorScheme.fromSeed(seedColor: seed, brightness: b);
+  final accentColor = accent != null ? Color(accent) : null;
+  final primary = accentColor ?? (dark ? kPrimaryDark : kPrimaryLight);
+  var scheme = ColorScheme.fromSeed(seedColor: primary, brightness: b);
   scheme = scheme.copyWith(
-    primary: dark ? kPrimaryDark : kPrimaryLight,
+    primary: primary,
     onPrimary: Colors.white,
     surface: dark ? kSurfaceDark : kSurfaceLight,
     onSurface: dark ? kOnSurfaceDark : kOnSurfaceLight,
@@ -50,7 +53,7 @@ ThemeData buildTheme(Brightness b) {
     outline: dark ? kOutlineDark : kOutlineLight,
     outlineVariant: dark ? const Color(0xFF343A45) : const Color(0xFFE4E6EA),
     secondaryContainer: dark ? kSelDark : kSelLight,
-    onSecondaryContainer: dark ? kPrimaryDark : kPrimaryLight,
+    onSecondaryContainer: primary,
     error: dark ? kErrDark : kErrLight,
     surfaceContainerLowest: dark ? kBgDark : kBgLight,
     surfaceContainerLow: dark ? const Color(0xFF191C22) : const Color(0xFFF9FAFB),
@@ -102,7 +105,7 @@ ThemeData buildTheme(Brightness b) {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(
-            color: dark ? kPrimaryDark : kPrimaryLight, width: 1.6),
+            color: primary, width: 1.6),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -119,6 +122,8 @@ ThemeData buildTheme(Brightness b) {
 }
 
 /// 启动前确保后端桥接服务在线（打包后 backend/darling-backend 与 exe 同级）
+Process? _backendProc;
+
 Future<void> ensureBackend() async {
   final api = BridgeClient();
   if (await api.ping()) return;
@@ -148,7 +153,8 @@ Future<void> ensureBackend() async {
     return;
   }
   try {
-    Process.start(backend, [], mode: ProcessStartMode.detached);
+    // 不 detached：持有进程句柄，退出时能干净关闭（释放 GGUF 句柄）
+    _backendProc = await Process.start(backend, [], mode: ProcessStartMode.normal);
   } catch (_) {}
 
   // 轮询等就绪（最长 15 秒）
@@ -158,8 +164,39 @@ Future<void> ensureBackend() async {
   }
 }
 
+/// 关闭后端：先调 /api/shutdown 让它释放 GGUF 文件句柄，再杀进程
+Future<void> shutdownBackend() async {
+  try {
+    final api = BridgeClient();
+    // 发 shutdown 请求（不等响应也行）
+    final uri = Uri.parse('http://127.0.0.1:19730/api/shutdown');
+    await HttpClient().getUrl(uri).timeout(const Duration(seconds: 2));
+  } catch (_) {}
+  await Future.delayed(const Duration(milliseconds: 400));
+  try {
+    _backendProc?.kill();
+  } catch (_) {}
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 构建异常可见化：release 模式不再显示灰色 ErrorWidget，
+  // 而是显示带错误信息的红框，方便定位问题
+  ErrorWidget.builder = (details) {
+    return Material(
+      color: const Color(0xFFFFF3F0),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            '界面构建出错，请截图反馈：\n${details.exception}',
+            style: const TextStyle(color: Color(0xFFB3261E), fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  };
   await ensureBackend();
   final api = BridgeClient();
   final state = AppState(api);
@@ -171,20 +208,54 @@ void main() async {
   runApp(DarlingApp(state: state));
 }
 
-class DarlingApp extends StatelessWidget {
+class DarlingApp extends StatefulWidget {
   final AppState state;
   const DarlingApp({super.key, required this.state});
 
   @override
+  State<DarlingApp> createState() => _DarlingAppState();
+}
+
+class _DarlingAppState extends State<DarlingApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // 退出时干净关闭后端，释放 GGUF 文件句柄（否则 Windows 删目录报占用）
+    shutdownBackend();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Android/iOS 切后台时也顺手关一下（桌面端窗口关闭走 dispose）
+    if (state == AppLifecycleState.detached) {
+      shutdownBackend();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
         return MaterialApp(
           title: 'darling-ai',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light),
-          darkTheme: buildTheme(Brightness.dark),
+          theme: buildTheme(Brightness.light,
+              accent: state.settings['accent_color'] is int
+                  ? state.settings['accent_color'] as int
+                  : null),
+          darkTheme: buildTheme(Brightness.dark,
+              accent: state.settings['accent_color'] is int
+                  ? state.settings['accent_color'] as int
+                  : null),
           themeMode: state.themeMode,
           home: HomeShell(state: state),
         );
@@ -205,6 +276,51 @@ class _HomeShellState extends State<HomeShell> {
   int _nav = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // 启动时静默检查更新（设置可关）
+    if (widget.state.settings['auto_check_update'] == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoCheckUpdate();
+      });
+    }
+  }
+
+  Future<void> _autoCheckUpdate() async {
+    try {
+      final resp = await http
+          .get(Uri.parse(
+              'https://api.github.com/repos/DarlingZeroTwo-Cloud/Darling-ai/releases/latest'))
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode != 200) return;
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final latest =
+          ((data['tag_name'] ?? '') as String).replaceFirst(RegExp(r'^v'), '');
+      final current = widget.state.appVersion;
+      if (latest.isNotEmpty && _versionAtLeast(latest, current) == false) {
+        final url = (data['html_url'] ?? '').toString();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('发现新版本 $latest（当前 $current）'),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: '查看',
+            onPressed: () {
+              try {
+                if (Platform.isWindows) {
+                  Process.start('cmd', ['/c', 'start', '', url]);
+                } else {
+                  Process.start('xdg-open', [url]);
+                }
+              } catch (_) {}
+            },
+          ),
+        ));
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     // 经典模式：Zed 风格侧边栏 + 独立窗口
     if (widget.state.uiMode == 'classic') {
@@ -216,7 +332,20 @@ class _HomeShellState extends State<HomeShell> {
     final s = widget.state.settings;
     final bgImage = (s['bg_image'] ?? '').toString();
     final bgOpacity = (s['bg_opacity'] ?? 0.85).toDouble();
-    return Scaffold(
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+            () => widget.state.newConversation(),
+        const SingleActivator(LogicalKeyboardKey.keyT, control: true):
+            () => setState(() => _nav = 0),
+        const SingleActivator(LogicalKeyboardKey.keyM, control: true):
+            () => setState(() => _nav = 1),
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true):
+            () => setState(() => _nav = 2),
+        const SingleActivator(LogicalKeyboardKey.comma, control: true):
+            () => setState(() => _nav = 3),
+      },
+      child: Scaffold(
       backgroundColor: dark ? const Color(0xFF15171C) : const Color(0xFFF4F5F7),
       body: Stack(
         fit: StackFit.expand,
@@ -270,14 +399,6 @@ class _HomeShellState extends State<HomeShell> {
                       ]),
                     ),
                     PopupMenuItem(
-                      value: 4,
-                      child: Row(children: [
-                        Icon(Icons.smart_toy_outlined, size: 18, color: _nav == 4 ? cs.primary : cs.onSurfaceVariant),
-                        const SizedBox(width: 10),
-                        Text('本地', style: TextStyle(fontWeight: _nav == 4 ? FontWeight.w600 : FontWeight.w400)),
-                      ]),
-                    ),
-                    PopupMenuItem(
                       value: 3,
                       child: Row(children: [
                         Icon(Icons.settings_outlined, size: 18, color: _nav == 3 ? cs.primary : cs.onSurfaceVariant),
@@ -328,6 +449,7 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 ],
                 const Spacer(),
+                // 新对话按钮：只在对话页显示
                 if (_nav == 0)
                   IconButton(
                     icon: Icon(Icons.add, size: 20, color: cs.onSurfaceVariant),
@@ -345,14 +467,28 @@ class _HomeShellState extends State<HomeShell> {
                     ? ModelsPage(state: widget.state)
                     : _nav == 2
                         ? PluginsPage(state: widget.state)
-                        : _nav == 4
-                            ? LocalModelsPage(state: widget.state)
-                            : SettingsPage(state: widget.state),
+                        : SettingsPage(state: widget.state),
           ),
         ],
           ),
         ],
       ),
+    ),
     );
   }
+}
+
+/// 版本比较：latest 是否 >= current
+bool _versionAtLeast(String latest, String current) {
+  List<int> parse(String v) => v
+      .split('.')
+      .map((s) => int.tryParse(s.trim()) ?? 0)
+      .toList();
+  final a = parse(latest), b = parse(current);
+  for (var i = 0; i < a.length || i < b.length; i++) {
+    final x = i < a.length ? a[i] : 0;
+    final y = i < b.length ? b[i] : 0;
+    if (x != y) return x > y;
+  }
+  return true;
 }

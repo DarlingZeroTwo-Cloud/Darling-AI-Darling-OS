@@ -7,11 +7,9 @@ import '../state.dart';
 import 'pages/models_page.dart';
 import 'pages/plugins_page.dart';
 import 'pages/settings_page.dart';
-import 'pages/local_models_page.dart';
 import 'pages/chat_page.dart';
 
-/// 经典模式（Zed 风格）：左侧历史对话栏 + 右侧对话区；
-/// 设置 / 模型 / 插件 / 本地 以独立窗口（全屏浮层）打开。
+/// 经典模式（VSCode 风格）：左侧历史对话栏 + 右侧对话/设置区域
 class ClassicShell extends StatefulWidget {
   final AppState state;
   const ClassicShell({super.key, required this.state});
@@ -21,11 +19,18 @@ class ClassicShell extends StatefulWidget {
 }
 
 class _ClassicShellState extends State<ClassicShell> {
-  bool _sidebarCollapsed = false;
+  // 侧边栏折叠状态从设置恢复（记忆上次选择）
+  bool get _sidebarCollapsed =>
+      widget.state.settings['sidebar_collapsed'] == true;
+  String _rightPage = 'chat'; // chat / settings / models / plugins / local
+
+  void _toggleSidebar() {
+    widget.state.settings['sidebar_collapsed'] = !_sidebarCollapsed;
+    widget.state.saveSettings();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final s = widget.state.settings;
     final bgImage = (s['bg_image'] ?? '').toString();
@@ -39,7 +44,7 @@ class _ClassicShellState extends State<ClassicShell> {
             Opacity(opacity: bgOpacity, child: Image.file(File(bgImage), fit: BoxFit.cover)),
           Column(
             children: [
-              _ClassicTopBar(state: widget.state),
+              _ClassicTopBar(state: widget.state, showChatActions: _rightPage == 'chat'),
               Expanded(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -47,9 +52,11 @@ class _ClassicShellState extends State<ClassicShell> {
                     _ClassicSidebar(
                       state: widget.state,
                       collapsed: _sidebarCollapsed,
-                      onToggle: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+                      onToggle: () { setState(() {}); _toggleSidebar(); },
+                      onSelectPage: (p) => setState(() => _rightPage = p),
+                      onSelectChat: () => setState(() => _rightPage = 'chat'),
                     ),
-                    Expanded(child: ChatPage(state: widget.state)),
+                    Expanded(child: _buildRight()),
                   ],
                 ),
               ),
@@ -59,12 +66,57 @@ class _ClassicShellState extends State<ClassicShell> {
       ),
     );
   }
+
+  Widget _buildRight() {
+    if (_rightPage == 'chat') {
+      return ChatPage(state: widget.state);
+    }
+    // 非对话页：顶部返回栏，可一键回到对话
+    final pageTitle = switch (_rightPage) {
+      'settings' => '设置',
+      'models' => '模型',
+      'plugins' => '插件',
+      _ => '',
+    };
+    final Widget page = switch (_rightPage) {
+      'settings' => SettingsPage(state: widget.state),
+      'models' => ModelsPage(state: widget.state),
+      'plugins' => PluginsPage(state: widget.state),
+      _ => const SizedBox.shrink(),
+    };
+    return Column(
+      children: [
+        // 返回栏
+        SizedBox(
+          height: 40,
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, size: 18),
+                tooltip: '返回对话',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _rightPage = 'chat'),
+              ),
+              Text(pageTitle,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              const Spacer(),
+            ],
+          ),
+        ),
+        Expanded(child: page),
+      ],
+    );
+  }
 }
 
 // ==================== 顶栏 ====================
 class _ClassicTopBar extends StatelessWidget {
   final AppState state;
-  const _ClassicTopBar({required this.state});
+  final bool showChatActions;
+  const _ClassicTopBar({required this.state, this.showChatActions = true});
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +125,6 @@ class _ClassicTopBar extends StatelessWidget {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        // 半透明：透出背景图片
         color: dark ? const Color(0xB31D2027) : const Color(0xB3FFFFFF),
         border: Border(bottom: BorderSide(color: cs.outlineVariant)),
       ),
@@ -85,10 +136,55 @@ class _ClassicTopBar extends StatelessWidget {
           Text('DARLING-AI',
               style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
           const SizedBox(width: 8),
-          Text('v2.0',
+          Text('v${state.appVersion}',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const Spacer(),
-          // 模型切换 / 新建对话 已并入侧边栏，此处不留重复入口
+          // 对话页专属操作（清空/新对话）：只在对话页显示
+          if (showChatActions) ...[
+            // 清空当前对话（二次确认防误触）
+            if (state.messages.isNotEmpty)
+              Tooltip(
+                message: '清空当前对话',
+                child: InkWell(
+                  onTap: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('清空当前对话'),
+                        content: const Text('确定清空当前对话的所有消息？此操作不可恢复。'),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('取消')),
+                          FilledButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('清空')),
+                        ],
+                      ),
+                    );
+                    if (ok == true) state.clearActiveConversation();
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Icon(Icons.delete_sweep_outlined,
+                        size: 17, color: cs.onSurfaceVariant),
+                  ),
+                ),
+              ),
+            // 新对话
+            Tooltip(
+              message: '新对话',
+              child: InkWell(
+                onTap: () => state.newConversation(),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(width: 16),
         ],
       ),
@@ -101,8 +197,15 @@ class _ClassicSidebar extends StatelessWidget {
   final AppState state;
   final bool collapsed;
   final VoidCallback onToggle;
-  const _ClassicSidebar(
-      {required this.state, required this.collapsed, required this.onToggle});
+  final void Function(String) onSelectPage;
+  final VoidCallback onSelectChat;
+  const _ClassicSidebar({
+    required this.state,
+    required this.collapsed,
+    required this.onToggle,
+    required this.onSelectPage,
+    required this.onSelectChat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -114,13 +217,17 @@ class _ClassicSidebar extends StatelessWidget {
       curve: Curves.easeOutCubic,
       width: collapsed ? 30 : 230,
       decoration: BoxDecoration(
-        // 半透明：透出背景图片
         color: bg,
         border: Border(right: BorderSide(color: cs.outlineVariant)),
       ),
       child: collapsed
           ? _CollapsedBar(onToggle: onToggle)
-          : _SidebarContent(state: state, onToggle: onToggle),
+          : _SidebarContent(
+              state: state,
+              onToggle: onToggle,
+              onSelectPage: onSelectPage,
+              onSelectChat: onSelectChat,
+            ),
     );
   }
 }
@@ -147,15 +254,37 @@ class _CollapsedBar extends StatelessWidget {
   }
 }
 
-class _SidebarContent extends StatelessWidget {
+class _SidebarContent extends StatefulWidget {
   final AppState state;
   final VoidCallback onToggle;
-  const _SidebarContent({required this.state, required this.onToggle});
+  final void Function(String) onSelectPage;
+  final VoidCallback onSelectChat;
+  const _SidebarContent({
+    required this.state,
+    required this.onToggle,
+    required this.onSelectPage,
+    required this.onSelectChat,
+  });
+
+  @override
+  State<_SidebarContent> createState() => _SidebarContentState();
+}
+
+class _SidebarContentState extends State<_SidebarContent> {
+  // 历史对话搜索关键词（按标题/摘要过滤）
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final cs = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -166,7 +295,7 @@ class _SidebarContent extends StatelessWidget {
             children: [
               IconButton(
                 icon: Icon(Icons.chevron_left, size: 18, color: cs.onSurfaceVariant),
-                onPressed: onToggle,
+                onPressed: widget.onToggle,
                 tooltip: '收起侧边栏',
                 visualDensity: VisualDensity.compact,
               ),
@@ -177,13 +306,39 @@ class _SidebarContent extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: cs.onSurfaceVariant)),
               const Spacer(),
-              IconButton(
-                icon: Icon(Icons.add, size: 17, color: cs.onSurfaceVariant),
-                onPressed: () => state.newConversation(),
-                tooltip: '新对话',
-                visualDensity: VisualDensity.compact,
-              ),
             ],
+          ),
+        ),
+        // 历史对话搜索框
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 2, 8, 6),
+          child: TextField(
+            controller: _searchCtrl,
+            style: TextStyle(fontSize: 12.5, color: cs.onSurface),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: '搜索历史对话…',
+              hintStyle: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              prefixIcon: Icon(Icons.search, size: 15, color: cs.onSurfaceVariant),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: Icon(Icons.close, size: 14, color: cs.onSurfaceVariant),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        setState(() => _query = '');
+                      },
+                    ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.6))),
+            ),
+            onChanged: (v) => setState(() => _query = v.trim()),
           ),
         ),
         // 历史对话列表
@@ -191,58 +346,70 @@ class _SidebarContent extends StatelessWidget {
           child: ListenableBuilder(
             listenable: state,
             builder: (context, _) {
-              final convs = state.conversations;
+              final q = _query.toLowerCase();
+              final all = state.conversations;
+              final convs = q.isEmpty
+                  ? all
+                  : all.where((c) {
+                      final title = (c['title'] ?? '').toString().toLowerCase();
+                      final first = (c['first'] ?? '').toString().toLowerCase();
+                      final model = (c['model_id'] ?? '').toString().toLowerCase();
+                      if (title.contains(q) || first.contains(q) || model.contains(q)) {
+                        return true;
+                      }
+                      // 全文：搜索该对话最近消息内容
+                      final hist = c['hist'];
+                      if (hist is List) {
+                        for (final m in hist) {
+                          if (m is Map) {
+                            final t = (m['content'] ?? '')
+                                .toString()
+                                .toLowerCase();
+                            if (t.contains(q)) return true;
+                          }
+                        }
+                      }
+                      return false;
+                    }).toList();
               if (convs.isEmpty) {
                 return const Center(
                     child: Text('暂无历史对话',
                         style: TextStyle(fontSize: 12, color: Color(0xFF9AA1AC))));
               }
+              // 排序：置顶优先，其余按最后活跃时间降序（无时间戳的排最后）
+              final sorted = List<Map<String, dynamic>>.from(convs)
+                ..sort((a, b) {
+                  final ap = a['pinned'] == true, bp = b['pinned'] == true;
+                  if (ap != bp) return ap ? -1 : 1;
+                  final at = (a['ts'] as num?)?.toDouble() ?? 0.0;
+                  final bt = (b['ts'] as num?)?.toDouble() ?? 0.0;
+                  return bt.compareTo(at);
+                });
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
-                itemCount: convs.length,
+                itemCount: sorted.length,
                 itemBuilder: (context, i) {
-                  final c = convs[i] as Map<String, dynamic>;
+                  final c = sorted[i] as Map<String, dynamic>;
                   final id = c['id'] as String?;
                   final active = id == state.activeConvId;
-                  return InkWell(
-                    onTap: () => state.loadConversation(id!),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? (dark ? const Color(0xFF163A36) : const Color(0xFFE2F3F1))
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.forum_outlined,
-                              size: 15,
-                              color: active ? cs.primary : cs.onSurfaceVariant),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              (c['title'] ?? '未命名').toString(),
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: active ? cs.primary : cs.onSurface,
-                                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  return _ClassicConvItem(
+                    id: id,
+                    title: (c['title'] ?? '新对话').toString(),
+                    pinned: c['pinned'] == true,
+                    active: active,
+                    onTap: () { state.loadConversation(id!); widget.onSelectChat(); },
+                    onRename: () => state.renameActiveConversationFor(
+                        context, id!, (c['title'] ?? '新对话').toString()),
+                    onDelete: () => state.confirmDeleteConversation(
+                        context, id!, (c['title'] ?? '新对话').toString()),
+                    onPin: () => state.togglePinConversation(id!),
                   );
                 },
               );
             },
           ),
         ),
-        // 底部入口：设置 / 模型 / 插件 / 本地（独立窗口）
+        // 底部入口：设置/模型/插件/本地（页内切换）
         Container(
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: cs.outlineVariant)),
@@ -253,36 +420,22 @@ class _SidebarContent extends StatelessWidget {
               _SidebarEntry(
                 icon: Icons.settings_outlined,
                 label: '设置',
-                onTap: () => _openWindow(context, '设置', SettingsPage(state: state)),
+                onTap: () => widget.onSelectPage('settings'),
               ),
               _SidebarEntry(
                 icon: Icons.model_training_outlined,
-                label: '模型提供商',
-                onTap: () => _openWindow(context, '模型提供商', ModelsPage(state: state)),
+                label: '模型供应商',
+                onTap: () => widget.onSelectPage('models'),
               ),
               _SidebarEntry(
                 icon: Icons.extension_outlined,
                 label: '插件',
-                onTap: () => _openWindow(context, '插件', PluginsPage(state: state)),
-              ),
-              _SidebarEntry(
-                icon: Icons.smart_toy_outlined,
-                label: '本地模型',
-                onTap: () => _openWindow(context, '本地模型', LocalModelsPage(state: state)),
+                onTap: () => widget.onSelectPage('plugins'),
               ),
             ],
           ),
         ),
       ],
-    );
-  }
-
-  void _openWindow(BuildContext context, String title, Widget page) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      builder: (_) => _WindowDialog(title: title, child: page),
     );
   }
 }
@@ -296,7 +449,6 @@ class _SidebarEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -307,8 +459,6 @@ class _SidebarEntry extends StatelessWidget {
             const SizedBox(width: 10),
             Text(label,
                 style: TextStyle(fontSize: 13, color: cs.onSurface)),
-            const Spacer(),
-            Icon(Icons.open_in_new, size: 13, color: cs.outline),
           ],
         ),
       ),
@@ -316,55 +466,116 @@ class _SidebarEntry extends StatelessWidget {
   }
 }
 
-// ==================== 独立窗口（全屏浮层，仿新窗口） ====================
-class _WindowDialog extends StatelessWidget {
+// 经典模式对话项（hover 显示重命名/删除）
+class _ClassicConvItem extends StatefulWidget {
+  final String? id;
   final String title;
-  final Widget child;
-  const _WindowDialog({required this.title, required this.child});
+  final bool pinned;
+  final bool active;
+  final VoidCallback onTap;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+  final VoidCallback onPin;
+  const _ClassicConvItem({
+    required this.id,
+    required this.title,
+    required this.pinned,
+    required this.active,
+    required this.onTap,
+    required this.onRename,
+    required this.onDelete,
+    required this.onPin,
+  });
+
+  @override
+  State<_ClassicConvItem> createState() => _ClassicConvItemState();
+}
+
+class _ClassicConvItemState extends State<_ClassicConvItem> {
+  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
-      backgroundColor: dark ? const Color(0xFF1D2027) : const Color(0xFFFAFBFC),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: cs.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // 窗口标题栏
-          Container(
-            height: 42,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(10, 6, 2, 6),
             decoration: BoxDecoration(
-              color: dark ? const Color(0xFF21252D) : const Color(0xFFF0F2F5),
-              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
+              color: widget.active
+                  ? (dark ? const Color(0xFF163A36) : const Color(0xFFE2F3F1))
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Icon(Icons.lens_blur, size: 15, color: cs.primary),
+                Icon(Icons.forum_outlined,
+                    size: 15,
+                    color: widget.active ? cs.primary : cs.onSurfaceVariant),
                 const SizedBox(width: 8),
-                Text(title,
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: cs.onSurface)),
-                const Spacer(),
-                // 模拟窗口最小化/关闭
-                InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 17, color: cs.onSurfaceVariant),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: widget.active ? cs.primary : cs.onSurface,
+                      fontWeight: widget.active ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // 操作按钮常驻显示（hover 显示容易点不到）
+                if (widget.active || _hover) ...[
+                  IconButton(
+                    onPressed: widget.onPin,
+                    icon: Icon(
+                      widget.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                      size: 13,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: widget.pinned ? '取消置顶' : '置顶',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(22, 22),
+                      padding: EdgeInsets.zero,
+                      foregroundColor:
+                          widget.pinned ? cs.primary : cs.onSurfaceVariant,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: widget.onRename,
+                    icon: const Icon(Icons.edit_outlined, size: 13),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: '重命名',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(22, 22),
+                      padding: EdgeInsets.zero,
+                      foregroundColor: cs.onSurfaceVariant,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: widget.onDelete,
+                    icon: const Icon(Icons.close, size: 13),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: '删除对话',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(22, 22),
+                      padding: EdgeInsets.zero,
+                      foregroundColor: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          Expanded(child: child),
-        ],
+        ),
       ),
     );
   }

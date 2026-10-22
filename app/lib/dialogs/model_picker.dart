@@ -5,9 +5,12 @@ import '../state.dart';
 
 /// 模型选择浮层面板（opencode 风格：点模型名 → 按钮下方展开面板）
 /// 顶部搜索框 + 可滚动模型列表；选择后回调并关闭。
+/// 注意：本面板挂在 MenuAnchor 下（无独立路由），关闭必须通过 onClose 回调，
+/// 不能用 Navigator.pop()（会弹出根路由导致黑屏）。
 class ModelPickerPanel extends StatefulWidget {
   final AppState state;
-  const ModelPickerPanel({super.key, required this.state});
+  final VoidCallback onClose;
+  const ModelPickerPanel({super.key, required this.state, required this.onClose});
 
   @override
   State<ModelPickerPanel> createState() => _ModelPickerPanelState();
@@ -41,7 +44,7 @@ class _ModelPickerPanelState extends State<ModelPickerPanel> {
 
   void _pick(BuildContext context, String id) {
     widget.state.setModel(id);
-    Navigator.of(context).pop();
+    widget.onClose();
   }
 
   @override

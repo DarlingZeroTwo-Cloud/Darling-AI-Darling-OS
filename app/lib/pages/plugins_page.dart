@@ -19,7 +19,7 @@ class _PluginsPageState extends State<PluginsPage> {
 
   Future<List<Map<String, dynamic>>> _loadPlugins() async {
     final r = await widget.state.api.getJson('/api/plugins');
-    return (r['plugins'] as List? ?? [])
+    return (r['plugins'] is List ? r['plugins'] as List : <dynamic>[])
         .map((e) => e as Map<String, dynamic>)
         .toList();
   }
@@ -168,7 +168,7 @@ class _PluginCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final tools = (plugin['tools'] as List? ?? [])
+    final tools = (plugin['tools'] is List ? plugin['tools'] as List : <dynamic>[])
         .map((e) => e as Map<String, dynamic>)
         .toList();
     return Card(
@@ -206,6 +206,12 @@ class _PluginCard extends StatelessWidget {
           Text(plugin['description'] ?? '',
               style:
                   TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant)),
+          if (plugin['id'] == 'web-search')
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('提示：与对话页“内置联网搜索”功能重复，开启内置联网时本插件会自动跳过，可在此关闭其一。',
+                  style: TextStyle(fontSize: 11, color: cs.tertiary)),
+            ),
           const SizedBox(height: 4),
           Text('作者：${plugin['author'] ?? '未知'}',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),

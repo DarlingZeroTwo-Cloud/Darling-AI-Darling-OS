@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../main.dart';
 import '../state.dart';
@@ -7,20 +12,37 @@ import '../widgets/thinking_row.dart';
 import '../widgets/tool_card.dart';
 import '../dialogs/model_picker.dart';
 
-class ChatPage extends StatelessWidget {
+class ChatPage extends StatefulWidget {
   final AppState state;
   const ChatPage({super.key, required this.state});
 
   @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
         final empty = state.messages.isEmpty && !state.busy;
+        // 对话字体大小：设置里 chat_font_size（12~20，默认 14），作用于整个消息区
+        final fontRaw = (state.settings['chat_font_size'] as num?)?.toDouble() ?? 14.0;
+        final scale = (fontRaw / 14.0).clamp(0.7, 1.8);
         return Column(
           children: [
             Expanded(
-              child: empty ? _EmptyState(state: state) : _MessageList(state: state),
+              child: MediaQuery(
+                data: MediaQuery.of(context)
+                    .copyWith(textScaler: TextScaler.linear(scale)),
+                child: empty
+                    ? _EmptyState(state: state)
+                    : _MessageList(
+                        key: ValueKey(state.activeConvId ?? 'conv'),
+                        state: state),
+              ),
             ),
             if (!empty) _Composer(state: state),
           ],
@@ -96,65 +118,159 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ==================== 消息列表 ====================
-class _MessageList extends StatelessWidget {
+class _MessageList extends StatefulWidget {
   final AppState state;
-  const _MessageList({required this.state});
+  const _MessageList({super.key, required this.state});
+
+  @override
+  State<_MessageList> createState() => _MessageListState();
+}
+
+class _MessageListState extends State<_MessageList> {
+  final ScrollController _sc = ScrollController();
+  int _lastCount = 0;
+  bool _firstFrame = true;
+
+  AppState get state => widget.state;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastCount = state.messages.length;
+    state.addListener(_onStateChanged);
+    // 进入对话后自动滚动到底部（而不是停在顶部）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_sc.hasClients) {
+        _sc.jumpTo(_sc.position.maxScrollExtent);
+      }
+      _firstFrame = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    state.removeListener(_onStateChanged);
+    _sc.dispose();
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (!mounted) return;
+    final msgs = state.messages;
+    final changed = msgs.length != _lastCount;
+    _lastCount = msgs.length;
+    if (_firstFrame) {
+      // 刚进入对话：等历史消息异步加载完成后无条件滚到底部
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_sc.hasClients) _sc.jumpTo(_sc.position.maxScrollExtent);
+        _firstFrame = false;
+      });
+      return;
+    }
+    if (changed || state.busy || state.thinkingText.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    }
+  }
+
+  void _scrollToBottom() {
+    if (!_sc.hasClients) return;
+    final pos = _sc.position;
+    final max = pos.maxScrollExtent;
+    if (max <= 0) return;
+    if (_firstFrame) {
+      _sc.jumpTo(max);
+      _firstFrame = false;
+      return;
+    }
+    // 用户往上翻看历史时不打扰；接近底部才自动跟随
+    if (pos.pixels >= max - 180) {
+      _sc.animateTo(max,
+          duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: state,
-      builder: (context, _) {
-        final msgs = state.messages;
-        // ask 确认弹窗
-        if (state.askPending) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showAskDialog(context);
-          });
-        }
-        if (msgs.isEmpty) {
-          return const Center(
-              child: Text('选择模型开始对话', style: TextStyle(color: Color(0xFF9AA1AC))));
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-          itemCount: msgs.length + (state.busy ? 1 : 0),
-          itemBuilder: (context, i) {
-            if (i == msgs.length) {
+    final msgs = state.messages;
+    // ask 确认弹窗
+    if (state.askPending) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAskDialog(context);
+      });
+    }
+    if (msgs.isEmpty) {
+      return const Center(
+          child: Text('选择模型开始对话', style: TextStyle(color: Color(0xFF9AA1AC))));
+    }
+    // SelectionArea：鼠标可拖选消息文本直接复制（与按钮复制互补）
+    return SelectionArea(
+      child: ListView.builder(
+        controller: _sc,
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+        itemCount: msgs.length + (state.busy ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i == msgs.length) {
+            // 思考过程（设置可隐藏）
+            if (state.settings['show_thinking'] != false &&
+                state.thinkingText.isNotEmpty) {
               return ThinkingRow(text: state.thinkingText);
             }
-            final msg = msgs[i];
-            switch (msg.kind) {
-              case MsgKind.user:
-                return MessageBubble(role: 'user', text: msg.text);
-              case MsgKind.ai:
-                return MessageBubble(role: 'ai', text: msg.text);
-              case MsgKind.tool:
-                return ToolCard(title: msg.title, content: msg.text, ok: msg.ok);
-              case MsgKind.error:
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.error),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(msg.text,
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                color: Theme.of(context).colorScheme.error)),
-                      ),
-                    ],
+            return const SizedBox.shrink();
+          }
+        final msg = msgs[i];
+        switch (msg.kind) {
+          case MsgKind.user:
+            return MessageBubble(role: 'user', text: msg.text, ts: msg.ts,
+                showTimestamp: state.settings['show_timestamp'] != false,
+                onResend: () => state.send(msg.text),
+                onEdit: () => state.editMessage(msg.text));
+          case MsgKind.ai:
+            return MessageBubble(role: 'ai', text: msg.text, ts: msg.ts,
+                showTimestamp: state.settings['show_timestamp'] != false,
+                modelName: state.settings['show_ai_model'] == true
+                    ? (state.model(state.currentModelId)?['display'] ?? '').toString()
+                    : null,
+                onRegenerate: () => state.regenerate());
+          case MsgKind.tool:
+            return ToolCard(title: msg.title, content: msg.text, ok: msg.ok);
+          case MsgKind.error:
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(msg.text,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            color: Theme.of(context).colorScheme.error)),
                   ),
+                  // 重试：重新生成（重发最后一条用户消息）
+                  if (!state.busy)
+                    Tooltip(
+                      message: '重试',
+                      child: InkWell(
+                        onTap: () => state.regenerate(),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(5),
+                          child: Icon(Icons.refresh,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                ],
+                ),
                 );
               case MsgKind.think:
                 return const SizedBox.shrink();
             }
           },
-        );
-      },
+        ),
     );
   }
 
@@ -218,18 +334,440 @@ class _Composer extends StatefulWidget {
 
 class _ComposerState extends State<_Composer> {
   final TextEditingController _ctl = TextEditingController();
+  final FocusNode _focus = FocusNode();
+  // MenuAnchor 面板挂在 Overlay 下（无独立路由）：关闭必须用 MenuController.close()，
+  // 不能用 Navigator.pop()（会弹出根路由导致黑屏/闪退）。
+  final MenuController _modelMenu = MenuController();
+  final MenuController _roleMenu = MenuController();
+  bool _showSlash = false;
+  int _slashSel = 0;
+  bool _optimizing = false;
+  final GlobalKey _exportBtnKey = GlobalKey();
+  String? _lastConvId;
+  final List<String> _images = [];
+
+  /// 导出菜单：Markdown / JSON / HTML，成功后提示文件路径
+  void _showExportMenu(BuildContext context, AppState state) {
+    final box = _exportBtnKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final pos = box.localToGlobal(Offset.zero);
+    final size = box.size;
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+          pos.dx, pos.dy + size.height + 4, pos.dx + size.width, pos.dy + size.height + 4 + 200),
+      items: [
+        PopupMenuItem(value: 'copy', child: const Text('复制为 Markdown')),
+        PopupMenuItem(value: 'md', child: const Text('导出为 Markdown (.md)')),
+        PopupMenuItem(value: 'json', child: const Text('导出为 JSON (.json)')),
+        PopupMenuItem(value: 'html', child: const Text('导出为 HTML (.html)')),
+      ],
+    ).then((fmt) async {
+      if (fmt == null) return;
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        if (fmt == 'copy') {
+          final text = state.conversationToMarkdown();
+          if (text.isEmpty) {
+            messenger.showSnackBar(const SnackBar(content: Text('当前对话为空')));
+          } else {
+            await Clipboard.setData(ClipboardData(text: text));
+            messenger.showSnackBar(const SnackBar(
+                content: Text('已复制为 Markdown'),
+                duration: Duration(seconds: 2)));
+          }
+          return;
+        }
+        final path = await state.exportConversation(format: fmt);
+        if (path == null) {
+          messenger.showSnackBar(const SnackBar(content: Text('当前对话为空')));
+        } else {
+          messenger.showSnackBar(SnackBar(
+            content: Text('已导出：$path'),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: '打开文件夹',
+              onPressed: () {
+                final dir = File(path).parent.path;
+                Process.start(
+                  Platform.isWindows
+                      ? 'explorer'
+                      : 'xdg-open',
+                  Platform.isWindows ? [dir] : [dir],
+                  runInShell: false,
+                );
+              },
+            ),
+          ));
+        }
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('导出失败：$e')));
+      }
+    });
+  }
+
+  static const _slashItems = [
+    ('/new', '新建对话', Icons.add_comment_outlined),
+    ('/rename', '重命名当前对话', Icons.edit_outlined),
+    ('/clear', '清空当前对话', Icons.delete_sweep_outlined),
+    ('/help', '查看所有命令', Icons.help_outline),
+    ('/model', '切换模型', Icons.model_training_outlined),
+    ('/export', '导出对话', Icons.file_download_outlined),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _lastConvId = widget.state.activeConvId;
+    widget.state.addListener(_onStateChanged);
+    // 键盘快捷键：Esc 清空输入框；Ctrl+L 清空；Ctrl+N 新对话；Ctrl+K 切换模型；Ctrl+Enter 发送
+    _focus.onKeyEvent = (node, ev) {
+      if (ev is! KeyDownEvent) return KeyEventResult.ignored;
+      final key = ev.logicalKey;
+      if (key == LogicalKeyboardKey.escape) {
+        if (_ctl.text.isNotEmpty) {
+          _ctl.clear();
+          setState(() {});
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      }
+      final ctrl = HardwareKeyboard.instance.isControlPressed ||
+          HardwareKeyboard.instance.isMetaPressed;
+      if (ctrl) {
+        if (key == LogicalKeyboardKey.keyL) {
+          if (_ctl.text.isNotEmpty) {
+            _ctl.clear();
+            setState(() {});
+            return KeyEventResult.handled;
+          }
+        }
+        if (key == LogicalKeyboardKey.keyN) {
+          widget.state.newConversation();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.keyK) {
+          if (_modelMenu.isOpen) {
+            _modelMenu.close();
+          } else {
+            _modelMenu.open();
+          }
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.enter) {
+          // 回车发送（设置里可关闭，关闭后回车换行）
+          if (widget.state.settings['enter_to_send'] != false) {
+            _send();
+            return KeyEventResult.handled;
+          }
+        }
+      }
+      return KeyEventResult.ignored;
+    };
+  }
+
+  void _onStateChanged() {
+    final d = widget.state.editDraft;
+    if (d.isNotEmpty) {
+      widget.state.editDraft = '';
+      _ctl.text = d;
+      _ctl.selection = TextSelection.collapsed(offset: d.length);
+      _focus.requestFocus();
+    }
+    // 切换/新建对话后自动聚焦输入框（设置可关）；草稿不跨对话
+    final cid = widget.state.activeConvId;
+    if (cid != _lastConvId) {
+      _lastConvId = cid;
+      if (widget.state.editDraft.isEmpty) _ctl.clear();
+      if (widget.state.settings['auto_focus_input'] != false) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focus.requestFocus();
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
+    widget.state.removeListener(_onStateChanged);
     _ctl.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
-  void _send() {
+  void _send() async {
     final text = _ctl.text;
     if (text.trim().isEmpty || widget.state.busy) return;
+    // 斜杠命令
+    if (text.startsWith('/')) {
+      _runCommand(text.trim());
+      return;
+    }
+    // 未配置模型时提示（避免静默无响应）
+    if (widget.state.currentModelId == null ||
+        widget.state.model(widget.state.currentModelId) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('请先在“模型”页添加并选择模型'),
+          duration: Duration(seconds: 3)));
+      return;
+    }
+    final images = List<String>.from(_images);
+    if (images.isNotEmpty) {
+      _images.clear();
+      _ctl.clear();
+      setState(() {});
+      widget.state.sendWithImages(text, images);
+      return;
+    }
     _ctl.clear();
     widget.state.send(text);
+  }
+
+  /// AI 优化提示词：把当前输入交给当前模型改写得更结构化
+  Future<void> _optimizePrompt() async {
+    final text = _ctl.text;
+    if (text.trim().isEmpty || widget.state.busy) return;
+    setState(() => _optimizing = true);
+    try {
+      final optimized = await widget.state.optimizePrompt(text);
+      if (optimized != null && optimized.isNotEmpty) _ctl.text = optimized;
+    } catch (_) {}
+    if (mounted) setState(() => _optimizing = false);
+  }
+
+  Future<void> _pickImages() async {
+    const typeGroup = XTypeGroup(
+      label: '图片',
+      extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'],
+    );
+    final files = await openFiles(acceptedTypeGroups: [typeGroup]);
+    for (final f in files) {
+      final path = f.path;
+      final file = File(path);
+      if (!file.existsSync()) continue;
+      try {
+        final bytes = await file.readAsBytes();
+        final mime = _mimeOf(path);
+        final b64 = base64Encode(bytes);
+        _images.add('data:$mime;base64,$b64');
+      } catch (_) {}
+    }
+    if (mounted) setState(() {});
+  }
+
+  String _mimeOf(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.bmp')) return 'image/bmp';
+    return 'image/png';
+  }
+
+  void _runCommand(String text) {
+    final cmd = text.split(' ').first.toLowerCase();
+    final state = widget.state;
+    switch (cmd) {
+      case '/new':
+        state.newConversation();
+        _ctl.clear();
+        break;
+      case '/rename':
+        state.renameActiveConversation(context);
+        _ctl.clear();
+        break;
+      case '/clear':
+        state.clearActiveConversation();
+        _ctl.clear();
+        break;
+      case '/model':
+        state.switchModelDialog(context);
+        _ctl.clear();
+        break;
+      case '/export':
+        _showExportMenu(context, widget.state);
+        _ctl.clear();
+        break;
+      case '/help':
+      default:
+        _showHelpDialog();
+        _ctl.clear();
+        break;
+    }
+  }
+
+  static const _builtinPrompts = [
+    ('代码审查', '请帮我审查以下代码，指出潜在 bug、安全隐患和可优化之处，并给出修改建议：\n'),
+    ('写作文案', '请帮我把下面这段内容润色成更专业、更有吸引力的文案：\n'),
+    ('翻译', '请把下面这段内容翻译成简体中文，保持原意和语气：\n'),
+    ('总结', '请对下面这段内容做简洁总结，提取关键要点：\n'),
+    ('周报生成', '请根据下面我的工作内容，帮我生成一份结构清晰的周报：\n'),
+    ('头脑风暴', '请针对下面这个主题进行头脑风暴，给出 10 个有创意的想法：\n'),
+  ];
+
+  void _showPrompts() {
+    final state = widget.state;
+    final custom = (state.settings['prompts'] is List ? state.settings['prompts'] as List<dynamic> : <dynamic>[])
+        .cast<Map<String, dynamic>>();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('提示词库'),
+        content: SizedBox(
+          width: 460,
+          height: 380,
+          child: ListView(
+            children: [
+              if (custom.isNotEmpty) ...[
+                Text('自定义',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+                for (final p in custom)
+                  _PromptRow(
+                    title: (p['title'] ?? '').toString(),
+                    desc: (p['text'] ?? '').toString(),
+                    onTap: () {
+                      final cur = _ctl.text;
+                      final t = (p['text'] ?? '').toString();
+                      _ctl.text = cur.isEmpty ? t : '$cur\n$t';
+                      _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+                      Navigator.pop(ctx);
+                    },
+                    onDelete: () {
+                      state.settings['prompts'] = custom
+                          .where((x) => x['title'] != p['title'])
+                          .toList();
+                      state.saveSettings();
+                      Navigator.pop(ctx);
+                      _showPrompts();
+                    },
+                  ),
+              ],
+              Text('内置',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+              for (final (t, txt) in _builtinPrompts)
+                _PromptRow(
+                  title: t,
+                  desc: txt,
+                  onTap: () {
+                    final cur = _ctl.text;
+                    _ctl.text = cur.isEmpty ? txt : '$cur\n$txt';
+                    _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _addPromptDialog();
+            },
+            child: const Text('新建提示词'),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+        ],
+      ),
+    );
+  }
+
+  void _addPromptDialog() {
+    final state = widget.state;
+    final tCtl = TextEditingController();
+    final bCtl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('新建提示词'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: tCtl,
+                decoration: const InputDecoration(hintText: '名称（如：代码审查）', isDense: true),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: bCtl,
+                maxLines: 4,
+                decoration: const InputDecoration(hintText: '提示词内容（可包含 {{输入}} 占位）', isDense: true),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () {
+              final t = tCtl.text.trim();
+              final b = bCtl.text.trim();
+              if (t.isEmpty || b.isEmpty) {
+                Navigator.pop(ctx);
+                return;
+              }
+              final list = (state.settings['prompts'] is List ? state.settings['prompts'] as List<dynamic> : <dynamic>[])
+                  .cast<Map<String, dynamic>>()
+                  .toList();
+              list.add({'title': t, 'text': b});
+              state.settings['prompts'] = list;
+              state.saveSettings();
+              Navigator.pop(ctx);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelpDialog() {    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('命令列表'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (cmd, desc, _) in _slashItems)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Text(cmd,
+                        style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(ctx).colorScheme.primary)),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(desc)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+        ],
+      ),
+    );
+  }
+
+  void _onTextChanged(String v) {
+    if (v.startsWith('/') && !v.contains(' ') && widget.state.busy == false) {
+      if (!_showSlash) setState(() => _showSlash = true);
+    } else {
+      if (_showSlash) setState(() => _showSlash = false);
+    }
   }
 
   @override
@@ -258,16 +796,112 @@ class _ComposerState extends State<_Composer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 斜杠命令面板
+              if (_showSlash)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: dark ? const Color(0xFF1A1D24) : const Color(0xFFF7F8FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (int i = 0; i < _slashItems.length; i++)
+                        InkWell(
+                          onTap: () {
+                            _ctl.text = _slashItems[i].$1;
+                            _ctl.selection = TextSelection.collapsed(offset: _ctl.text.length);
+                            setState(() => _showSlash = false);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            child: Row(
+                              children: [
+                                Icon(_slashItems[i].$3, size: 15, color: cs.onSurfaceVariant),
+                                const SizedBox(width: 10),
+                                Text(_slashItems[i].$1,
+                                    style: TextStyle(
+                                        fontFamily: 'monospace',
+                                        fontWeight: FontWeight.w700,
+                                        color: cs.primary,
+                                        fontSize: 13)),
+                                const SizedBox(width: 14),
+                                Text(_slashItems[i].$2,
+                                    style: TextStyle(fontSize: 13, color: cs.onSurface)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              // 已选图片预览
+              if (_images.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (int i = 0; i < _images.length; i++)
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.memory(
+                                base64Decode(_images[i].split(',').last),
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 2,
+                              right: 2,
+                              child: InkWell(
+                                onTap: () =>
+                                    setState(() => _images.removeAt(i)),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.close,
+                                      size: 12, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
               TextField(
                 controller: _ctl,
+                focusNode: _focus,
                 minLines: 1,
                 maxLines: 6,
                 enabled: !busy,
-                onSubmitted: (_) => _send(),
+                onChanged: _onTextChanged,
+                onSubmitted: (_) {
+                  if (widget.state.settings['enter_to_send'] != false) _send();
+                },
                 style: TextStyle(fontSize: 14, color: cs.onSurface),
                 decoration: InputDecoration(
                   border: InputBorder.none,
-                  hintText: busy ? 'AI 正在回复…' : '随便问点什么，/可查看命令，@可添加上下文...',
+                  hintText: busy
+                      ? 'AI 正在回复…'
+                      : (widget.state.settings['enter_to_send'] != false
+                          ? '随便问点什么，/可查看命令，Enter 发送'
+                          : '随便问点什么，/可查看命令，Enter 换行，Ctrl+Enter 发送'),
                   hintStyle:
                       TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   contentPadding:
@@ -280,6 +914,7 @@ class _ComposerState extends State<_Composer> {
                   children: [
                     // 当前模型（点击展开下拉面板，opencode 风格）
                     MenuAnchor(
+                      controller: _modelMenu,
                       alignmentOffset: const Offset(0, 8),
                       style: MenuStyle(
                         backgroundColor: WidgetStatePropertyAll(
@@ -296,7 +931,7 @@ class _ComposerState extends State<_Composer> {
                         padding: WidgetStatePropertyAll(EdgeInsets.zero),
                       ),
                       menuChildren: [
-                        ModelPickerPanel(state: widget.state),
+                        ModelPickerPanel(state: widget.state, onClose: () => _modelMenu.close()),
                       ],
                       builder: (context, controller, child) {
                         return InkWell(
@@ -329,20 +964,150 @@ class _ComposerState extends State<_Composer> {
                         );
                       },
                     ),
+                    const SizedBox(width: 6),
+                    // 助手角色（点击切换预设角色）
+                    MenuAnchor(
+                      controller: _roleMenu,
+                      alignmentOffset: const Offset(0, 8),
+                      style: MenuStyle(
+                        backgroundColor: WidgetStatePropertyAll(
+                            dark ? const Color(0xFF1D2027) : const Color(0xFFFFFFFF)),
+                        surfaceTintColor:
+                            WidgetStatePropertyAll(Colors.transparent),
+                        elevation: WidgetStatePropertyAll(10),
+                        shadowColor: WidgetStatePropertyAll(Colors.black26),
+                        side: WidgetStatePropertyAll(
+                            BorderSide(color: cs.outlineVariant)),
+                        shape: WidgetStatePropertyAll(
+                            RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14))),
+                        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                      ),
+                      menuChildren: [
+                        _AssistantRolePanel(state: widget.state, onClose: () => _roleMenu.close()),
+                      ],
+                      builder: (context, controller, child) {
+                        return Tooltip(
+                          message: '切换助手角色',
+                          child: InkWell(
+                            onTap: () => controller.isOpen
+                                ? controller.close()
+                                : controller.open(),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.psychology_outlined,
+                                      size: 15, color: cs.primary),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _roleLabel(
+                                        widget.state.settings['assistant_role']
+                                                ?.toString() ??
+                                            'general'),
+                                    style: TextStyle(
+                                        fontSize: 12, color: cs.onSurfaceVariant),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     const Spacer(),
+                    // 附加图片
+                    Tooltip(
+                      message: '附加图片（视觉模型）',
+                      child: InkWell(
+                        onTap: busy ? null : _pickImages,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.image_outlined,
+                              size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // AI 优化提示词
+                    Tooltip(
+                      message: 'AI 优化提示词',
+                      child: InkWell(
+                        onTap: busy || _optimizing ? null : _optimizePrompt,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: _optimizing
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : Icon(Icons.bolt_outlined,
+                                  size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // 导出当前对话（Markdown / JSON）
+                    Tooltip(
+                      message: '导出当前对话（Markdown / JSON）',
+                      child: InkWell(
+                        key: _exportBtnKey,
+                        onTap: busy ? null : () => _showExportMenu(context, widget.state),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.download_outlined,
+                              size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // 提示词库
+                    Tooltip(
+                      message: '提示词库',
+                      child: InkWell(
+                        onTap: () => _showPrompts(),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.lightbulb_outline,
+                              size: 17, color: cs.onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // 停止 / 发送按钮
                     SizedBox(
                       width: 36,
                       height: 36,
-                      child: FilledButton(
-                        onPressed: busy ? null : _send,
-                        style: FilledButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Icon(Icons.arrow_upward, size: 18),
-                      ),
+                      child: busy
+                          ? IconButton.filled(
+                              onPressed: () => widget.state.stop(),
+                              style: IconButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                backgroundColor: cs.errorContainer,
+                                foregroundColor: cs.onErrorContainer,
+                              ),
+                              icon: const Icon(Icons.stop, size: 18),
+                              tooltip: '停止生成',
+                            )
+                          : FilledButton(
+                              onPressed: _send,
+                              style: FilledButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Icon(Icons.arrow_upward, size: 18),
+                            ),
                     ),
                   ],
                 ),
@@ -354,3 +1119,164 @@ class _ComposerState extends State<_Composer> {
     );
   }
 }
+
+class _AssistantRolePanel extends StatelessWidget {
+  final AppState state;
+  final VoidCallback onClose;
+  const _AssistantRolePanel({required this.state, required this.onClose});
+
+  static const roles = [
+    ('general', '通用助手', '默认，回答简洁准确'),
+    ('programmer', '程序员', '代码编写、调试、架构设计'),
+    ('writer', '写作助手', '文案、文章、报告与创意写作'),
+    ('translator', '翻译', '专业翻译，保留原文语气'),
+    ('analyst', '数据分析师', '数据解读、业务分析与逻辑推演'),
+    ('mentor', '导师', '把复杂概念讲得通俗易懂'),
+    ('hr', 'HR 专家', '简历、面试、职场沟通与规划'),
+    ('marketing', '营销策划', '品牌内容、推广文案、增长策略'),
+    ('custom', '自定义角色', '在设置中编辑自己的角色提示词'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final cur = state.settings['assistant_role']?.toString() ?? 'general';
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 420, maxWidth: 280),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+              child: Text('切换助手角色',
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700, color: cs.onSurface)),
+            ),
+            for (final (key, label, desc) in roles)
+              InkWell(
+                onTap: () {
+                  state.setAssistantRole(key);
+                  onClose();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  color: cur == key
+                      ? cs.primary.withValues(alpha: 0.10)
+                      : Colors.transparent,
+                  child: Row(
+                    children: [
+                      Icon(
+                        cur == key
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
+                        size: 15,
+                        color: cur == key ? cs.primary : cs.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(label,
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: cur == key
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: cs.onSurface)),
+                            Text(desc,
+                                style: TextStyle(
+                                    fontSize: 11, color: cs.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _roleLabel(String key) {
+  for (final (k, label, _) in _AssistantRolePanel.roles) {
+    if (k == key) return label;
+  }
+  return '通用助手';
+}
+
+class _PromptRow extends StatelessWidget {
+  final String title;
+  final String desc;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+  const _PromptRow({
+    required this.title,
+    required this.desc,
+    required this.onTap,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: cs.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
+            child: Row(
+              children: [
+                Icon(Icons.bolt_outlined, size: 15, color: cs.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface)),
+                      const SizedBox(height: 1),
+                      Text(desc,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11, color: cs.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                if (onDelete != null)
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline, size: 14),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: '删除',
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(24, 24),
+                      padding: EdgeInsets.zero,
+                      foregroundColor: cs.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

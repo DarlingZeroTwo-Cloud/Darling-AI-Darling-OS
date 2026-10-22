@@ -5,9 +5,44 @@ import '../state.dart';
 import '../dialogs/provider_dialog.dart';
 import '../dialogs/add_model_dialog.dart';
 
-class ModelsPage extends StatelessWidget {
+class ModelsPage extends StatefulWidget {
   final AppState state;
   const ModelsPage({super.key, required this.state});
+
+  @override
+  State<ModelsPage> createState() => _ModelsPageState();
+}
+
+class _ModelsPageState extends State<ModelsPage> {
+  String _query = '';
+
+  AppState get state => widget.state;
+
+  @override
+  void initState() {
+    super.initState();
+    // 进入模型市场时，如果已登录，自动刷新云端模型列表
+    if (state.cloudLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => state.refreshCloud());
+    }
+  }
+
+  /// 按名称/ID/供应商名过滤模型
+  List<dynamic> _filteredModels(List<dynamic> models) {
+    if (_query.isEmpty) return models;
+    final q = _query.toLowerCase();
+    return models.where((m) {
+      final display = (m['display'] ?? '').toString().toLowerCase();
+      final name = (m['name'] ?? '').toString().toLowerCase();
+      final pname = (state.provider(m['provider_id']) ?? const {})['name']
+              ?.toString()
+              .toLowerCase() ??
+          '';
+      return display.contains(q) ||
+          name.contains(q) ||
+          pname.contains(q);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +83,30 @@ class ModelsPage extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               children: [
+                // ===== 4.0 官方免费模型分组（登录后显示） =====
+                if (state.cloudLoggedIn)
+                  _SectionCard(
+                    title: '⚡ 官方免费模型',
+                    pill: '${state.cloudModels.length} 个 · 5h 额度',
+                    child: state.cloudModels.isEmpty
+                        ? const _EmptyNote('服务端还没配置模型，等管理员添加。')
+                        : Column(
+                            children: [
+                              for (final raw in state.cloudModels)
+                                _CloudModelRow(
+                                  model: raw as Map<String, dynamic>,
+                                  state: state,
+                                ),
+                            ],
+                          ),
+                  )
+                else
+                  _SectionCard(
+                    title: '⚡ 官方免费模型',
+                    pill: '未登录',
+                    child: const _EmptyNote('到 设置 → 账号 登录后，即可使用官方免费模型（5h 每周期重置额度）。'),
+                  ),
+                if (state.cloudLoggedIn) const SizedBox(height: 16),
                 _SectionCard(
                   title: '已连接供应商',
                   pill: '${state.providers.length} 个',
@@ -68,14 +127,32 @@ class ModelsPage extends StatelessWidget {
                 _SectionCard(
                   title: '已添加模型',
                   pill: '${state.models.length} 个',
-                  child: state.models.isEmpty
-                      ? _EmptyNote('还没有模型。为供应商点击“+ 添加模型”，拉取列表或手动输入模型名称。')
-                      : Column(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (state.models.isNotEmpty) ...[
+                        TextField(
+                          onChanged: (v) => setState(() => _query = v.trim()),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            prefixIcon: Icon(Icons.search, size: 18),
+                            hintText: '搜索模型名称 / ID…',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (state.models.isEmpty)
+                        _EmptyNote('还没有模型。为供应商点击“+ 添加模型”，拉取列表或手动输入模型名称。')
+                      else
+                        Column(
                           children: [
-                            for (final raw in state.models)
+                            for (final raw in _filteredModels(state.models))
                               _ModelRow(state: state, m: raw as Map<String, dynamic>),
                           ],
                         ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -259,6 +336,38 @@ class _ProviderRow extends StatelessWidget {
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
           const SizedBox(width: 8),
           OutlinedButton(
+            onPressed: () async {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => _TestDialog(
+                    api: state.api, providerId: provider['id'] as String),
+              );
+            },
+            child: const Text('测试连接'),
+          ),
+          const SizedBox(width: 6),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 17),
+            color: cs.onSurfaceVariant,
+            tooltip: '编辑供应商',
+            onPressed: () async {
+              final p = await showDialog<Map<String, dynamic>>(
+                context: context,
+                builder: (_) =>
+                    ProviderDialog(state: state, existing: provider),
+              );
+              if (p == null) return;
+              final idx = state.providers
+                  .indexWhere((x) => x['id'] == provider['id']);
+              if (idx >= 0) {
+                state.providers[idx] = p;
+                await state.saveProvidersModels();
+              }
+            },
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton(
             onPressed: () => showDialog(
               context: context,
               builder: (_) => AddModelDialog(state: state, provider: provider),
@@ -287,6 +396,55 @@ class _ProviderRow extends StatelessWidget {
                 await state.reload();
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CloudModelRow extends StatelessWidget {
+  final AppState state;
+  final Map<String, dynamic> model;
+  const _CloudModelRow({required this.state, required this.model});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final id = (model['id'] ?? '').toString();
+    final selected = state.currentModelId == id;
+    final type = (model['type'] ?? 'text').toString();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.bolt, size: 18, color: Colors.amber.shade700),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text((model['name'] ?? '').toString(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface)),
+                Text('$type · $id',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          FilledButton.tonal(
+            onPressed: selected
+                ? null
+                : () {
+                    state.setModel(id);
+                  },
+            child: Text(selected ? '使用中' : '选用'),
           ),
         ],
       ),
@@ -359,5 +517,83 @@ class _ModelRow extends StatelessWidget {
       state.models.removeWhere((x) => x['id'] == m['id']);
       await state.saveProvidersModels();
     }
+  }
+}
+
+/// 测试供应商连接对话框：自动发起请求并显示结果
+class _TestDialog extends StatefulWidget {
+  final dynamic api;
+  final String providerId;
+  const _TestDialog({required this.api, required this.providerId});
+
+  @override
+  State<_TestDialog> createState() => _TestDialogState();
+}
+
+class _TestDialogState extends State<_TestDialog> {
+  bool _busy = true;
+  bool? _ok;
+  String _info = '正在测试连接…';
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    setState(() => _busy = true);
+    final r = await widget.api.testProvider(widget.providerId);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _ok = r['ok'] == true;
+      if (_ok == true) {
+        final models = (r['models'] as List<dynamic>? ?? []);
+        _info = models.isEmpty
+            ? '连接成功（未返回模型列表）'
+            : '连接成功，识别到 ${models.length} 个模型：\n${models.join('、')}';
+      } else {
+        _info = '连接失败：${r['error'] ?? '未知错误'}';
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: const Text('测试连接'),
+      content: SizedBox(
+        width: 360,
+        child: _busy
+            ? const Row(children: [
+                SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 12),
+                Text('正在测试连接…'),
+              ])
+            : Text(
+                _info,
+                style: TextStyle(
+                    color: _ok == true ? cs.primary : cs.error,
+                    fontSize: 13,
+                    height: 1.5),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(_busy ? '关闭' : '确定'),
+        ),
+        if (!_busy && _ok != true)
+          TextButton(
+            onPressed: _run,
+            child: const Text('重试'),
+          ),
+      ],
+    );
   }
 }

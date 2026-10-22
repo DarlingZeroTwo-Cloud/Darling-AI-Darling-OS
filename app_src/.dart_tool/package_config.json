@@ -2,6 +2,12 @@
   "configVersion": 2,
   "packages": [
     {
+      "name": "args",
+      "rootUri": "file:///home/user/.pub-cache/hosted/pub.dev/args-2.7.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
       "name": "async",
       "rootUri": "file:///home/user/.pub-cache/hosted/pub.dev/async-2.11.0",
       "packageUri": "lib/",
@@ -104,6 +110,12 @@
       "languageVersion": "3.1"
     },
     {
+      "name": "flutter_markdown_plus",
+      "rootUri": "file:///home/user/.pub-cache/hosted/pub.dev/flutter_markdown_plus-1.0.0+1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
       "name": "flutter_test",
       "rootUri": "file:///home/user/tools/flutter/packages/flutter_test",
       "packageUri": "lib/",
@@ -150,6 +162,12 @@
       "rootUri": "file:///home/user/.pub-cache/hosted/pub.dev/lints-4.0.0",
       "packageUri": "lib/",
       "languageVersion": "3.1"
+    },
+    {
+      "name": "markdown",
+      "rootUri": "file:///home/user/.pub-cache/hosted/pub.dev/markdown-7.3.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.2"
     },
     {
       "name": "matcher",
@@ -254,7 +272,7 @@
       "languageVersion": "3.4"
     }
   ],
-  "generated": "2026-10-21T14:04:29.548070Z",
+  "generated": "2026-10-22T12:06:33.480561Z",
   "generator": "pub",
   "generatorVersion": "3.4.0",
   "flutterRoot": "file:///home/user/tools/flutter",
