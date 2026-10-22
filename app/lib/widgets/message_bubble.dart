@@ -36,7 +36,6 @@ class RichMarkdown extends StatelessWidget {
         codeblockPadding: const EdgeInsets.all(12),
         tableHead: TextStyle(fontSize: fontSize - 1, fontWeight: FontWeight.w700, color: cs.onSurface),
         tableBody: TextStyle(fontSize: fontSize - 1, color: cs.onSurface),
-        tableColumnPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         blockquote: TextStyle(fontSize: fontSize, color: cs.onSurfaceVariant, height: 1.5),
         h1: TextStyle(fontSize: fontSize + 8, fontWeight: FontWeight.w700, color: cs.onSurface),
         h2: TextStyle(fontSize: fontSize + 5, fontWeight: FontWeight.w700, color: cs.onSurface),
