@@ -143,5 +143,8 @@ darling-ai-server-v*.zip
 *.deb
 *.exe
 *.tar.gz
-worker/
-worker/*
+
+# Cloudflare Worker：忽略本地真实配置与缓存，源码与示例配置入仓
+worker/wrangler.toml
+worker/node_modules/
+worker/.wrangler/

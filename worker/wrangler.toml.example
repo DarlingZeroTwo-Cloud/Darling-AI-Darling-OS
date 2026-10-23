@@ -1,0 +1,23 @@
+# DARLING-AI Cloud 服务端示例配置
+# 复制为 wrangler.toml 并按需填写后 `npx wrangler deploy`。
+# 注意：JWT_SECRET 是账号系统签名密钥，必须保密，不要提交到仓库。
+name = "darling-ai-cloud"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+routes = [
+  { pattern = "api.darling02.de5.net", zone_name = "darling02.de5.net", custom_domain = true }
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "darling-ai-cloud"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[vars]
+AGNES_BASE_URL = "https://apihub.agnes-ai.com/v1"
+WINDOW_HOURS = "5"
+TEXT_LIMIT = "30000000"
+IMAGE_LIMIT = "10"
+MODEL_SLUG = "02"
+JWT_SECRET = "REPLACE_WITH_LONG_RANDOM_SECRET"
