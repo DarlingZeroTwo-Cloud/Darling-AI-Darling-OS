@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -205,6 +206,40 @@ class BridgeClient {
   Future<Map<String, dynamic>> testProvider(String providerId) async {
     try {
       return await postJson('/api/provider/test', {'provider_id': providerId});
+    } catch (e) {
+      return {'ok': false, 'error': '$e'};
+    }
+  }
+
+  /// 客户端直连供应商拉取模型列表（不依赖本地 Python 后端，桌面/安卓统一）。
+  /// 证书已由 main() 全局放行；自动修正 /chat/completions 完整地址。
+  Future<Map<String, dynamic>> fetchProviderModels(Map<String, dynamic> provider) async {
+    var base = (provider['base_url'] ?? '').toString().trim().replaceAll(RegExp(r'/+$'), '');
+    for (final s in ['/chat/completions', '/v1/chat/completions']) {
+      if (base.endsWith(s)) {
+        base = base.substring(0, base.length - s.length);
+        break;
+      }
+    }
+    final key = (provider['api_key'] ?? '').toString().trim();
+    final client = HttpClient()..badCertificateCallback = (cert, h, p) => true;
+    try {
+      final req = await client.getUrl(Uri.parse('$base/models'));
+      req.headers.set('Authorization', 'Bearer $key');
+      req.headers.set('User-Agent', 'darling-ai-client');
+      final resp = await req.close().timeout(const Duration(seconds: 15));
+      final body = await resp.transform(utf8.decoder).join();
+      client.close(force: true);
+      if (resp.statusCode != 200) {
+        return {'ok': false, 'error': 'HTTP ${resp.statusCode}（接口 ${base}/models）'};
+      }
+      final j = jsonDecode(body) as Map<String, dynamic>;
+      final list = (j['data'] as List?) ?? <dynamic>[];
+      final ids = list
+          .map((m) => (m['id'] ?? '').toString())
+          .where((x) => x.isNotEmpty)
+          .toList();
+      return {'ok': true, 'models': ids};
     } catch (e) {
       return {'ok': false, 'error': '$e'};
     }

@@ -32,14 +32,14 @@ class _AddModelDialogState extends State<AddModelDialog> {
       _status = '正在拉取模型列表…';
     });
     try {
-      final r = await widget.state.api.postJson(
-          '/api/provider/fetch', {'provider_id': widget.provider['id']});
+      // 客户端直连供应商（不依赖本地后端，安卓/桌面统一，证书已放行）
+      final r = await widget.state.api
+          .fetchProviderModels(widget.provider);
       if (!mounted) return;
       setState(() {
         _pulling = false;
-        final err = r['error'];
-        if (err != null && (r['models'] is List ? (r['models'] as List).isEmpty : true)) {
-          _status = '拉取失败：$err\n可手动输入模型名称添加。';
+        if (r['ok'] != true) {
+          _status = '拉取失败：${r['error']}\n可手动输入模型名称添加。';
           _fetched = [];
         } else {
           _fetched = (r['models'] is List ? r['models'] as List : <dynamic>[])

@@ -345,7 +345,7 @@ class _ProviderRow extends StatelessWidget {
                   context: context,
                   barrierDismissible: false,
                   builder: (ctx) => _TestDialog(
-                      api: state.api, providerId: provider['id'] as String),
+                      state: state, providerId: provider['id'] as String),
                 );
               },
               child: const Text('测试连接'),
@@ -527,9 +527,9 @@ class _ModelRow extends StatelessWidget {
 
 /// 测试供应商连接对话框：自动发起请求并显示结果
 class _TestDialog extends StatefulWidget {
-  final dynamic api;
+  final AppState state;
   final String providerId;
-  const _TestDialog({required this.api, required this.providerId});
+  const _TestDialog({required this.state, required this.providerId});
 
   @override
   State<_TestDialog> createState() => _TestDialogState();
@@ -548,7 +548,11 @@ class _TestDialogState extends State<_TestDialog> {
 
   Future<void> _run() async {
     setState(() => _busy = true);
-    final r = await widget.api.testProvider(widget.providerId);
+    final prov = widget.state.provider(widget.providerId);
+    // 客户端直连（不依赖本地后端，安卓/桌面统一，证书已全局放行）
+    final r = prov == null
+        ? {'ok': false, 'error': '供应商不存在'}
+        : await widget.state.api.fetchProviderModels(prov);
     if (!mounted) return;
     setState(() {
       _busy = false;
