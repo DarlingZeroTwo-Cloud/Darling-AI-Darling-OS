@@ -539,21 +539,13 @@ class Handler(BaseHTTPRequestHandler):
             if not prov:
                 self._json(404, {"error": "provider not found"})
                 return
-            base = (prov.get("base_url") or "").rstrip("/")
-            key = prov.get("api_key") or ""
             try:
-                import urllib.request as _ur
-
-                req = _ur.Request(
-                    base + "/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                with _ur.urlopen(req, timeout=10) as r:
-                    payload = json.loads(r.read().decode("utf-8", "ignore"))
-                    names = [m.get("id") for m in payload.get("data", [])][:8]
-                    self._json(200, {"ok": True, "models": names})
+                # 复用 fetch_models：requests + 浏览器 UA，并自动修正 /chat/completions 后缀；
+                # 避免 urllib 默认指纹被 Cloudflare 识别为 bot（1010）导致拉取模型失败
+                names = core.fetch_models(prov, timeout=10)[:8]
+                self._json(200, {"ok": True, "models": names})
             except Exception as e:
-                self._json(200, {"ok": False, "error": str(e)[:200]})
+                self._json(200, {"ok": False, "error": core._friendly_error(e)[:200]})
             return
         if p.path == "/api/provider/delete":
             cfg = self._cfg()

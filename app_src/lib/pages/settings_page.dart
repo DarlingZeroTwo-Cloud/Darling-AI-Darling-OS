@@ -170,14 +170,16 @@ class _SettingsPageState extends State<SettingsPage> {
             if (q.isEmpty) return const Text('拉取额度中…');
             final used = (q['used'] as Map?) ?? const {};
             final limit = (q['limit'] as Map?) ?? const {};
+            final textLimit = limit['text_tokens'];
+            final imgLimit = limit['images'];
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _QuotaBar(label: '文本 token', used: (used['text_tokens'] ?? 0) as int, limit: (limit['text_tokens'] ?? 1) as int),
-                _QuotaBar(label: '图片张数', used: (used['images'] ?? 0) as int, limit: (limit['images'] ?? 1) as int),
+                _QuotaBar(label: '文本 token', used: (used['text_tokens'] ?? 0) as int, limit: textLimit == null ? null : (textLimit as num).toInt()),
+                _QuotaBar(label: '图片张数', used: (used['images'] ?? 0) as int, limit: imgLimit == null ? null : (imgLimit as num).toInt()),
                 const SizedBox(height: 6),
                 Text(
-                  '每 5 小时自动重置',
+                  '当前不限额度（仅统计用量）',
                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
@@ -720,12 +722,12 @@ class _NavItem extends StatelessWidget {
 class _QuotaBar extends StatelessWidget {
   final String label;
   final int used;
-  final int limit;
-  const _QuotaBar({required this.label, required this.used, required this.limit});
+  final int? limit;
+  const _QuotaBar({required this.label, required this.used, this.limit});
 
   @override
   Widget build(BuildContext context) {
-    final ratio = limit <= 0 ? 0.0 : (used / limit).clamp(0.0, 1.0);
+    final ratio = limit == null || limit! <= 0 ? 0.0 : (used / limit!).clamp(0.0, 1.0);
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -745,7 +747,7 @@ class _QuotaBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text('$used / $limit', style: const TextStyle(fontSize: 12)),
+        Text(limit == null ? '$used / 不限' : '$used / $limit', style: const TextStyle(fontSize: 12)),
       ]),
     );
   }

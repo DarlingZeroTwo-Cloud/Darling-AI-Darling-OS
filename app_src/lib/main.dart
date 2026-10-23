@@ -178,8 +178,22 @@ Future<void> shutdownBackend() async {
   } catch (_) {}
 }
 
+/// 全局放行自定义证书：所有 dart:io HttpClient（含 package:http 底层）忽略证书错误
+class _TrustAllOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    final client = super.createHttpClient(context);
+    client.badCertificateCallback = (cert, host, port) => true;
+    return client;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 全局放行自定义域名证书（桌面/安卓统一）：
+  // api.darling02.de5.net 使用 Cloudflare 边缘证书，部分系统根证书链
+  // （尤其 Android Conscrypt）可能不信任，导致“拉取模型/测试连接”SSL 握手失败
+  HttpOverrides.global = _TrustAllOverrides();
   // 构建异常可见化：release 模式不再显示灰色 ErrorWidget，
   // 而是显示带错误信息的红框，方便定位问题
   ErrorWidget.builder = (details) {

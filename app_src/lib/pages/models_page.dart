@@ -294,6 +294,7 @@ class _ProviderRow extends StatelessWidget {
         .where((m) => m['provider_id'] == provider['id'])
         .length;
     final name = (provider['name'] ?? '未知').toString();
+    final isOfficial = provider['official'] == true || provider['id'] == 'darling-official';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -324,7 +325,9 @@ class _ProviderRow extends StatelessWidget {
                         color: cs.onSurface)),
                 const SizedBox(height: 2),
                 Text(
-                  '${provider['base_url']} · Key ${key.isEmpty ? '(空)' : key.length > 6 ? '${key.substring(0, 6)}…' : key}',
+                  isOfficial
+                      ? '官方云端 · 登录后自动管理，无需填写 Key'
+                      : '${provider['base_url']} · Key ${key.isEmpty ? '(空)' : key.length > 6 ? '${key.substring(0, 6)}…' : key}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
@@ -334,69 +337,71 @@ class _ProviderRow extends StatelessWidget {
           ),
           Text('$nModels 模型',
               style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant)),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () async {
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (ctx) => _TestDialog(
-                    api: state.api, providerId: provider['id'] as String),
-              );
-            },
-            child: const Text('测试连接'),
-          ),
-          const SizedBox(width: 6),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 17),
-            color: cs.onSurfaceVariant,
-            tooltip: '编辑供应商',
-            onPressed: () async {
-              final p = await showDialog<Map<String, dynamic>>(
-                context: context,
-                builder: (_) =>
-                    ProviderDialog(state: state, existing: provider),
-              );
-              if (p == null) return;
-              final idx = state.providers
-                  .indexWhere((x) => x['id'] == provider['id']);
-              if (idx >= 0) {
-                state.providers[idx] = p;
-                await state.saveProvidersModels();
-              }
-            },
-          ),
-          const SizedBox(width: 6),
-          OutlinedButton(
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => AddModelDialog(state: state, provider: provider),
+          if (!isOfficial) ...[
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: () async {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (ctx) => _TestDialog(
+                      api: state.api, providerId: provider['id'] as String),
+                );
+              },
+              child: const Text('测试连接'),
             ),
-            child: const Text('+ 添加模型'),
-          ),
-          const SizedBox(width: 6),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, size: 18),
-            color: cs.error,
-            tooltip: '删除供应商',
-            onPressed: () async {
-              final ok = await showDialog<bool>(
+            const SizedBox(width: 6),
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 17),
+              color: cs.onSurfaceVariant,
+              tooltip: '编辑供应商',
+              onPressed: () async {
+                final p = await showDialog<Map<String, dynamic>>(
+                  context: context,
+                  builder: (_) =>
+                      ProviderDialog(state: state, existing: provider),
+                );
+                if (p == null) return;
+                final idx = state.providers
+                    .indexWhere((x) => x['id'] == provider['id']);
+                if (idx >= 0) {
+                  state.providers[idx] = p;
+                  await state.saveProvidersModels();
+                }
+              },
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton(
+              onPressed: () => showDialog(
                 context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('删除供应商'),
-                  content: Text('确定删除"$name"及其所有模型？'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
-                  ],
-                ),
-              );
-              if (ok == true) {
-                await state.api.deleteProvider(provider['id'] as String);
-                await state.reload();
-              }
-            },
-          ),
+                builder: (_) => AddModelDialog(state: state, provider: provider),
+              ),
+              child: const Text('+ 添加模型'),
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              color: cs.error,
+              tooltip: '删除供应商',
+              onPressed: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('删除供应商'),
+                    content: Text('确定删除"$name"及其所有模型？'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+                    ],
+                  ),
+                );
+                if (ok == true) {
+                  await state.api.deleteProvider(provider['id'] as String);
+                  await state.reload();
+                }
+              },
+            ),
+          ],
         ],
       ),
     );

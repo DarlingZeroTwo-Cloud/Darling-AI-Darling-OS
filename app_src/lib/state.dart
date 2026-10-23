@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '4.1.9';
+  String get appVersion => '4.2.0';
 
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
@@ -102,30 +102,22 @@ class AppState extends ChangeNotifier {
       if (p['id'] == pid) { existing = Map<String, dynamic>.from(p); break; }
     }
     if (existing != null) {
-      existing['api_key'] = token;
+      // 官方 provider 由账号自动管理：不保存登录 Token 到 api_key，避免用户误改
+      existing['api_key'] = '';
+      existing['official'] = true;
     } else {
       providers.add({
         'id': pid,
         'name': '02 官方',
         'base_url': '${kCloudBases.first}/v1',
-        'api_key': token,
+        'api_key': '',
         'full_endpoint': false,
+        'official': true,
       });
     }
-    // 自动添加 02 模型
-    const mid = 'darling-official-02';
-    var hasModel = false;
-    for (final m in models) { if (m['id'] == mid) { hasModel = true; break; } }
-    if (!hasModel) {
-      models.add({
-        'id': mid,
-        'provider_id': pid,
-        'name': '02',
-        'display': '02 官方 - 02',
-      });
-    }
+    // 官方模型由云端 /api/models 提供（登录后 refreshCloud 自动拉取并选中），
+    // 不再写入本地模型列表，避免与“官方免费模型”区块重复显示
     await saveProvidersModels();
-    setModel(mid);
     notifyListeners();
   }
 
@@ -292,6 +284,18 @@ class AppState extends ChangeNotifier {
     for (final m in models) {
       if (m['id'] == id) return m as Map<String, dynamic>;
     }
+    // 云端官方模型（/api/models 拉取，id 为 slug）也纳入解析，
+    // 否则登录后选中云端模型时 model() 返回 null，发送会被误拦截
+    for (final m in cloudModels) {
+      if (m is Map && (m['id']?.toString() == id || m['slug']?.toString() == id)) {
+        return {
+          'id': id,
+          'name': m['name'] ?? id,
+          'display': '02 官方 - ${m['name'] ?? id}',
+          'cloud': true,
+        };
+      }
+    }
     return null;
   }
 
@@ -315,6 +319,8 @@ class AppState extends ChangeNotifier {
     config = await api.getJson('/api/config');
     providers = (config['providers'] is List ? config['providers'] as List : []);
     models = (config['models'] is List ? config['models'] as List : []);
+    // 清理旧版残留的官方 provider 模型：官方模型现由云端 /api/models 统一提供
+    models.removeWhere((m) => m['provider_id'] == 'darling-official');
     settings = ((config['settings'] ?? {}) as Map).cast<String, dynamic>();
     conversations = (config['conversations'] is List ? config['conversations'] as List : []);
     activeConvId = config['active_conv'] as String?;
@@ -327,12 +333,15 @@ class AppState extends ChangeNotifier {
     }
     _renderFromHist();
     notifyListeners();
+    // 已登录用户启动后自动拉取云端模型/额度，避免重启后云端模型解析为空
+    if (cloudLoggedIn) refreshCloud();
   }
 
   Future<void> reload() async {
     config = await api.getJson('/api/config');
     providers = (config['providers'] is List ? config['providers'] as List : []);
     models = (config['models'] is List ? config['models'] as List : []);
+    models.removeWhere((m) => m['provider_id'] == 'darling-official');
     settings = ((config['settings'] ?? {}) as Map).cast<String, dynamic>();
     conversations = (config['conversations'] is List ? config['conversations'] as List : []);
     activeConvId = config['active_conv'] as String?;
@@ -750,7 +759,7 @@ class AppState extends ChangeNotifier {
           messages.last.kind = MsgKind.error;
           messages.last.text = (r['data']['error'] ?? '请求失败').toString();
         }
-        await refreshCloud();
+        // 不限额度后无需每次对话后刷新云端额度/模型（减少慢请求）
       } catch (e) {
         messages.last.kind = MsgKind.error;
         messages.last.text = '网络错误：$e';
