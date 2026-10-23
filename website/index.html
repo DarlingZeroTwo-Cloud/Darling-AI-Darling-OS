@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DARLING-AI · 02 官方</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%23000'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%232DD4BF' font-family='Arial' font-weight='bold'>02</text></svg>">
+<style>
+:root{
+  --bg:#05070d; --bg2:#0a0f1a; --panel:rgba(255,255,255,.045); --panel2:rgba(255,255,255,.08);
+  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
+  --txt:#e8edf6; --sub:#8a94ab; --dim:#5b6478;
+  --cy:#2dd4bf; --cy2:#22d3ee; --vi:#7c6cff; --ok:#34d399; --err:#f87171; --warn:#fbbf24;
+  --grad:linear-gradient(135deg,#2dd4bf 0%,#22d3ee 45%,#7c6cff 100%);
+  --r:18px; --r2:12px;
+  --font:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{background:var(--bg);color:var(--txt);font-family:var(--font);font-size:15px;line-height:1.7;min-height:100vh;overflow-x:hidden}
+::selection{background:rgba(45,212,191,.3)}
+a{color:var(--cy);text-decoration:none}
+button{font-family:var(--font);cursor:pointer}
+input,textarea,select{font-family:var(--font)}
+/* 背景 */
+.bg-grid{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(900px 500px at 75% -10%,rgba(45,212,191,.13),transparent 60%),
+  radial-gradient(800px 600px at 10% 110%,rgba(124,108,255,.12),transparent 60%),
+  var(--bg)}
+.bg-grid::before{content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:56px 56px;mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 30%,transparent 75%)}
+.glow{position:fixed;width:520px;max-width:100vw;height:520px;border-radius:50%;filter:blur(120px);z-index:-1;pointer-events:none}
+/* 导航 */
+.nav{position:sticky;top:0;z-index:100;backdrop-filter:blur(18px);background:rgba(5,7,13,.7);border-bottom:1px solid var(--line)}
+.nav-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:28px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;letter-spacing:.3px}
+.logo-badge{width:34px;height:34px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;color:#051018;font-weight:900;font-size:14px;box-shadow:0 4px 18px rgba(45,212,191,.35)}
+.nav-links{display:flex;gap:4px;flex:1}
+.nav-links a{padding:8px 13px;border-radius:10px;color:var(--sub);font-size:14px;transition:.2s}
+.nav-links a:hover{color:var(--txt);background:var(--panel2)}
+.nav-links a.active{color:var(--cy);background:rgba(45,212,191,.1)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 20px;border-radius:12px;font-size:14px;font-weight:600;border:1px solid transparent;transition:.2s;white-space:nowrap}
+.btn-ghost{background:transparent;border-color:var(--line2);color:var(--txt)}
+.btn-ghost:hover{border-color:var(--cy);color:var(--cy)}
+.btn-primary{background:var(--grad);color:#051018;box-shadow:0 6px 24px rgba(45,212,191,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(45,212,191,.4)}
+.btn-cy{background:rgba(45,212,191,.12);border-color:rgba(45,212,191,.35);color:var(--cy)}
+.btn-cy:hover{background:rgba(45,212,191,.2)}
+.btn-danger{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.3);color:var(--err)}
+.btn-sm{padding:6px 13px;font-size:13px;border-radius:9px}
+/* 主容器 */
+main{max-width:1180px;margin:0 auto;padding:0 24px 90px}
+.view{display:none;animation:fade .35s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* 首页 hero */
+.hero{padding:88px 0 40px;text-align:center;position:relative}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:100px;border:1px solid rgba(45,212,191,.35);background:rgba(45,212,191,.07);color:var(--cy);font-size:13px;font-weight:600;margin-bottom:26px}
+.hero-tag .dot{width:7px;height:7px;border-radius:50%;background:var(--cy);box-shadow:0 0 10px var(--cy);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hero h1{font-size:clamp(40px,6.5vw,72px);font-weight:900;letter-spacing:-1px;line-height:1.12;margin-bottom:20px}
+.hero h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{max-width:640px;margin:0 auto 34px;color:var(--sub);font-size:17px}
+.hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.hero-stats{display:flex;gap:44px;justify-content:center;margin-top:56px;flex-wrap:wrap}
+.stat{text-align:center}
+.stat b{display:block;font-size:30px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.stat span{color:var(--dim);font-size:13px}
+/* 区块标题 */
+.sec{padding:64px 0 8px}
+.sec-title{text-align:center;margin-bottom:44px}
+.sec-title h2{font-size:clamp(26px,4vw,38px);font-weight:800;letter-spacing:-.5px}
+.sec-title p{color:var(--sub);margin-top:10px;max-width:560px;margin-left:auto;margin-right:auto}
+/* 卡片网格 */
+.grid{display:grid;gap:18px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:26px;transition:.25s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-3px);border-color:var(--line2);background:var(--panel2)}
+.card .ic{width:44px;height:44px;border-radius:12px;background:rgba(45,212,191,.1);display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:var(--cy)}
+.card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+.card p{color:var(--sub);font-size:14px}
+/* 流程 */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:step}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:26px;position:relative}
+.step::before{counter-increment:step;content:"0" counter(step);position:absolute;top:20px;right:22px;font-size:30px;font-weight:900;color:rgba(45,212,191,.14)}
+.step h3{font-size:16px;font-weight:700;margin-bottom:8px}
+.step p{color:var(--sub);font-size:14px}
+/* 模型卡 */
+.model-card{border-radius:var(--r);padding:30px;position:relative;background:linear-gradient(150deg,rgba(45,212,191,.1),rgba(124,108,255,.07)),var(--panel);border:1px solid rgba(45,212,191,.25);display:flex;flex-direction:column;gap:16px}
+.model-card .name{display:flex;align-items:center;gap:14px}
+.model-card .avatar{width:52px;height:52px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#051018;box-shadow:0 6px 22px rgba(45,212,191,.35)}
+.model-card h3{font-size:22px;font-weight:800}
+.model-card .tag{font-size:12px;color:var(--cy);background:rgba(45,212,191,.12);padding:3px 10px;border-radius:100px;border:1px solid rgba(45,212,191,.3)}
+.model-card ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.model-card li{display:flex;gap:10px;align-items:flex-start;color:var(--sub);font-size:14px}
+.model-card li svg{flex-shrink:0;margin-top:3px;color:var(--cy)}
+/* 下载卡 */
+.dl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.dl{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:24px;display:flex;flex-direction:column;gap:10px}
+.dl .os{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.dl .meta{color:var(--dim);font-size:13px}
+.dl .links{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+/* 表单 */
+.auth-wrap{max-width:440px;margin:70px auto 0}
+.auth-card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:36px;backdrop-filter:blur(14px)}
+.auth-card h2{font-size:24px;font-weight:800;margin-bottom:6px}
+.auth-card .sub{color:var(--sub);font-size:14px;margin-bottom:24px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;color:var(--sub);margin-bottom:7px}
+.field input{width:100%;padding:12px 14px;border-radius:11px;background:rgba(0,0,0,.3);border:1px solid var(--line2);color:var(--txt);font-size:16px;outline:none;transition:.2s}
+.field input:focus{border-color:var(--cy);box-shadow:0 0 0 3px rgba(45,212,191,.12)}
+.field .hint{font-size:12px;color:var(--dim);margin-top:5px}
+.form-msg{padding:11px 14px;border-radius:10px;font-size:14px;margin-bottom:16px;display:none}
+.form-msg.err{display:block;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--err)}
+.form-msg.ok{display:block;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:var(--ok)}
+.auth-switch{text-align:center;margin-top:20px;color:var(--sub);font-size:14px}
+/* 控制台 */
+.console-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:50px 0 22px;flex-wrap:wrap}
+.console-top h2{font-size:26px;font-weight:800}
+.console-top .user-chip{display:flex;align-items:center;gap:10px;padding:9px 16px;border-radius:100px;background:var(--panel);border:1px solid var(--line2);font-size:14px}
+.user-chip .avatar{width:28px;height:28px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#051018}
+.endpoint-box{background:rgba(45,212,191,.06);border:1px solid rgba(45,212,191,.22);border-radius:var(--r);padding:22px;margin-bottom:22px}
+.endpoint-box .lb{font-size:13px;color:var(--cy);font-weight:600;margin-bottom:8px}
+.endpoint-box .code{font-family:var(--mono);font-size:14px;background:rgba(0,0,0,.35);padding:12px 14px;border-radius:10px;border:1px solid var(--line);user-select:all}
+.key-item{background:var(--panel);border:1px solid var(--line);border-radius:var(--r2);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.key-item .info{display:flex;flex-direction:column;gap:3px}
+.key-item .nm{font-weight:600;font-size:14px}
+.key-item .pf{font-family:var(--mono);font-size:13px;color:var(--dim)}
+.key-item .time{font-size:12px;color:var(--dim)}
+.key-new{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.key-new input{flex:1;min-width:200px;padding:12px 14px;border-radius:11px;background:rgba(0,0,0,.3);border:1px solid var(--line2);color:var(--txt);font-size:16px;outline:none}
+.key-new input:focus{border-color:var(--cy)}
+.key-reveal{background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.3);border-radius:var(--r);padding:18px 20px;margin-bottom:22px;display:none}
+.key-reveal .big{font-family:var(--mono);font-size:16px;color:var(--cy);word-break:break-all;background:rgba(0,0,0,.4);padding:12px 14px;border-radius:10px;margin:10px 0;border:1px dashed rgba(45,212,191,.4)}
+.key-reveal .warn{font-size:13px;color:var(--warn)}
+.usage-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+.usage-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r2);padding:18px}
+.usage-card b{display:block;font-size:24px;font-weight:800;color:var(--cy)}
+.usage-card span{font-size:13px;color:var(--sub)}
+/* 文档 */
+.docs-grid{display:grid;grid-template-columns:240px 1fr;gap:26px;margin-top:30px}
+.docs-nav{position:sticky;top:90px;align-self:start;display:flex;flex-direction:column;gap:4px}
+.docs-nav a{padding:9px 14px;border-radius:10px;color:var(--sub);font-size:14px;border-left:2px solid transparent}
+.docs-nav a:hover{color:var(--txt);background:var(--panel2)}
+.docs-nav a.on{color:var(--cy);border-left-color:var(--cy);background:rgba(45,212,191,.08)}
+.docs-body{min-width:0}
+.doc-block{margin-bottom:40px}
+.doc-block h3{font-size:20px;font-weight:700;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.doc-block h4{font-size:15px;font-weight:600;margin:18px 0 8px;color:var(--cy)}
+.doc-block p{color:var(--sub);margin-bottom:10px}
+pre.code{background:rgba(0,0,0,.42);border:1px solid var(--line);border-radius:12px;padding:18px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.75;margin:10px 0 18px;position:relative}
+pre.code .lbl{position:absolute;top:8px;right:12px;font-size:11px;color:var(--dim)}
+.kw{color:#c792ea}.st{color:#89ddff}.nu{color:#f78c6c}.fn{color:#82aaff}.cm{color:#546e7a}
+table.t{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14px;table-layout:fixed}
+table.t th,table.t td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+table.t th{background:var(--panel2);font-weight:600;font-size:13px;color:var(--txt)}
+table.t td{color:var(--sub)}
+table.t code{font-family:var(--mono);font-size:12.5px;color:var(--cy);background:rgba(45,212,191,.08);padding:2px 6px;border-radius:5px}
+.chip{display:inline-block;padding:2px 9px;border-radius:100px;font-size:12px;font-weight:600}
+.chip-cy{background:rgba(45,212,191,.12);color:var(--cy);border:1px solid rgba(45,212,191,.3)}
+/* FAQ */
+.faq-item{background:var(--panel);border:1px solid var(--line);border-radius:var(--r2);padding:18px 20px;margin-bottom:12px}
+.faq-item summary{font-weight:600;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.faq-item summary::after{content:"+";font-size:20px;color:var(--cy);transition:.2s}
+.faq-item[open] summary::after{transform:rotate(45deg)}
+.faq-item p{color:var(--sub);margin-top:10px;font-size:14px}
+/* 页脚 */
+footer{border-top:1px solid var(--line);padding:36px 0;margin-top:60px}
+.foot-inner{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;color:var(--dim);font-size:13px;flex-wrap:wrap;gap:12px}
+/* toast */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#0d1526;border:1px solid var(--line2);color:var(--txt);padding:12px 22px;border-radius:12px;font-size:14px;z-index:999;transition:.3s;opacity:0;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.err{border-color:rgba(248,113,113,.4);color:var(--err)}
+/* 响应式 */
+@media(max-width:920px){
+  .g3{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+  .dl-grid{grid-template-columns:1fr}
+  .usage-cards{grid-template-columns:1fr 1fr}
+  .docs-grid{grid-template-columns:1fr}
+  .docs-nav{position:static;flex-direction:row;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+  .docs-nav a{border-left:none;border-bottom:2px solid transparent;border-radius:0}
+  .docs-nav a.on{border-left:none;border-bottom-color:var(--cy)}
+  .nav-links{display:none}
+  .g2{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .usage-cards{grid-template-columns:1fr}
+  .hero{padding:56px 0 24px}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="glow" style="top:-160px;left:0"></div>
+<div class="glow" style="bottom:-200px;right:0"></div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#/"><span class="logo-badge">02</span> DARLING-AI</a>
+    <div class="nav-links" id="navLinks">
+      <a href="#/" data-nav="home">首页</a>
+      <a href="#/docs" data-nav="docs">API 文档</a>
+      <a href="#/guide" data-nav="guide">使用指南</a>
+      <a href="#/download" data-nav="download">下载</a>
+    </div>
+    <div class="nav-right" id="navRight">
+      <button class="btn btn-primary btn-sm" id="navAuthBtn" onclick="go('#/login')">登录 / 注册</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <!-- ========== 首页 ========== -->
+  <div class="view" id="view-home">
+    <div class="hero">
+      <div class="hero-tag"><span class="dot"></span> 官方免费 AI · 无需付费 · 注册即用</div>
+      <h1>你的 AI 助手 <span class="grad">02</span><br>不止于对话</h1>
+      <p>DARLING-AI 云端生态：一个账号打通客户端与 API。免费使用官方模型 02，支持文本对话、图片生成，随时随地，多端同步。</p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" onclick="go('#/register')">免费注册</button>
+        <button class="btn btn-ghost" onclick="go('#/download')">下载客户端</button>
+        <button class="btn btn-cy" onclick="go('#/docs')">查看 API</button>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b>02</b><span>官方 AI 模型</span></div>
+        <div class="stat"><b>∞</b><span>对话不限量</span></div>
+        <div class="stat"><b>多端</b><span>Win / Linux 客户端</span></div>
+        <div class="stat"><b>API</b><span>OpenAI 兼容接口</span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title"><h2>一个账号，处处可用</h2><p>在客户端登录过的账号，官网直接登录；登录后一键创建 API Key，任意代码里调用官方免费模型。</p></div>
+      <div class="steps">
+        <div class="step"><h3>注册账号</h3><p>邮箱 + 密码 + 安全提问，30 秒完成注册，永久登录不过期。</p></div>
+        <div class="step"><h3>创建 API Key</h3><p>登录官网控制台，一键生成属于你的 API Key，随时可撤销。</p></div>
+        <div class="step"><h3>调用 02</h3><p>把连接地址和 Key 填进任何 OpenAI 兼容工具、代码或你的客户端里。</p></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title"><h2>功能亮点</h2></div>
+      <div class="grid g3">
+        <div class="card"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h3>智能对话</h3><p>文本不限量，AI 名字叫 02，支持改名的个性化对话体验。</p></div>
+        <div class="card"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></div><h3>图片生成</h3><p>文字描述直接出图，官方免费额度，创作灵感随时在线。</p></div>
+        <div class="card"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></div><h3>OpenAI 兼容 API</h3><p>标准 /v1/chat/completions 接口，任何语言、任何工具直接对接。</p></div>
+        <div class="card"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></div><h3>多端客户端</h3><p>Windows 安装包 / 便携版、Linux tar.gz / deb，桌面端体验流畅。</p></div>
+        <div class="card"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><h3>账号云同步</h3><p>模型配置、个性化设置跟随账号，换设备自动恢复。</p></div>
+        <div class="card"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h3>数据加密</h3><p>密码 PBKDF2 加盐存储，API Key 哈希保存，全程 HTTPS。</p></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title"><h2>官方模型 <span style="color:var(--cy)">02</span></h2><p>由 DARLING-AI 开发的通用 AI 助手，会聊天、会写、会画。</p></div>
+      <div class="model-card">
+        <div class="name">
+          <div class="avatar">02</div>
+          <div>
+            <h3>02 <span class="tag">官方免费</span></h3>
+            <div style="color:var(--dim);font-size:13px;margin-top:2px">模型 ID：<code style="font-family:var(--mono);color:var(--cy)">02</code> · 类型：hybrid（文本 + 图片）</div>
+          </div>
+        </div>
+        <ul>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>文本对话不限量，支持流式输出</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>图片生成：文字描述直接出图</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>记住你的名字：告诉它你叫什么，它就叫什么</li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>OpenAI 兼容：可直接接入任何支持 OpenAI 的客户端</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title"><h2>最新版本</h2><p>持续迭代，永不停止。</p></div>
+      <div class="card" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <h3 style="font-size:22px;font-weight:800" id="verTitle">v4.1.9</h3>
+            <span class="chip chip-cy">最新</span>
+          </div>
+          <p style="margin-top:8px;color:var(--sub)" id="verDesc">Markdown 表格渲染优化 · 去除额度限制 · 账号生态完善</p>
+          <p style="margin-top:4px;color:var(--dim);font-size:13px" id="verDate">Windows / Linux 双平台 · GitHub / Gitee 双源发布</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="go('#/download')">查看全部版本</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 登录 ========== -->
+  <div class="view" id="view-login">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <h2>欢迎回来</h2>
+        <p class="sub">使用 DARLING-AI 账号登录 · 客户端注册的账号可直接登录</p>
+        <div class="form-msg" id="loginMsg"></div>
+        <form id="loginForm" onsubmit="return doLogin(event)">
+          <div class="field"><label>邮箱</label><input type="email" id="loginEmail" placeholder="you@example.com" required></div>
+          <div class="field"><label>密码</label><input type="password" id="loginPw" placeholder="至少 6 位" required></div>
+          <button type="submit" class="btn btn-primary" style="width:100%;padding:13px" id="loginBtn">登 录</button>
+        </form>
+        <div class="auth-switch">还没有账号？<a href="#/register">立即注册</a></div>
+        <div class="auth-switch" style="margin-top:6px"><a href="#/forgot">忘记密码？用安全问题找回</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 注册 ========== -->
+  <div class="view" id="view-register">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <h2>创建账号</h2>
+        <p class="sub">注册即送官方免费模型 02 · 对话与图片生成均不限量</p>
+        <div class="form-msg" id="regMsg"></div>
+        <form id="regForm" onsubmit="return doRegister(event)">
+          <div class="field"><label>邮箱</label><input type="email" id="regEmail" placeholder="you@example.com" required></div>
+          <div class="field"><label>密码</label><input type="password" id="regPw" placeholder="至少 6 位" required>
+            <div class="hint">用于登录，请牢记</div></div>
+          <div class="field"><label>安全问题</label><input type="text" id="regQ" placeholder="例如：我的宠物叫什么" required>
+            <div class="hint">忘记密码时，答对这个问题即可重置密码</div></div>
+          <div class="field"><label>安全答案</label><input type="text" id="regA" placeholder="安全问题的答案" required></div>
+          <button type="submit" class="btn btn-primary" style="width:100%;padding:13px" id="regBtn">注 册</button>
+        </form>
+        <div class="auth-switch">已有账号？<a href="#/login">直接登录</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 找回密码 ========== -->
+  <div class="view" id="view-forgot">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <h2>找回密码</h2>
+        <p class="sub">输入邮箱获取安全问题，答对即可设置新密码</p>
+        <div class="form-msg" id="forgotMsg"></div>
+        <form id="forgotForm" onsubmit="return doForgot(event)">
+          <div class="field"><label>邮箱</label><input type="email" id="fgEmail" placeholder="you@example.com" required></div>
+          <div class="field" id="fgQWrap" style="display:none"><label id="fgQLabel">安全问题</label><input type="text" id="fgQ" readonly style="background:rgba(0,0,0,.15)"></div>
+          <div class="field" id="fgAWrap" style="display:none"><label>安全答案</label><input type="text" id="fgA" placeholder="回答安全问题" required></div>
+          <div class="field" id="fgNWrap" style="display:none"><label>新密码</label><input type="password" id="fgNewPw" placeholder="至少 6 位" required></div>
+          <button type="submit" class="btn btn-primary" style="width:100%;padding:13px" id="fgBtn">下一步</button>
+        </form>
+        <div class="auth-switch"><a href="#/login">返回登录</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 控制台 ========== -->
+  <div class="view" id="view-console">
+    <div class="console-top">
+      <h2>控制台</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="user-chip"><span class="avatar" id="conAvatar">U</span><span id="conEmail">未登录</span></span>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">退出登录</button>
+      </div>
+    </div>
+
+    <div class="endpoint-box">
+      <div class="lb">API 连接地址（Base URL）</div>
+      <div class="code" id="conBase">https://api.darling02.de5.net/v1</div>
+      <div style="margin-top:10px;font-size:13px;color:var(--sub)">OpenAI 兼容 · 把此地址 + 你的 API Key 填入任何支持 OpenAI 的工具即可使用模型 <code style="color:var(--cy)">02</code></div>
+    </div>
+
+    <h3 style="font-size:16px;margin-bottom:14px;font-weight:700">API Keys</h3>
+    <div class="key-new">
+      <input type="text" id="keyName" placeholder="Key 名称，例如：我的博客 / 本地脚本" value="default">
+      <button class="btn btn-primary" onclick="createKey()">创建 API Key</button>
+    </div>
+    <div class="key-reveal" id="keyReveal">
+      <b style="font-size:14px">已创建，请立即复制保存：</b>
+      <div class="big" id="keyFull"></div>
+      <button class="btn btn-sm btn-cy" onclick="copyKey()">复制 Key</button>
+      <span class="warn" style="margin-left:10px">完整 Key 只显示这一次，关闭后无法再次查看</span>
+    </div>
+    <div id="keyList"></div>
+
+    <h3 style="font-size:16px;margin:30px 0 14px;font-weight:700">近 7 天用量</h3>
+    <div class="usage-cards">
+      <div class="usage-card"><b id="uText">-</b><span>文本调用（次）</span></div>
+      <div class="usage-card"><b id="uImage">-</b><span>图片生成（次）</span></div>
+      <div class="usage-card"><b id="uDays">-</b><span>统计范围</span></div>
+    </div>
+  </div>
+
+  <!-- ========== API 文档 ========== -->
+  <div class="view" id="view-docs">
+    <div style="margin-top:56px">
+      <h2 style="font-size:32px;font-weight:800;letter-spacing:-.5px">API 文档</h2>
+      <p style="color:var(--sub);margin-top:8px">OpenAI 兼容接口 · 任何语言、任何工具，一行配置接入官方免费模型 02</p>
+    </div>
+    <div class="docs-grid">
+      <div class="docs-nav" id="docsNav">
+        <a href="#doc-basic" class="on" onclick="return docJump(event,this)">快速开始</a>
+        <a href="#doc-auth" onclick="return docJump(event,this)">鉴权方式</a>
+        <a href="#doc-chat" onclick="return docJump(event,this)">文本对话</a>
+        <a href="#doc-image" onclick="return docJump(event,this)">图片生成</a>
+        <a href="#doc-models" onclick="return docJump(event,this)">模型列表</a>
+        <a href="#doc-errors" onclick="return docJump(event,this)">错误码</a>
+      </div>
+      <div class="docs-body">
+        <div class="doc-block" id="doc-basic">
+          <h3>快速开始</h3>
+          <p>三步接入：① 注册并登录 → ② 控制台创建 API Key → ③ 把下面两项填进你的工具：</p>
+          <table class="t">
+            <colgroup><col style="width:32%"><col style="width:68%"></colgroup>
+            <tr><th>配置项</th><th>值</th></tr>
+            <tr><td>Base URL</td><td><code>https://api.darling02.de5.net/v1</code></td></tr>
+            <tr><td>API Key</td><td>控制台创建，形如 <code>dl-xxxxxxxx</code></td></tr>
+            <tr><td>模型 ID</td><td><code>02</code></td></tr>
+          </table>
+          <p>支持 OpenAI 的软件（如各类 AI 客户端、开发框架）里一般只需要填这三个字段。</p>
+        </div>
+        <div class="doc-block" id="doc-auth">
+          <h3>鉴权方式</h3>
+          <p>所有请求在 HTTP Header 中携带你的 API Key：</p>
+          <pre class="code"><span class="lbl">HTTP</span><span class="cm"># 所有请求都需要这个 Header</span>
+<span class="st">Authorization</span>: <span class="kw">Bearer</span> dl-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre>
+          <p>或直接传入你的账号登录 Token（客户端内置方式）。</p>
+        </div>
+        <div class="doc-block" id="doc-chat">
+          <h3>文本对话</h3>
+          <p>标准 OpenAI 接口，支持流式与非流式。模型 ID 固定为 <code>02</code>：</p>
+          <pre class="code"><span class="lbl">curl</span>curl https://api.darling02.de5.net/v1/chat/completions \
+  -H <span class="st">"Content-Type: application/json"</span> \
+  -H <span class="st">"Authorization: Bearer &lt;你的API_KEY&gt;"</span> \
+  -d <span class="st">'{
+    "model": "02",
+    "messages": [{"role": "user", "content": "用一句话介绍你自己"}],
+    "stream": false
+  }'</span></pre>
+          <pre class="code"><span class="lbl">Python</span><span class="kw">from</span> openai <span class="kw">import</span> OpenAI
+
+client = OpenAI(
+    base_url=<span class="st">"https://api.darling02.de5.net/v1"</span>,
+    api_key=<span class="st">"dl-你的API_KEY"</span>,
+)
+resp = client.chat.completions.create(
+    model=<span class="st">"02"</span>,
+    messages=[{<span class="st">"role"</span>: <span class="st">"user"</span>, <span class="st">"content"</span>: <span class="st">"你好，介绍一下你自己"</span>}],
+)
+print(resp.choices[0].message.content)</pre>
+          <pre class="code"><span class="lbl">Node.js</span><span class="kw">const</span> { OpenAI } = <span class="kw">require</span>(<span class="st">"openai"</span>);
+<span class="kw">const</span> client = <span class="kw">new</span> OpenAI({
+  baseURL: <span class="st">"https://api.darling02.de5.net/v1"</span>,
+  apiKey: <span class="st">"dl-你的API_KEY"</span>,
+});
+<span class="kw">const</span> resp = <span class="kw">await</span> client.chat.completions.create({
+  model: <span class="st">"02"</span>,
+  messages: [{ role: <span class="st">"user"</span>, content: <span class="st">"你好"</span> }],
+});
+console.log(resp.choices[0].message.content);</pre>
+          <h4>流式输出</h4>
+          <p>把请求体里的 <code>stream</code> 设为 <code>true</code>，即可获得 SSE 流式响应，逐字返回内容，适合聊天类应用。</p>
+        </div>
+        <div class="doc-block" id="doc-image">
+          <h3>图片生成</h3>
+          <p>用自然语言描述画面，直接生成图片：</p>
+          <pre class="code"><span class="lbl">curl</span>curl https://api.darling02.de5.net/v1/images/generations \
+  -H <span class="st">"Content-Type: application/json"</span> \
+  -H <span class="st">"Authorization: Bearer &lt;你的API_KEY&gt;"</span> \
+  -d <span class="st">'{
+    "model": "02",
+    "prompt": "一只在星空下奔跑的白色狐狸，赛博朋克风格",
+    "n": 1
+  }'</span></pre>
+          <p style="color:var(--dim);font-size:13px">注意：图片生成走的是 <code>/v1/images/generations</code>，与 OpenAI 图片接口一致。</p>
+        </div>
+        <div class="doc-block" id="doc-models">
+          <h3>模型列表</h3>
+          <p>拉取当前可用的模型：</p>
+          <pre class="code"><span class="lbl">curl</span>curl https://api.darling02.de5.net/v1/models \
+  -H <span class="st">"Authorization: Bearer &lt;你的API_KEY&gt;"</span></pre>
+          <p>返回结果：</p>
+          <pre class="code"><span class="lbl">JSON</span>{ <span class="st">"object"</span>: <span class="st">"list"</span>,
+  <span class="st">"data"</span>: [
+    { <span class="st">"id"</span>: <span class="st">"02"</span>, <span class="st">"object"</span>: <span class="st">"model"</span>, <span class="st">"owned_by"</span>: <span class="st">"darling"</span> }
+  ] }</pre>
+        </div>
+        <div class="doc-block" id="doc-errors">
+          <h3>错误码</h3>
+          <table class="t">
+            <colgroup><col style="width:22%"><col style="width:38%"><col style="width:40%"></colgroup>
+            <tr><th>状态码</th><th>含义</th><th>处理建议</th></tr>
+            <tr><td><code>401</code></td><td>未登录 / API Key 无效</td><td>检查 Authorization Header 是否正确</td></tr>
+            <tr><td><code>404</code></td><td>模型不存在 / 接口路径错误</td><td>确认模型 ID 为 <code>02</code>、路径为 <code>/v1/...</code></td></tr>
+            <tr><td><code>429</code></td><td>请求过于频繁 / 上游限流</td><td>稍等片刻重试（服务端已自动重试一次）</td></tr>
+            <tr><td><code>502</code></td><td>上游服务异常</td><td>稍后再试，若持续请反馈</td></tr>
+          </table>
+          <p style="color:var(--dim);font-size:13px">注意：如果返回纯文本 <code>error code: 1015</code>，是访问网络被临时限流，换网络或稍等即可。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 使用指南 ========== -->
+  <div class="view" id="view-guide">
+    <div style="margin-top:56px;max-width:860px;margin-left:auto;margin-right:auto">
+      <h2 style="font-size:32px;font-weight:800;letter-spacing:-.5px;text-align:center">使用指南</h2>
+      <p style="color:var(--sub);text-align:center;margin-top:8px">从注册到调用，一份指南全部搞定</p>
+
+      <div class="doc-block" style="margin-top:40px">
+        <h3>1. 注册与登录</h3>
+        <p>打开官网点击「注册」，填写邮箱、密码、安全问题和答案即可完成注册。<b>在 DARLING-AI 客户端注册过的账号，同一个邮箱可以直接在这里登录</b>，无需重复注册。</p>
+        <p>登录后永久有效，不需要重复输入密码（除非你手动退出）。</p>
+      </div>
+      <div class="doc-block">
+        <h3>2. 获取 API Key</h3>
+        <p>登录后进入「控制台」，点击「创建 API Key」。Key 只会完整显示一次，请立即复制保存。如果怀疑泄露，随时可以在控制台删除重建。</p>
+      </div>
+      <div class="doc-block">
+        <h3>3. 在客户端中使用</h3>
+        <p>下载并安装 DARLING-AI 客户端（Windows / Linux），登录同一账号后，模型供应商中会自动出现官方模型 <code>02</code>，直接选择即可对话和生图。</p>
+      </div>
+      <div class="doc-block">
+        <h3>4. 在第三方工具中使用</h3>
+        <p>任何支持「自定义 OpenAI 接口」的软件（ChatBox、NextChat、各类 AI 插件等），填入：</p>
+        <ul style="color:var(--sub);margin:10px 0 0 20px;display:flex;flex-direction:column;gap:6px">
+          <li>Base URL：<code style="font-family:var(--mono);color:var(--cy)">https://api.darling02.de5.net/v1</code></li>
+          <li>API Key：你创建的 <code style="font-family:var(--mono);color:var(--cy)">dl-...</code></li>
+          <li>模型：<code style="font-family:var(--mono);color:var(--cy)">02</code></li>
+        </ul>
+      </div>
+
+      <h3 style="font-size:20px;font-weight:700;margin:44px 0 18px">常见问题</h3>
+      <div class="faq-item"><details><summary>02 是什么？</summary><p>02 是 DARLING-AI 生态的官方 AI 助手，由 DARLING-AI 开发，支持文本对话和图片生成，注册即可免费使用。</p></details></div>
+      <div class="faq-item"><details><summary>API 免费吗？有限制吗？</summary><p>免费，官方模型不限制对话次数和图片生成次数。如遇上游繁忙会临时限流，稍等重试即可。</p></details></div>
+      <div class="faq-item"><details><summary>API Key 泄露了怎么办？</summary><p>立即到控制台删除该 Key，再创建一个新的即可，旧 Key 会立即失效。</p></details></div>
+      <div class="faq-item"><details><summary>忘记密码怎么办？</summary><p>在登录页点击「忘记密码」，输入邮箱后会显示你注册时设置的安全问题，答对即可设置新密码。</p></details></div>
+      <div class="faq-item"><details><summary>客户端和官网的账号通用吗？</summary><p>通用。同一个邮箱注册一次，客户端和官网都能登录，模型配置等个性化设置会同步。</p></details></div>
+      <div class="faq-item"><details><summary>对话记录会保存吗？</summary><p>对话内容不会被保存到服务端，隐私安全；只有模型配置、API Key 等账号设置会云端同步。</p></details></div>
+    </div>
+  </div>
+
+  <!-- ========== 下载 ========== -->
+  <div class="view" id="view-download">
+    <div style="margin-top:56px">
+      <h2 style="font-size:32px;font-weight:800;letter-spacing:-.5px">下载客户端</h2>
+      <p style="color:var(--sub);margin-top:8px">DARLING-AI 桌面客户端 · Windows 与 Linux 双平台 · 与官网同一账号</p>
+    </div>
+    <div class="dl-grid" style="margin-top:34px">
+      <div class="dl">
+        <div class="os"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Windows</div>
+        <div class="meta">安装版（中文安装向导）· 便携版（免安装）</div>
+        <div class="links">
+          <a class="btn btn-sm btn-cy" href="https://github.com/DarlingZeroTwo-Cloud/Darling-ai/releases/tag/v4.1.9" target="_blank">GitHub 下载</a>
+          <a class="btn btn-sm btn-ghost" href="https://gitee.com/darling-cloud/Darling-ai/releases/tag/v4.1.9" target="_blank">Gitee 下载</a>
+          <a class="btn btn-sm btn-ghost" href="https://my.feishu.cn/file/JoMgbAXl1oV7PVxqZBBcDEne6Vf" target="_blank">网盘下载</a>
+        </div>
+      </div>
+      <div class="dl">
+        <div class="os"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16c-1 1-2 3-1 4 1 2 6 2 9 0s6-6 6-8a4 4 0 0 0-3-4c-2-1-5-1-7 0-1 0-2-1-2-1s0-4 2-7c-3 2-5 5-6 8-1 3-1 6 2 8z"/></svg>Linux</div>
+        <div class="meta">压缩包（tar.gz）· deb 安装包（离线可用）</div>
+        <div class="links">
+          <a class="btn btn-sm btn-cy" href="https://github.com/DarlingZeroTwo-Cloud/Darling-ai/releases/tag/v4.1.9" target="_blank">GitHub 下载</a>
+          <a class="btn btn-sm btn-ghost" href="https://gitee.com/darling-cloud/Darling-ai/releases/tag/v4.1.9" target="_blank">Gitee 下载</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title"><h2>版本历史</h2></div>
+      <div style="display:flex;flex-direction:column;gap:14px" id="verHistory">
+        <div class="card" style="padding:20px 24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <b style="font-size:16px">v4.1.9 <span class="chip chip-cy" style="margin-left:6px">最新</span></b>
+            <span style="color:var(--dim);font-size:13px">Windows / Linux</span>
+          </div>
+          <p style="color:var(--sub);font-size:14px;margin-top:8px">Markdown 表格渲染优化（flutter_markdown_plus）· 彻底去除 5 小时额度限制 · 官方模型 02 身份修正 · 上游 429 自动重试</p>
+        </div>
+        <div class="card" style="padding:20px 24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <b style="font-size:16px">v4.1.8</b>
+            <span style="color:var(--dim);font-size:13px">Windows / Linux</span>
+          </div>
+          <p style="color:var(--sub);font-size:14px;margin-top:8px">版本号动态显示修复 · 登录 / 注册 404 修复 · 自定义域名接入</p>
+        </div>
+        <div class="card" style="padding:20px 24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <b style="font-size:16px">v4.1.0</b>
+            <span style="color:var(--dim);font-size:13px">Windows / Linux</span>
+          </div>
+          <p style="color:var(--sub);font-size:14px;margin-top:8px">云端账号体系上线 · 官方免费模型 02 · 客户端 / 服务端 / GUI 三端打通</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <div>© 2026 DARLING-AI · AI 助手 02</div>
+    <div style="display:flex;gap:18px">
+      <a href="https://github.com/DarlingZeroTwo-Cloud/Darling-ai" target="_blank">GitHub</a>
+      <a href="https://gitee.com/darling-cloud/Darling-ai" target="_blank">Gitee</a>
+      <a href="#/docs">API 文档</a>
+      <a href="#/guide">使用指南</a>
+    </div>
+  </div>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 基础 ================= */
+const API = 'https://api.darling02.de5.net';
+const VIEWS = ['home','login','register','forgot','console','docs','guide','download'];
+let token = localStorage.getItem('dl_token') || '';
+let user = JSON.parse(localStorage.getItem('dl_user') || 'null');
+
+function $(id){ return document.getElementById(id); }
+function go(hash){ location.hash = hash; }
+function toast(msg, isErr){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err show' : 'show';
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.className = '', 3200);
+}
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ================= 路由 ================= */
+function router(){
+  let h = location.hash.replace(/^#\/?/, '') || 'home';
+  const base = h.split('/')[0];
+  const view = VIEWS.includes(base) ? base : 'home';
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  $('view-' + view).classList.add('on');
+  document.querySelectorAll('.nav-links a').forEach(a => {
+    a.classList.toggle('active', a.dataset.nav === view);
+  });
+  refreshAuthUI();
+  if (view === 'console') loadConsole();
+}
+window.addEventListener('hashchange', router);
+
+/* ================= 登录态 ================= */
+function refreshAuthUI(){
+  const btn = $('navAuthBtn');
+  if (user && token) {
+    btn.textContent = '控制台';
+    btn.onclick = () => go('#/console');
+  } else {
+    btn.textContent = '登录 / 注册';
+    btn.onclick = () => go('#/login');
+  }
+}
+async function apiFetch(path, opts = {}){
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(API + path, Object.assign({}, opts, { headers }));
+  let data = {};
+  try { data = await r.json(); } catch(e){ data = { error: '响应解析失败 (' + r.status + ')' }; }
+  if (!r.ok && !data.ok) throw new Error(data.error || ('请求失败 ' + r.status));
+  return data;
+}
+
+/* ================= 登录 ================= */
+async function doLogin(e){
+  e.preventDefault();
+  const msg = $('loginMsg');
+  msg.className = 'form-msg'; msg.textContent = '';
+  const btn = $('loginBtn'); btn.disabled = true; btn.textContent = '登录中…';
+  try {
+    const d = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: $('loginEmail').value.trim(), password: $('loginPw').value })
+    });
+    token = d.access;
+    const me = await apiFetch('/api/me');
+    user = me;
+    localStorage.setItem('dl_token', token);
+    localStorage.setItem('dl_user', JSON.stringify(user));
+    msg.className = 'form-msg ok'; msg.textContent = '登录成功，跳转中…';
+    setTimeout(()=>go('#/console'), 600);
+  } catch(err) {
+    msg.className = 'form-msg err'; msg.textContent = err.message;
+  }
+  btn.disabled = false; btn.textContent = '登 录';
+  return false;
+}
+
+/* ================= 注册 ================= */
+async function doRegister(e){
+  e.preventDefault();
+  const msg = $('regMsg');
+  msg.className = 'form-msg'; msg.textContent = '';
+  const btn = $('regBtn'); btn.disabled = true; btn.textContent = '注册中…';
+  try {
+    const d = await apiFetch('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: $('regEmail').value.trim(),
+        password: $('regPw').value,
+        security_q: $('regQ').value.trim(),
+        security_a: $('regA').value.trim()
+      })
+    });
+    token = d.access;
+    const me = await apiFetch('/api/me');
+    user = me;
+    localStorage.setItem('dl_token', token);
+    localStorage.setItem('dl_user', JSON.stringify(user));
+    msg.className = 'form-msg ok'; msg.textContent = '注册成功！自动登录中…';
+    setTimeout(()=>go('#/console'), 700);
+  } catch(err) {
+    msg.className = 'form-msg err'; msg.textContent = err.message;
+  }
+  btn.disabled = false; btn.textContent = '注 册';
+  return false;
+}
+
+/* ================= 忘记密码 ================= */
+let fgStep = 1;
+async function doForgot(e){
+  e.preventDefault();
+  const msg = $('forgotMsg');
+  msg.className = 'form-msg'; msg.textContent = '';
+  const btn = $('fgBtn');
+  if (fgStep === 1) {
+    try {
+      const d = await apiFetch('/api/auth/forgot', {
+        method: 'POST', body: JSON.stringify({ email: $('fgEmail').value.trim() })
+      });
+      $('fgQLabel').textContent = '安全问题：' + d.security_q;
+      $('fgQ').value = d.security_q;
+      $('fgQWrap').style.display = 'block';
+      $('fgAWrap').style.display = 'block';
+      $('fgNWrap').style.display = 'block';
+      btn.textContent = '重置密码';
+      fgStep = 2;
+    } catch(err){ msg.className = 'form-msg err'; msg.textContent = err.message; }
+  } else {
+    try {
+      await apiFetch('/api/auth/reset', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: $('fgEmail').value.trim(),
+          security_a: $('fgA').value.trim(),
+          new_password: $('fgNewPw').value
+        })
+      });
+      msg.className = 'form-msg ok'; msg.textContent = '密码已重置，请用新密码登录';
+      fgStep = 1;
+      $('fgQWrap').style.display = 'none';
+      $('fgAWrap').style.display = 'none';
+      $('fgNWrap').style.display = 'none';
+      btn.textContent = '下一步';
+      $('fgA').value = ''; $('fgNewPw').value = '';
+      setTimeout(()=>go('#/login'), 1200);
+    } catch(err){ msg.className = 'form-msg err'; msg.textContent = err.message; }
+  }
+  return false;
+}
+
+/* ================= 控制台 ================= */
+async function loadConsole(){
+  if (!user || !token) { go('#/login'); return; }
+  $('conEmail').textContent = user.email;
+  $('conAvatar').textContent = (user.email || 'U')[0].toUpperCase();
+  try {
+    const d = await apiFetch('/api/apikeys');
+    const list = $('keyList');
+    if (!d.keys.length) {
+      list.innerHTML = '<div style="color:var(--dim);padding:16px 0">还没有 API Key，创建一个开始使用吧。</div>';
+    } else {
+      list.innerHTML = d.keys.map(k => `
+        <div class="key-item">
+          <div class="info">
+            <span class="nm">${esc(k.name)}</span>
+            <span class="pf">${esc(k.prefix)}••••••</span>
+            <span class="time">创建于 ${new Date(k.created_at*1000).toLocaleString('zh-CN')}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="chip chip-cy">已启用</span>
+            <button class="btn btn-sm btn-danger" onclick="deleteKey(${k.id})">删除</button>
+          </div>
+        </div>`).join('');
+    }
+  } catch(err){ $('keyList').innerHTML = '<div class="form-msg err" style="display:block">' + esc(err.message) + '</div>'; }
+  // 用量
+  try {
+    const u = await apiFetch('/api/usage?days=7');
+    let text = 0, img = 0;
+    (u.usage||[]).forEach(x => { if (x.kind==='text') text = x.total; if (x.kind==='image') img = x.total; });
+    $('uText').textContent = text;
+    $('uImage').textContent = img;
+    $('uDays').textContent = u.days + ' 天';
+  } catch(e){}
+}
+async function createKey(){
+  const name = $('keyName').value.trim() || 'default';
+  try {
+    const d = await apiFetch('/api/apikeys', { method:'POST', body: JSON.stringify({ name }) });
+    $('keyFull').textContent = d.key;
+    $('keyReveal').style.display = 'block';
+    $('keyReveal').scrollIntoView({behavior:'smooth', block:'center'});
+    toast('API Key 创建成功');
+    loadConsole();
+  } catch(err){ toast(err.message, true); }
+}
+function copyKey(){
+  const k = $('keyFull').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(k).then(()=>toast('已复制到剪贴板'));
+  else { const ta=document.createElement('textarea'); ta.value=k; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制到剪贴板'); }
+}
+async function deleteKey(id){
+  if (!confirm('确定删除这个 API Key？删除后立即失效。')) return;
+  try {
+    await apiFetch('/api/apikeys?id=' + id, { method:'DELETE' });
+    toast('已删除');
+    loadConsole();
+  } catch(err){ toast(err.message, true); }
+}
+function logout(){
+  token = ''; user = null;
+  localStorage.removeItem('dl_token');
+  localStorage.removeItem('dl_user');
+  toast('已退出登录');
+  go('#/');
+}
+
+/* ================= 文档侧栏 ================= */
+function docJump(ev, el){
+  ev.preventDefault();
+  document.querySelectorAll('.docs-nav a').forEach(a=>a.classList.remove('on'));
+  el.classList.add('on');
+  const id = el.getAttribute('href').slice(1);
+  $('view-docs').querySelector('.docs-body').scrollIntoView({behavior:'smooth'});
+  return false;
+}
+
+/* ================= 初始化 ================= */
+router();
+</script>
+</body>
+</html>
