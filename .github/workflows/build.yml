@@ -194,7 +194,7 @@ jobs:
 
       - name: Download Node24 + install dsh runtime (offline bundle)
         run: |
-          RT="$GITHUB_WORKSPACE/dist/darling-ai-5.0.0/runtime"
+          RT="$GITHUB_WORKSPACE/runtime-bundle"
           mkdir -p $RT/node $RT/dsh
           curl -sL -o node24.tar.xz "https://nodejs.org/dist/v24.10.0/node-v24.10.0-linux-x64.tar.xz"
           mkdir -p _node24
@@ -215,6 +215,9 @@ jobs:
           cp backend/dist/darling-backend $DIST/backend/
           chmod +x $DIST/backend/darling-backend
           cp backend/plugins/*.json $DIST/plugins/ 2>/dev/null || true
+          cp -r "$GITHUB_WORKSPACE/runtime-bundle" $DIST/runtime
+          chmod +x $DIST/runtime/node/bin/node
+          du -sh $DIST
           tar czf darling-ai-5.0.0-linux-x64.tar.gz dist/
 
       - name: Build deb package (all runtime deps bundled, offline install)
