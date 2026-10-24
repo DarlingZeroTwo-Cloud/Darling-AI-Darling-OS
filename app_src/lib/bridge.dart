@@ -254,6 +254,34 @@ class BridgeClient {
     }
   }
 
+  // ===== DeepSeek Harness 内核（v5.0） =====
+  /// 查询本地 Harness 内核状态
+  Future<Map<String, dynamic>> dshStatus() async {
+    try {
+      return await getJson('/api/dsh/status');
+    } catch (e) {
+      return {'running': false, 'error': '$e'};
+    }
+  }
+
+  /// 启动本地 Harness 内核（返回 url 控制台地址）
+  Future<Map<String, dynamic>> dshStart() async {
+    try {
+      return await postJson('/api/dsh/start', {});
+    } catch (e) {
+      return {'ok': false, 'error': '$e'};
+    }
+  }
+
+  /// 停止本地 Harness 内核
+  Future<Map<String, dynamic>> dshStop() async {
+    try {
+      return await postJson('/api/dsh/stop', {});
+    } catch (e) {
+      return {'ok': false, 'error': '$e'};
+    }
+  }
+
   /// 导入全部数据备份
   Future<Map<String, dynamic>> importBackup(Map<String, dynamic> data) async {
     try {

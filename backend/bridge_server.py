@@ -19,6 +19,7 @@ from urllib.parse import urlparse, parse_qs
 
 import ai_console as core
 import websearch
+import dsh_bridge
 
 HOST, PORT = "127.0.0.1", 19730
 
@@ -400,11 +401,14 @@ class Handler(BaseHTTPRequestHandler):
     # ---- GET ----
     def do_GET(self):
         p = urlparse(self.path)
-        if p.path not in ("/api/ping", "/api/stream") and not self._auth_ok():
+        if p.path not in ("/api/ping", "/api/stream", "/api/dsh/status") and not self._auth_ok():
             self._json(401, {"error": "unauthorized"})
             return
         if p.path == "/api/ping":
             self._json(200, {"ok": True, "version": "1.1.0"})
+            return
+        if p.path == "/api/dsh/status":
+            self._json(200, dsh_bridge.status())
             return
         if p.path == "/api/backup/export":
             # 导出全部数据备份（含对话/模型/设置），前端保存为 JSON 文件
@@ -486,6 +490,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(401, {"error": "unauthorized"})
             return
         data = self._body()
+        if p.path == "/api/dsh/start":
+            # 启动 DeepSeek Harness 本地内核
+            self._json(200, dsh_bridge.start())
+            return
+        if p.path == "/api/dsh/stop":
+            self._json(200, dsh_bridge.stop())
+            return
         if p.path == "/api/backup/import":
             # 导入备份：整体替换数据，但保留网络配置与工作目录，防止导入后后端失联
             if not isinstance(data, dict):
