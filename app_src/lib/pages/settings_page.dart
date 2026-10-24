@@ -294,135 +294,6 @@ class _SettingsPageState extends State<SettingsPage> {
     ]);
   }
 
-// ===== DeepSeek Harness 内核（v5.0） =====
-class _HarnessCard extends StatefulWidget {
-  final AppState state;
-  const _HarnessCard({required this.state});
-
-  @override
-  State<_HarnessCard> createState() => _HarnessCardState();
-}
-
-class _HarnessCardState extends State<_HarnessCard> {
-  bool _busy = false;
-  bool _running = false;
-  String _url = '';
-  String _info = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _refresh();
-  }
-
-  Future<void> _refresh() async {
-    final r = await widget.state.api.dshStatus();
-    if (!mounted) return;
-    setState(() {
-      _running = r['running'] == true;
-      _url = (r['url'] ?? '').toString();
-      _info = '';
-    });
-  }
-
-  Future<void> _start() async {
-    setState(() => _busy = true);
-    final r = await widget.state.api.dshStart();
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (r['ok'] == true) {
-        _running = true;
-        _url = (r['url'] ?? '').toString();
-        _info = '';
-      } else {
-        _info = '启动失败：${r['error'] ?? '未知错误'}';
-      }
-    });
-  }
-
-  Future<void> _stop() async {
-    setState(() => _busy = true);
-    final r = await widget.state.api.dshStop();
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _running = false;
-      _url = '';
-      _info = (r['ok'] == true) ? '' : '停止失败：${r['error'] ?? '未知错误'}';
-    });
-  }
-
-  Future<void> _open() async {
-    if (_url.isEmpty) {
-      final r = await widget.state.api.dshStatus();
-      _url = (r['url'] ?? '').toString();
-    }
-    if (_url.isEmpty) {
-      setState(() => _info = '内核未运行，先点“启动内核”');
-      return;
-    }
-    try {
-      if (Platform.isWindows) {
-        await Process.start('cmd', ['/c', 'start', '', _url]);
-      } else if (Platform.isMacOS) {
-        await Process.start('open', [_url]);
-      } else {
-        await Process.start('xdg-open', [_url]);
-      }
-    } catch (e) {
-      setState(() => _info = '打开失败：$e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return _Card(title: 'DeepSeek Harness 内核（v5.0）', children: [
-      Text(
-        _running
-            ? '本地内核运行中，可打开控制台使用完整 Harness：插件市场、工具、轨迹、自动化任务。'
-            : '本地 Agent 内核（DeepSeek Harness，开源 MIT）。启动后可获得完整插件生态与 Agent 能力。',
-        style: const TextStyle(fontSize: 12.5, height: 1.6),
-      ),
-      const SizedBox(height: 10),
-      Row(children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _running ? cs.primary : cs.outlineVariant,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          _running ? '运行中 · 端口 3080' : '未运行',
-          style: TextStyle(
-              fontSize: 12.5, color: _running ? cs.primary : cs.outline),
-        ),
-        const Spacer(),
-        if (_running)
-          OutlinedButton(
-            onPressed: _busy ? null : _stop,
-            child: const Text('停止内核'),
-          ),
-        if (_running) ...[
-          const SizedBox(width: 8),
-          FilledButton.tonal(onPressed: _open, child: const Text('打开控制台')),
-        ] else
-          FilledButton(
-              onPressed: _busy ? null : _start, child: const Text('启动内核')),
-      ]),
-      if (_info.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(_info, style: TextStyle(fontSize: 12, color: cs.error)),
-        ),
-    ]);
-  }
-}
-
   // ===== 个性化 =====
   Widget _appearancePage(AppState state) {
     final s = state.settings;
@@ -816,6 +687,136 @@ class _HarnessCardState extends State<_HarnessCard> {
 }
 
 // ===== 通用控件 =====
+
+
+// ===== DeepSeek Harness 内核（v5.0） =====
+class _HarnessCard extends StatefulWidget {
+  final AppState state;
+  const _HarnessCard({required this.state});
+
+  @override
+  State<_HarnessCard> createState() => _HarnessCardState();
+}
+
+class _HarnessCardState extends State<_HarnessCard> {
+  bool _busy = false;
+  bool _running = false;
+  String _url = '';
+  String _info = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final r = await widget.state.api.dshStatus();
+    if (!mounted) return;
+    setState(() {
+      _running = r['running'] == true;
+      _url = (r['url'] ?? '').toString();
+      _info = '';
+    });
+  }
+
+  Future<void> _start() async {
+    setState(() => _busy = true);
+    final r = await widget.state.api.dshStart();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (r['ok'] == true) {
+        _running = true;
+        _url = (r['url'] ?? '').toString();
+        _info = '';
+      } else {
+        _info = '启动失败：${r['error'] ?? '未知错误'}';
+      }
+    });
+  }
+
+  Future<void> _stop() async {
+    setState(() => _busy = true);
+    final r = await widget.state.api.dshStop();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _running = false;
+      _url = '';
+      _info = (r['ok'] == true) ? '' : '停止失败：${r['error'] ?? '未知错误'}';
+    });
+  }
+
+  Future<void> _open() async {
+    if (_url.isEmpty) {
+      final r = await widget.state.api.dshStatus();
+      _url = (r['url'] ?? '').toString();
+    }
+    if (_url.isEmpty) {
+      setState(() => _info = '内核未运行，先点“启动内核”');
+      return;
+    }
+    try {
+      if (Platform.isWindows) {
+        await Process.start('cmd', ['/c', 'start', '', _url]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [_url]);
+      } else {
+        await Process.start('xdg-open', [_url]);
+      }
+    } catch (e) {
+      setState(() => _info = '打开失败：$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return _Card(title: 'DeepSeek Harness 内核（v5.0）', children: [
+      Text(
+        _running
+            ? '本地内核运行中，可打开控制台使用完整 Harness：插件市场、工具、轨迹、自动化任务。'
+            : '本地 Agent 内核（DeepSeek Harness，开源 MIT）。启动后可获得完整插件生态与 Agent 能力。',
+        style: const TextStyle(fontSize: 12.5, height: 1.6),
+      ),
+      const SizedBox(height: 10),
+      Row(children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _running ? cs.primary : cs.outlineVariant,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          _running ? '运行中 · 端口 3080' : '未运行',
+          style: TextStyle(
+              fontSize: 12.5, color: _running ? cs.primary : cs.outline),
+        ),
+        const Spacer(),
+        if (_running)
+          OutlinedButton(
+            onPressed: _busy ? null : _stop,
+            child: const Text('停止内核'),
+          ),
+        if (_running) ...[
+          const SizedBox(width: 8),
+          FilledButton.tonal(onPressed: _open, child: const Text('打开控制台')),
+        ] else
+          FilledButton(
+              onPressed: _busy ? null : _start, child: const Text('启动内核')),
+      ]),
+      if (_info.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(_info, style: TextStyle(fontSize: 12, color: cs.error)),
+        ),
+    ]);
+  }
+}
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
