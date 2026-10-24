@@ -57,7 +57,7 @@ jobs:
 
       - name: Download Node24 + install dsh runtime (offline bundle)
         run: |
-          $RT = "dist\darling-ai-5.0.0\runtime"
+          $RT = "$env:GITHUB_WORKSPACE\dist\darling-ai-5.0.0\runtime"
           New-Item -ItemType Directory -Force $RT\node | Out-Null
           New-Item -ItemType Directory -Force $RT\dsh | Out-Null
           Invoke-WebRequest -Uri "https://nodejs.org/dist/v24.10.0/node-v24.10.0-win-x64.zip" -OutFile node24.zip
@@ -194,7 +194,7 @@ jobs:
 
       - name: Download Node24 + install dsh runtime (offline bundle)
         run: |
-          RT=dist/darling-ai-5.0.0/runtime
+          RT="$GITHUB_WORKSPACE/dist/darling-ai-5.0.0/runtime"
           mkdir -p $RT/node $RT/dsh
           curl -sL -o node24.tar.xz "https://nodejs.org/dist/v24.10.0/node-v24.10.0-linux-x64.tar.xz"
           mkdir -p _node24
