@@ -64,8 +64,8 @@ jobs:
           Expand-Archive node24.zip -DestinationPath _node24
           Copy-Item "_node24\node-v24.10.0-win-x64\*" "$RT\node\" -Recurse
           Push-Location $RT\dsh
-          & "$RT\node\npm.cmd" init -y | Out-Null
-          & "$RT\node\npm.cmd" install @deepseek-ai/dsh@0.2.1-rc.2 --no-audit --no-fund 2>&1 | Select-Object -Last 1
+          & "$RT\node\node.exe" "$RT\node\node_modules\npm\bin\npm-cli.js" init -y | Out-Null
+          & "$RT\node\node.exe" "$RT\node\node_modules\npm\bin\npm-cli.js" install @deepseek-ai/dsh@0.2.1-rc.2 --no-audit --no-fund 2>&1 | Select-Object -Last 1
           Pop-Location
           Remove-Item -Recurse -Force _node24, node24.zip
         shell: pwsh
@@ -201,8 +201,8 @@ jobs:
           tar -xf node24.tar.xz -C _node24
           cp -r _node24/node-v24.10.0-linux-x64/* $RT/node/
           cd $RT/dsh
-          $RT/node/bin/npm init -y >/dev/null 2>&1
-          $RT/node/bin/npm install @deepseek-ai/dsh@0.2.1-rc.2 --no-audit --no-fund 2>&1 | tail -1
+          $RT/node/bin/node $RT/node/lib/node_modules/npm/bin/npm-cli.js init -y >/dev/null 2>&1
+          $RT/node/bin/node $RT/node/lib/node_modules/npm/bin/npm-cli.js install @deepseek-ai/dsh@0.2.1-rc.2 --no-audit --no-fund 2>&1 | tail -1
           cd -
           rm -rf _node24 node24.tar.xz
 
