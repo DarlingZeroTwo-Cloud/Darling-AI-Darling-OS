@@ -80,10 +80,10 @@ async function verifyJwt(token, secret) {
 }
 
 // JSON 响应
-function json(status, data) {
+function json(status, data, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS' },
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS', ...extraHeaders },
   });
 }
 
@@ -160,6 +160,38 @@ async function consumeImage(db, userId) {
   // 不限制额度，仅记录日志
   await db.prepare('INSERT INTO usage_log(user_id, kind, amount, created_at) VALUES(?,?,?,?)').bind(userId, 'image', 1, Math.floor(Date.now()/1000)).run();
   return true;
+}
+
+// ==================== 上游节流（Agnes 限流：约 10 次/分/IP，429 后约 30s 冷却） ====================
+const UPSTREAM_INTERVAL_MS = 10000;  // 上游请求最小间隔（≈6 次/分，留足余量）
+const UPSTREAM_MAX_WAIT_MS = 12000;  // 排队最长等待（避免撞 Workers 免费 30s 请求上限）
+const UPSTREAM_COOLDOWN_MS = 30000;  // 429 冷却时长
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function ensureGate(db) {
+  await db.prepare('INSERT OR IGNORE INTO upstream_gate(id, last_ts, cooldown_until) VALUES(1, 0, 0)').run();
+}
+
+/** 原子门控：串行化上游请求并把频率压进限流内。冷却中或排队超时返回 false（快速失败，不占长墙钟）。 */
+async function acquireUpstream(db) {
+  await ensureGate(db);
+  const t0 = Date.now();
+  for (;;) {
+    const now = Date.now();
+    const g = await db.prepare('SELECT last_ts, cooldown_until FROM upstream_gate WHERE id = 1').first();
+    if (g && g.cooldown_until > now) return false;   // 冷却中：立即返回，让客户端稍后重试
+    const r = await db.prepare('UPDATE upstream_gate SET last_ts = ? WHERE id = 1 AND last_ts <= ?').bind(now, now - UPSTREAM_INTERVAL_MS).run();
+    if (r.meta && r.meta.changes > 0) return true;
+    if (Date.now() - t0 > UPSTREAM_MAX_WAIT_MS) return false;
+    await sleep(600);
+  }
+}
+
+/** 标记上游冷却（429 时调用），让所有请求在冷却期内快速失败而非长时间等待。 */
+async function markUpstreamCooldown(db) {
+  await ensureGate(db);
+  await db.prepare('UPDATE upstream_gate SET cooldown_until = ? WHERE id = 1').bind(Date.now() + UPSTREAM_COOLDOWN_MS).run();
 }
 
 // ==================== 路由 ====================
@@ -346,19 +378,19 @@ async function handle(req, env, ctx) {
     }
     const upstream = `${(prov.base_url || '').replace(/\/+$/, '')}/chat/completions`;
     const body = { model: m.upstream_model, messages, stream: true };
+    // 上游节流门控（Agnes 限流：~10 次/分，429 冷却 30s）
+    if (!(await acquireUpstream(env.DB))) {
+      return json(503, { error: '上游繁忙，请稍后再试' });
+    }
     let resp = await fetch(upstream, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${prov.api_key}` },
       body: JSON.stringify(body),
     });
-    // 上游 429 限流时等待后重试一次
+    // 上游 429：标记冷却（后续请求快速 503），立即返回 429 让客户端稍后重试
     if (resp.status === 429) {
-      await new Promise(r => setTimeout(r, 1500));
-      resp = await fetch(upstream, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${prov.api_key}` },
-        body: JSON.stringify(body),
-      });
+      await markUpstreamCooldown(env.DB);
+      return json(429, { error: '上游限流中，请 30 秒后重试' }, { 'Retry-After': '30' });
     }
     if (!resp.ok || !resp.body) {
       return json(502, { error: `上游请求失败 (${resp.status})` });
@@ -439,19 +471,19 @@ async function handle(req, env, ctx) {
       messages: msgs,
       stream: b.stream || false,
     };
-    // 上游 429 限流时自动重试一次
+    // 上游节流门控（Agnes 限流：~10 次/分，429 冷却 30s）
+    if (!(await acquireUpstream(env.DB))) {
+      return json(503, { error: '上游繁忙，请稍后再试' });
+    }
+    // 上游 429 限流时等待冷却后自动重试一次
     let resp = await fetch(upstream, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${prov.api_key}` },
       body: JSON.stringify(upstreamBody),
     });
     if (resp.status === 429) {
-      await new Promise(r => setTimeout(r, 1500));
-      resp = await fetch(upstream, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${prov.api_key}` },
-        body: JSON.stringify(upstreamBody),
-      });
+      await markUpstreamCooldown(env.DB);
+      return json(429, { error: '上游限流中，请 30 秒后重试' }, { 'Retry-After': '30' });
     }
     const body = await resp.text();
     const ct = resp.status === 200 ? 'text/event-stream; charset=utf-8' : 'application/json; charset=utf-8';
@@ -473,11 +505,20 @@ async function handle(req, env, ctx) {
     const prompt = (b.prompt || '').toString();
     const upstream = `${(prov.base_url || '').replace(/\/+$/, '')}/images/generations`;
     try {
-      const resp = await fetch(upstream, {
+      // 上游节流门控（图片与文本共用同一上游 key，同一限流窗口）
+      if (!(await acquireUpstream(env.DB))) {
+        return json(503, { error: '上游繁忙，请稍后再试' });
+      }
+      const doFetch = () => fetch(upstream, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${prov.api_key}` },
         body: JSON.stringify({ model: m.upstream_image_model || m.upstream_model, prompt, n: 1 }),
       });
+      let resp = await doFetch();
+      if (resp.status === 429) {
+        await markUpstreamCooldown(env.DB);
+        return json(429, { error: '上游限流中，请 30 秒后重试' }, { 'Retry-After': '30' });
+      }
       const data = await resp.json();
       if (!resp.ok) return json(502, { error: (data.error?.message || `上游失败 (${resp.status})`) });
       const img = data.data?.[0];

@@ -63,3 +63,9 @@ CREATE TABLE usage_log (
   amount INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS upstream_gate (
+  id INTEGER PRIMARY KEY,
+  last_ts INTEGER NOT NULL DEFAULT 0
+);
