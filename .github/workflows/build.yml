@@ -89,10 +89,11 @@ jobs:
             -v "$PWD/archlinux:/work:Z" \
             -w /work \
             docker.io/archlinux/archlinux:base-devel bash -lc "
-              pacman -Sy --noconfirm --needed >/dev/null 2>&1
+              pacman -Sy --noconfirm >/dev/null 2>&1 || true
               useradd -m builder 2>/dev/null || true
               chown -R builder:builder /work
-              sudo -u builder makepkg -f --noconfirm 2>&1 | tail -20
+              # --nodeps：仅打包不解析依赖（镜像不装 gtk3/hyprland 等运行时依赖）
+              sudo -u builder makepkg -f --noconfirm --nodeps 2>&1 | tail -30
             "
           ls -lh archlinux/*.pkg.tar.zst
 
