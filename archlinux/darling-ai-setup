@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# darling-ai-setup —— 一键完成 Hyprland 集成 + 常驻服务启用
+# 用法：在桌面会话里运行一次（无需 root）
+set -e
+
+echo "== Darling AI for Darling OS 配置 =="
+
+# 1. Hyprland 集成：把窗口规则/快捷键 source 进 hyprland.conf
+HPR_DIR="$HOME/.config/hypr"
+HPR_CONF="$HPR_DIR/hyprland.conf"
+SRC_CONF="/usr/share/darling-ai/hyprland-darling-ai.conf"
+MARK="# darling-ai:"
+if [ -d "$HPR_DIR" ] && [ -f "$SRC_CONF" ]; then
+  if ! grep -q "$MARK" "$HPR_CONF" 2>/dev/null; then
+    mkdir -p "$HPR_DIR"
+    {
+      echo ""
+      echo "$MARK Hyprland 集成（自动生成，勿删）"
+      echo "source = $SRC_CONF"
+    } >> "$HPR_CONF"
+    echo "[OK] 已写入 Hyprland 集成（Win+Ctrl+D 唤起 / 悬浮球常驻）"
+  else
+    echo "[OK] Hyprland 集成已存在"
+  fi
+else
+  echo "[跳过] 未找到 Hyprland 配置（$HPR_DIR），桌面启动后手动 source：$SRC_CONF"
+fi
+
+# 2. 用户级常驻服务（开机自启 + 崩溃自动重启）
+systemctl --user enable --now darling-ai.service 2>/dev/null || true
+if systemctl --user is-active darling-ai.service >/dev/null 2>&1; then
+  echo "[OK] 常驻服务已启用并运行（悬浮球应在右下角）"
+else
+  echo "[提示] 服务已配置开机自启；当前无图形会话，登录桌面后自动运行"
+fi
+
+echo "== 完成。按 Win+Ctrl+D 可唤起完整窗口 =="

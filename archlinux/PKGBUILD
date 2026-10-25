@@ -10,9 +10,9 @@ license=('MIT')
 options=('!debug')
 depends=('gtk3' 'python' 'python-requests' 'tesseract' 'tesseract-data-chi_sim' 'grim' 'hyprland')
 optdepends=('dsh: DeepSeek Harness 本地内核（可选安装）')
-source=("darling-ai-bundle.tar.gz" "darling-ai-launcher" "darling-ai-toggle" "darling-ai.desktop" "darling-ai.service" "hyprland-darling-ai.conf" "darling-ai.svg")
+source=("darling-ai-bundle.tar.gz" "darling-ai-launcher" "darling-ai-toggle" "darling-ai.desktop" "darling-ai.service" "hyprland-darling-ai.conf" "darling-ai.svg" "darling-ai-setup")
 noextract=()
-md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # 主程序 + 后端 + 资源（bundle 解包后内容上移一层，避免 darling-ai-bundle/ 多余层级）
@@ -34,6 +34,9 @@ package() {
 
   # Hyprland 集成配置（用户可 include 或复制到 ~/.config/hypr/）
   install -Dm644 "$srcdir/hyprland-darling-ai.conf" "$pkgdir/usr/share/darling-ai/hyprland-darling-ai.conf"
+
+  # 一键配置脚本（Hyprland 集成 + 服务启用）
+  install -Dm755 "$srcdir/darling-ai-setup" "$pkgdir/usr/bin/darling-ai-setup"
 
   # 图标
   install -Dm644 "$srcdir/darling-ai.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/darling-ai.svg"

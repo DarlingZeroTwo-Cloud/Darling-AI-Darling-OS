@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
 # darling-ai launcher —— 启动本地桥接后端 + Flutter 主程序
+# 自动探测图形会话环境（systemd 用户服务下无 WAYLAND_DISPLAY/DISPLAY，需手动补）
 set -e
 
 APP_DIR="/usr/lib/darling-ai"
+
+# ── 探测图形会话 ──
+# systemd 用户服务默认不带 WAYLAND_DISPLAY/DISPLAY，导致 grim 读屏、窗口透明失效。
+# 从 XDG_RUNTIME_DIR 探测最新 wayland socket；无 Wayland 时退回 X11。
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+  for d in /run/user/$(id -u)/wayland-*; do
+    [ -S "$d" ] && export WAYLAND_DISPLAY="$(basename "$d")" && break
+  done
+fi
+if [ -z "${DISPLAY:-}" ]; then
+  export DISPLAY=":$(ls /tmp/.X11-unix 2>/dev/null | sed 's/X//' | sort -n | head -1)"
+fi
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 # 本地桥接后端（登录态/模型配置代理，随包安装）
 if [ -x "$APP_DIR/backend/darling-backend" ]; then

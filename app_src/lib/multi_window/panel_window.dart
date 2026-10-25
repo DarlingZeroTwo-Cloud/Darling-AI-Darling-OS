@@ -20,7 +20,7 @@ class PanelWindow extends StatefulWidget {
   State<PanelWindow> createState() => _PanelWindowState();
 }
 
-class _PanelWindowState extends State<PanelWindow> {
+class _PanelWindowState extends State<PanelWindow> with WindowListener {
   AppState? _state;
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
@@ -34,17 +34,37 @@ class _PanelWindowState extends State<PanelWindow> {
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     _init();
   }
 
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    _state?.removeListener(_onState);
+    _input.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// 防销毁：任务栏“关闭所有窗口”也只保留悬浮窗（由主窗口控制显隐）
+  @override
+  void onWindowClose() {
+    // 不关闭窗口（preventClose 已拦截）
+  }
+
   Future<void> _init() async {
-    // 无边框悬浮窗：置顶 + 固定尺寸
+    // 无边框悬浮窗：置顶 + 小尺寸，固定在屏幕右下角（不挡视野）
     final wm = windowManager;
+    await wm.setPreventClose(true);
     await wm.setTitle('darling-panel');
     await wm.setAsFrameless();
     await wm.setAlwaysOnTop(true);
-    await wm.setSize(const Size(400, 620));
+    await wm.setSize(const Size(380, 520));
     await wm.setBackgroundColor(Colors.transparent);
+    // 固定右下角（不挡视野）
+    await wm.setAlignment(Alignment.bottomRight);
+    await wm.show();
 
     // 独立 AppState 实例：连接同一本地桥接 → 云端账号/模型/配置共享
     try {
@@ -84,14 +104,6 @@ class _PanelWindowState extends State<PanelWindow> {
     }
   }
 
-  @override
-  void dispose() {
-    _state?.removeListener(_onState);
-    _input.dispose();
-    _scroll.dispose();
-    super.dispose();
-  }
-
   Future<void> _send() async {
     final st = _state;
     final text = _input.text.trim();
@@ -100,28 +112,30 @@ class _PanelWindowState extends State<PanelWindow> {
     await st.send(text);
   }
 
-  /// 读屏：截图 + OCR → 翻译/解释当前屏幕
+  /// 读屏：截图 + OCR → 翻译/解释当前屏幕（可取消）
   Future<void> _readScreen({bool translate = true}) async {
     final st = _state;
     if (st == null || st.busy) return;
     setState(() => _reading = true);
-    final r = await ScreenReader.captureText();
+    Map<String, String> r;
+    try {
+      r = await ScreenReader.captureText().timeout(const Duration(seconds: 20));
+    } catch (e) {
+      r = {'text': '', 'image': '', 'error': '读屏失败（超时或截图出错）：$e'};
+    }
+    if (!mounted) return;
     setState(() => _reading = false);
     if (r['error']!.isNotEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(r['error']!)),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(r['error']!)),
+      );
       return;
     }
     final text = r['text']!;
     if (text.trim().isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('屏幕上没有识别到文字')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('屏幕上没有识别到文字')),
+      );
       return;
     }
     final hint = translate
@@ -195,11 +209,55 @@ class _PanelWindowState extends State<PanelWindow> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      '02 悬浮助手 · $_modelName',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.onSurface),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: st == null || st.models.isEmpty
+                        ? Text(
+                            '02 悬浮助手',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.onSurface),
+                          )
+                        : PopupMenuButton<String>(
+                            initialValue: st.currentModelId,
+                            tooltip: '切换模型',
+                            onSelected: (id) {
+                              st.setModel(id);
+                              final m = st.model(id);
+                              setState(() {
+                                _modelName = (m?['name'] ?? id).toString();
+                              });
+                            },
+                            itemBuilder: (ctx) => [
+                              for (final m in st.models)
+                                PopupMenuItem<String>(
+                                  value: (m['id'] ?? '').toString(),
+                                  child: Row(children: [
+                                    if (m['id'] == st.currentModelId)
+                                      Icon(Icons.check, size: 15, color: cs.primary)
+                                    else
+                                      const SizedBox(width: 15),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        (m['name'] ?? m['id'] ?? '').toString(),
+                                        style: const TextStyle(fontSize: 12.5),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ]),
+                                ),
+                            ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '02 悬浮助手 · $_modelName',
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.onSurface),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Icon(Icons.arrow_drop_down, size: 16, color: cs.onSurfaceVariant),
+                              ],
+                            ),
+                          ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.open_in_full, size: 17),
@@ -217,6 +275,25 @@ class _PanelWindowState extends State<PanelWindow> {
               ),
             ),
             // ── 消息区 ──
+            if (st != null && !st.cloudLoggedIn)
+              InkWell(
+                onTap: _openMain,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  color: dark ? const Color(0xFF3A2E22) : const Color(0xFFFFF4E0),
+                  child: Row(children: [
+                    Icon(Icons.login, size: 14, color: dark ? const Color(0xFFFFC46B) : const Color(0xFF9A6B00)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '未登录，点击打开主窗口登录后即可使用',
+                        style: TextStyle(fontSize: 11.5, color: dark ? const Color(0xFFFFC46B) : const Color(0xFF9A6B00)),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
             Expanded(
               child: st == null
                   ? const Center(child: CircularProgressIndicator())
@@ -294,17 +371,25 @@ class _PanelWindowState extends State<PanelWindow> {
                   // 工具行
                   Row(
                     children: [
-                      _toolBtn(
-                        icon: Icons.screenshot_monitor,
-                        label: '读屏翻译',
-                        onTap: _reading ? null : () => _readScreen(translate: true),
-                      ),
-                      const SizedBox(width: 6),
-                      _toolBtn(
-                        icon: Icons.remove_red_eye_outlined,
-                        label: '读屏提问',
-                        onTap: _reading ? null : () => _readScreen(translate: false),
-                      ),
+                      if (_reading)
+                        _toolBtn(
+                          icon: Icons.stop_circle_outlined,
+                          label: '取消读取',
+                          onTap: () => setState(() => _reading = false),
+                        )
+                      else ...[
+                        _toolBtn(
+                          icon: Icons.screenshot_monitor,
+                          label: '读屏翻译',
+                          onTap: () => _readScreen(translate: true),
+                        ),
+                        const SizedBox(width: 6),
+                        _toolBtn(
+                          icon: Icons.remove_red_eye_outlined,
+                          label: '读屏提问',
+                          onTap: () => _readScreen(translate: false),
+                        ),
+                      ],
                       const Spacer(),
                       if (st != null && st.busy)
                         TextButton(

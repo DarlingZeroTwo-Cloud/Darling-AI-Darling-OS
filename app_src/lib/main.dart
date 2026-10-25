@@ -206,14 +206,30 @@ String _sockPath() {
   return '/run/user/$uid/darling-ai.sock';
 }
 
+/// 常驻模式：同目录 daemon.json 含 {"daemon":true} 时主窗口隐藏启动，只留悬浮球
+bool _daemonMode() {
+  try {
+    final f = File('${File(Platform.resolvedExecutable).parent.path}/daemon.json');
+    if (f.existsSync()) {
+      final m = jsonDecode(f.readAsStringSync());
+      return m['daemon'] == true;
+    }
+  } catch (_) {}
+  return false;
+}
+
 Future<void> _initMultiWindow() async {
+  // 悬浮球：隐藏创建，由 ball 窗口内部完成尺寸/定位后自行显示（避免 1280x720 黑块闪现）
   try {
     _ballCtrl = await WindowController.create(WindowConfiguration(
       arguments: const WinArgs(WinKind.ball).encode(),
-      hiddenAtLaunch: false,
+      hiddenAtLaunch: true,
     ));
   } catch (_) {}
-  // 跨窗口控制通道：悬浮球/悬浮窗 → 主窗口
+}
+
+/// 跨窗口控制通道（unidirectional，仅主窗口注册 handler；runApp 后注册更可靠）
+Future<void> _registerWindowChannel() async {
   const ch = WindowMethodChannel(kCtrlChannel, mode: ChannelMode.unidirectional);
   try {
     await ch.setMethodCallHandler((call) async {
@@ -242,7 +258,7 @@ Future<void> _openPanel() async {
   try {
     _panelCtrl = await WindowController.create(WindowConfiguration(
       arguments: const WinArgs(WinKind.panel).encode(),
-      hiddenAtLaunch: false,
+      hiddenAtLaunch: true,
     ));
   } catch (_) {}
 }
@@ -365,9 +381,16 @@ Future<void> main(List<String> args) async {
     center: true,
     title: 'Darling AI',
   );
+  final daemon = _daemonMode();
   windowManager.waitUntilReadyToShow(winOpts, () async {
-    await windowManager.show();
-    await windowManager.focus();
+    if (daemon) {
+      // 常驻模式：主窗口隐藏启动，只留悬浮球（不挡视野）
+      await windowManager.hide();
+      _mainVisible = false;
+    } else {
+      await windowManager.show();
+      await windowManager.focus();
+    }
   });
   await windowManager.setPreventClose(true);
   await _initMultiWindow();
@@ -398,6 +421,8 @@ class _DarlingAppState extends State<DarlingApp> with WidgetsBindingObserver, Wi
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     windowManager.addListener(this);
+    // runApp 之后注册跨窗口通道（悬浮球点击 → 弹悬浮窗 / 打开主窗口）
+    _registerWindowChannel();
   }
 
   @override

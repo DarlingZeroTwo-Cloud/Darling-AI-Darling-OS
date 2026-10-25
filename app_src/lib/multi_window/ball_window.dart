@@ -13,7 +13,7 @@ class BallWindow extends StatefulWidget {
   State<BallWindow> createState() => _BallWindowState();
 }
 
-class _BallWindowState extends State<BallWindow> {
+class _BallWindowState extends State<BallWindow> with WindowListener {
   WindowController? _ctrl;
   bool _panelOpen = false;
   final WindowMethodChannel _channel = const WindowMethodChannel(
@@ -24,19 +24,35 @@ class _BallWindowState extends State<BallWindow> {
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     _init();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  /// 防销毁：任何来源的“关闭”（含任务栏关闭所有窗口）都只保留悬浮球
+  @override
+  void onWindowClose() {
+    // 不关闭窗口（preventClose 已拦截）；悬浮球常驻
   }
 
   Future<void> _init() async {
     final ctrl = await WindowController.fromCurrentEngine();
     _ctrl = ctrl;
-    // 无边框 + 透明 + 置顶 + 固定大小
+    // 无边框 + 透明 + 置顶 + 固定大小，固定在屏幕右下角（不挡视野）
     final wm = windowManager;
+    await wm.setPreventClose(true);
     await wm.setTitle('darling-ball');
     await wm.setAsFrameless();
     await wm.setAlwaysOnTop(true);
     await wm.setSize(const Size(56, 56));
     await wm.setBackgroundColor(Colors.transparent);
+    // 固定右下角（不挡视野）
+    await wm.setAlignment(Alignment.bottomRight);
     await wm.show();
     if (mounted) setState(() {});
   }
@@ -78,8 +94,8 @@ class _BallWindowState extends State<BallWindow> {
         onSecondaryTapDown: (d) => _onRightClick(d.globalPosition),
         child: Center(
           child: Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(
