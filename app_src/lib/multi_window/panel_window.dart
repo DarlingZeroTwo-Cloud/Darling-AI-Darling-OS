@@ -40,6 +40,7 @@ class _PanelWindowState extends State<PanelWindow> {
   Future<void> _init() async {
     // 无边框悬浮窗：置顶 + 固定尺寸
     final wm = windowManager;
+    await wm.setTitle('darling-panel');
     await wm.setAsFrameless();
     await wm.setAlwaysOnTop(true);
     await wm.setSize(const Size(400, 620));

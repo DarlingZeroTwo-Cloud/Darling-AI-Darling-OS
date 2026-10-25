@@ -32,6 +32,7 @@ class _BallWindowState extends State<BallWindow> {
     _ctrl = ctrl;
     // 无边框 + 透明 + 置顶 + 固定大小
     final wm = windowManager;
+    await wm.setTitle('darling-ball');
     await wm.setAsFrameless();
     await wm.setAlwaysOnTop(true);
     await wm.setSize(const Size(56, 56));
