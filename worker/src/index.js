@@ -165,7 +165,7 @@ async function consumeImage(db, userId) {
 // ==================== 上游节流（Agnes 限流：约 10 次/分/IP，429 后约 30s 冷却） ====================
 const UPSTREAM_INTERVAL_MS = 10000;  // 上游请求最小间隔（≈6 次/分，留足余量）
 const UPSTREAM_MAX_WAIT_MS = 12000;  // 排队最长等待（避免撞 Workers 免费 30s 请求上限）
-const UPSTREAM_COOLDOWN_MS = 30000;  // 429 冷却时长
+const UPSTREAM_COOLDOWN_MS = 90000;  // 429 冷却时长（Agnes 恢复窗口 >30s，取 90s 覆盖）
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -180,10 +180,10 @@ async function acquireUpstream(db) {
   for (;;) {
     const now = Date.now();
     const g = await db.prepare('SELECT last_ts, cooldown_until FROM upstream_gate WHERE id = 1').first();
-    if (g && g.cooldown_until > now) return false;   // 冷却中：立即返回，让客户端稍后重试
+    if (g && g.cooldown_until > now) return { ok: false, reason: 'cooldown' };   // 冷却中：快速失败，让客户端延后重试
     const r = await db.prepare('UPDATE upstream_gate SET last_ts = ? WHERE id = 1 AND last_ts <= ?').bind(now, now - UPSTREAM_INTERVAL_MS).run();
-    if (r.meta && r.meta.changes > 0) return true;
-    if (Date.now() - t0 > UPSTREAM_MAX_WAIT_MS) return false;
+    if (r.meta && r.meta.changes > 0) return { ok: true };
+    if (Date.now() - t0 > UPSTREAM_MAX_WAIT_MS) return { ok: false, reason: 'timeout' };
     await sleep(600);
   }
 }
@@ -379,7 +379,9 @@ async function handle(req, env, ctx) {
     const upstream = `${(prov.base_url || '').replace(/\/+$/, '')}/chat/completions`;
     const body = { model: m.upstream_model, messages, stream: true };
     // 上游节流门控（Agnes 限流：~10 次/分，429 冷却 30s）
-    if (!(await acquireUpstream(env.DB))) {
+    const gate = await acquireUpstream(env.DB);
+    if (!gate.ok) {
+      if (gate.reason === 'cooldown') return json(429, { error: '上游限流中，请稍后再试' }, { 'Retry-After': '90' });
       return json(503, { error: '上游繁忙，请稍后再试' });
     }
     let resp = await fetch(upstream, {
@@ -390,7 +392,7 @@ async function handle(req, env, ctx) {
     // 上游 429：标记冷却（后续请求快速 503），立即返回 429 让客户端稍后重试
     if (resp.status === 429) {
       await markUpstreamCooldown(env.DB);
-      return json(429, { error: '上游限流中，请 30 秒后重试' }, { 'Retry-After': '30' });
+      return json(429, { error: '上游限流中，请稍后再试' }, { 'Retry-After': '90' });
     }
     if (!resp.ok || !resp.body) {
       return json(502, { error: `上游请求失败 (${resp.status})` });
@@ -472,7 +474,9 @@ async function handle(req, env, ctx) {
       stream: b.stream || false,
     };
     // 上游节流门控（Agnes 限流：~10 次/分，429 冷却 30s）
-    if (!(await acquireUpstream(env.DB))) {
+    const gate = await acquireUpstream(env.DB);
+    if (!gate.ok) {
+      if (gate.reason === 'cooldown') return json(429, { error: '上游限流中，请稍后再试' }, { 'Retry-After': '90' });
       return json(503, { error: '上游繁忙，请稍后再试' });
     }
     // 上游 429 限流时等待冷却后自动重试一次
@@ -483,7 +487,7 @@ async function handle(req, env, ctx) {
     });
     if (resp.status === 429) {
       await markUpstreamCooldown(env.DB);
-      return json(429, { error: '上游限流中，请 30 秒后重试' }, { 'Retry-After': '30' });
+      return json(429, { error: '上游限流中，请稍后再试' }, { 'Retry-After': '90' });
     }
     const body = await resp.text();
     const ct = resp.status === 200 ? 'text/event-stream; charset=utf-8' : 'application/json; charset=utf-8';
@@ -517,7 +521,7 @@ async function handle(req, env, ctx) {
       let resp = await doFetch();
       if (resp.status === 429) {
         await markUpstreamCooldown(env.DB);
-        return json(429, { error: '上游限流中，请 30 秒后重试' }, { 'Retry-After': '30' });
+        return json(429, { error: '上游限流中，请稍后再试' }, { 'Retry-After': '90' });
       }
       const data = await resp.json();
       if (!resp.ok) return json(502, { error: (data.error?.message || `上游失败 (${resp.status})`) });
