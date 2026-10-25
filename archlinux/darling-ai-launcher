@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# darling-ai launcher —— 启动本地桥接后端 + Flutter 主程序
+set -e
+
+APP_DIR="/usr/lib/darling-ai"
+
+# 本地桥接后端（登录态/模型配置代理，随包安装）
+if [ -x "$APP_DIR/backend/darling-backend" ]; then
+  "$APP_DIR/backend/darling-backend" >/dev/null 2>&1 &
+fi
+
+exec "$APP_DIR/darling_ai" "$@"

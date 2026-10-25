@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:window_manager/window_manager.dart';
 
 import 'bridge.dart';
 import 'state.dart';
@@ -14,6 +16,9 @@ import 'pages/chat_page.dart';
 import 'pages/models_page.dart';
 import 'pages/plugins_page.dart';
 import 'pages/settings_page.dart';
+import 'multi_window/window_args.dart';
+import 'multi_window/ball_window.dart';
+import 'multi_window/panel_window.dart';
 
 const Color kPrimaryLight = Color(0xFF0F766E);
 const Color kPrimaryDark = Color(0xFF2BBBAD);
@@ -188,7 +193,116 @@ class _TrustAllOverrides extends HttpOverrides {
   }
 }
 
-void main() async {
+// ==================== Darling OS 多窗口 / 常驻 ====================
+// 主窗口持有悬浮球/悬浮窗的控制器；Win+Ctrl+D 经 unix socket 通知主窗口切换显隐
+WindowController? _ballCtrl;
+WindowController? _panelCtrl;
+bool _mainVisible = true;
+
+String _sockPath() {
+  final runtime = Platform.environment['XDG_RUNTIME_DIR'];
+  if (runtime != null && runtime.isNotEmpty) return '$runtime/darling-ai.sock';
+  final uid = Platform.environment['UID'] ?? '0';
+  return '/run/user/$uid/darling-ai.sock';
+}
+
+Future<void> _initMultiWindow() async {
+  try {
+    _ballCtrl = await WindowController.create(WindowConfiguration(
+      arguments: const WinArgs(WinKind.ball).encode(),
+      hiddenAtLaunch: false,
+    ));
+  } catch (_) {}
+  // 跨窗口控制通道：悬浮球/悬浮窗 → 主窗口
+  const ch = WindowMethodChannel(kCtrlChannel, mode: ChannelMode.unidirectional);
+  try {
+    await ch.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'openPanel':
+          await _openPanel();
+          break;
+        case 'showMain':
+          await _showMainWindow();
+          break;
+        case 'quit':
+          exit(0);
+      }
+      return null;
+    });
+  } catch (_) {}
+}
+
+Future<void> _openPanel() async {
+  if (_panelCtrl != null) {
+    try {
+      await _panelCtrl!.show();
+    } catch (_) {}
+    return;
+  }
+  try {
+    _panelCtrl = await WindowController.create(WindowConfiguration(
+      arguments: const WinArgs(WinKind.panel).encode(),
+      hiddenAtLaunch: false,
+    ));
+  } catch (_) {}
+}
+
+Future<void> _showMainWindow() async {
+  _mainVisible = true;
+  await windowManager.show();
+  await windowManager.focus();
+  try {
+    await _ballCtrl?.hide();
+  } catch (_) {}
+  try {
+    await _panelCtrl?.hide();
+  } catch (_) {}
+}
+
+Future<void> _hideMainWindow() async {
+  _mainVisible = false;
+  await windowManager.hide();
+  try {
+    await _ballCtrl?.show();
+  } catch (_) {}
+  try {
+    await _panelCtrl?.hide();
+  } catch (_) {}
+}
+
+Future<void> _toggleMainWindow() async {
+  if (_mainVisible) {
+    await _hideMainWindow();
+  } else {
+    await _showMainWindow();
+  }
+}
+
+/// 监听 unix socket：darling-ai-toggle 脚本发 'toggle' / 'quit'
+Future<void> _listenToggleSocket() async {
+  try {
+    final sock = _sockPath();
+    // 清理上次残留的 socket 文件
+    try {
+      final f = File(sock);
+      if (f.existsSync()) f.deleteSync();
+    } catch (_) {}
+    final server = await ServerSocket.bind(
+        InternetAddress(sock, type: InternetAddressType.unix), 0);
+    server.listen((socket) {
+      socket.listen((data) async {
+        final cmd = utf8.decode(data).trim();
+        if (cmd == 'toggle') await _toggleMainWindow();
+        if (cmd == 'quit') exit(0);
+      });
+    });
+  } catch (_) {}
+}
+
+/// 打开/显示悬浮对话窗（悬浮球点击时调用）
+Future<void> showPanelFromMain() => _openPanel();
+
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   // 全局放行自定义域名证书（桌面/安卓统一）：
   // api.darling02.de5.net 使用 Cloudflare 边缘证书，部分系统根证书链
@@ -211,6 +325,54 @@ void main() async {
       ),
     );
   };
+
+  // 多窗口分派：主窗口 / 悬浮球 / 悬浮对话窗
+  WindowController ctrl;
+  try {
+    ctrl = await WindowController.fromCurrentEngine();
+  } catch (_) {
+    ctrl = WindowController.fromWindowId('main');
+  }
+  final winArgs = WinArgs.parse(ctrl.arguments);
+  switch (winArgs.kind) {
+    case WinKind.ball:
+      runApp(MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
+        themeMode: ThemeMode.system,
+        home: const BallWindow(),
+      ));
+      return;
+    case WinKind.panel:
+      runApp(MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
+        themeMode: ThemeMode.system,
+        home: const PanelWindow(),
+      ));
+      return;
+    case WinKind.main:
+      break;
+  }
+
+  // ---- 主窗口：窗口管理 + 悬浮球 + socket 常驻 ----
+  await windowManager.ensureInitialized();
+  const winOpts = WindowOptions(
+    size: Size(1280, 800),
+    minimumSize: Size(960, 600),
+    center: true,
+    title: 'Darling AI',
+  );
+  windowManager.waitUntilReadyToShow(winOpts, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+  await windowManager.setPreventClose(true);
+  await _initMultiWindow();
+  await _listenToggleSocket();
+
   await ensureBackend();
   final api = BridgeClient();
   final state = AppState(api);
@@ -230,19 +392,39 @@ class DarlingApp extends StatefulWidget {
   State<DarlingApp> createState() => _DarlingAppState();
 }
 
-class _DarlingAppState extends State<DarlingApp> with WidgetsBindingObserver {
+class _DarlingAppState extends State<DarlingApp> with WidgetsBindingObserver, WindowListener {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    windowManager.addListener(this);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    windowManager.removeListener(this);
     // 退出时干净关闭后端，释放 GGUF 文件句柄（否则 Windows 删目录报占用）
     shutdownBackend();
     super.dispose();
+  }
+
+  @override
+  void onWindowClose() async {
+    // 常驻模式：点关闭只是隐藏主窗口，悬浮球恢复
+    _mainVisible = false;
+    await windowManager.hide();
+    try {
+      await _ballCtrl?.show();
+    } catch (_) {}
+  }
+
+  @override
+  void onWindowMinimize() async {
+    // 最小化同样进入常驻：悬浮球恢复
+    try {
+      await _ballCtrl?.show();
+    } catch (_) {}
   }
 
   @override
@@ -304,7 +486,7 @@ class _HomeShellState extends State<HomeShell> {
     try {
       final resp = await http
           .get(Uri.parse(
-              'https://api.github.com/repos/DarlingZeroTwo-Cloud/Darling-ai/releases/latest'))
+              'https://api.github.com/repos/DarlingZeroTwo-Cloud/Darling-AI-Darling-OS/releases/latest'))
           .timeout(const Duration(seconds: 8));
       if (resp.statusCode != 200) return;
       final data = jsonDecode(resp.body) as Map<String, dynamic>;

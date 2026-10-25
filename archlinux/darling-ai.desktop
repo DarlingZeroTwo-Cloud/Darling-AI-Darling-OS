@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Darling AI
+Name[zh_CN]=达令 AI
+GenericName=AI Assistant
+GenericName[zh_CN]=AI 助手
+Comment=Darling OS 专属 AI 助手 02
+Comment[zh_CN]=Darling OS 专属 AI 助手 02
+Exec=/usr/bin/darling-ai
+Icon=darling-ai
+Terminal=false
+Categories=Utility;Office;
+Keywords=AI;chat;darling;02;
+StartupNotify=false
+X-Hyprland-Container=1

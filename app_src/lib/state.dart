@@ -64,7 +64,7 @@ class AppState extends ChangeNotifier {
   String get uiMode => (settings['ui_mode'] ?? 'compact').toString();
 
   /// 当前应用版本号
-  String get appVersion => '5.0.0';
+  String get appVersion => '4.1.9';
 
   // ---------------- 4.0 云端账号 ----------------
   // 双地址：先 https，握手失败自动切 http
@@ -554,7 +554,7 @@ class AppState extends ChangeNotifier {
       }).toList();
       final payload = {
         'app': 'darling-ai',
-        'version': '3.3.8',
+        'version': appVersion,
         'exported_at': ts.toIso8601String(),
         'model_id': currentModelId,
         'messages': items,

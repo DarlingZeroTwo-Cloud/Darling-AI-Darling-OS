@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# darling-ai-toggle —— Win+Ctrl+D 唤起/收起 Darling AI
+#
+# 应用常驻时监听 $XDG_RUNTIME_DIR/darling-ai.sock：
+#   - 收到 'toggle' → 主窗口显示 ↔ 隐藏（圆点/悬浮窗自动联动）
+#   - 应用未运行 → 直接启动
+set -e
+
+SOCK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/darling-ai.sock"
+
+if [ -S "$SOCK" ]; then
+  # 应用已在运行，通知切换窗口状态（短超时，避免阻塞快捷键）
+  timeout 1 bash -c "printf 'toggle' > '$SOCK'" 2>/dev/null || true
+else
+  # 未运行则拉起（systemd 会接管常驻）
+  if command -v systemctl >/dev/null 2>&1 && \
+     systemctl --user is-enabled darling-ai.service >/dev/null 2>&1; then
+    systemctl --user start darling-ai.service
+  else
+    nohup /usr/bin/darling-ai >/dev/null 2>&1 &
+  fi
+fi

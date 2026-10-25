@@ -1,161 +1,20 @@
-name: build-5.0.0
+name: build-darling-ai-darling-os
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v5.0.0*'
+      - 'v4.1.9*'
 
 permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install deps
-        run: |
-          pip install pyinstaller requests
-          choco install innosetup -y
-
-      - name: Build Flutter Windows
-        run: |
-          Remove-Item -Recurse -Force app\lib -ErrorAction SilentlyContinue
-          Copy-Item -Recurse app_src\lib app\lib
-          Copy-Item app_src\pubspec.yaml app\pubspec.yaml -Force
-          cd app
-          flutter pub get
-          flutter build windows --release
-        shell: pwsh
-
-      - name: Build Python backend
-        run: |
-          cd backend
-          pyinstaller --onefile --name darling-backend --noconsole bridge_server.py --collect-all requests
-        shell: pwsh
-
-      - name: Assemble dist
-        run: |
-          $DIST = "dist\darling-ai-5.0.0"
-          New-Item -ItemType Directory -Force $DIST | Out-Null
-          New-Item -ItemType Directory -Force "$DIST\backend" | Out-Null
-          New-Item -ItemType Directory -Force "$DIST\plugins" | Out-Null
-          Copy-Item -Recurse "app\build\windows\x64\runner\Release\*" $DIST\
-          Copy-Item "backend\dist\darling-backend.exe" "$DIST\backend\"
-          Copy-Item "backend\plugins\*.json" "$DIST\plugins\" -ErrorAction SilentlyContinue
-        shell: pwsh
-
-      - name: Download Node24 + install dsh runtime (offline bundle)
-        run: |
-          $RT = "$env:GITHUB_WORKSPACE\dist\darling-ai-5.0.0\runtime"
-          New-Item -ItemType Directory -Force $RT\node | Out-Null
-          New-Item -ItemType Directory -Force $RT\dsh | Out-Null
-          Invoke-WebRequest -Uri "https://nodejs.org/dist/v24.10.0/node-v24.10.0-win-x64.zip" -OutFile node24.zip
-          Expand-Archive node24.zip -DestinationPath _node24
-          Copy-Item "_node24\node-v24.10.0-win-x64\*" "$RT\node\" -Recurse
-          Push-Location $RT\dsh
-          & "$RT\node\node.exe" "$RT\node\node_modules\npm\bin\npm-cli.js" init -y | Out-Null
-          & "$RT\node\node.exe" "$RT\node\node_modules\npm\bin\npm-cli.js" install @deepseek-ai/dsh@0.2.1-rc.2 --no-audit --no-fund 2>&1 | Select-Object -Last 1
-          Pop-Location
-          Remove-Item -Recurse -Force _node24, node24.zip
-        shell: pwsh
-
-      - name: Pack portable zip
-        run: |
-          Compress-Archive -Path "dist\darling-ai-5.0.0\*" -DestinationPath "darling-ai-5.0.0-portable.zip" -Force
-        shell: pwsh
-
-      - name: Build installer (Chinese UI)
-        run: |
-          # 中文语言文件已随仓库提交（带 UTF-8 BOM，ISCC 才能正确识别）
-          $langFile = "$env:GITHUB_WORKSPACE\installer\ChineseSimplified.isl"
-          Write-Host "Language file: $langFile"
-          $langLine = "Name: `"chinesesimplified`"; MessagesFile: `"$langFile`""
-          $iss = @"
-          #define MyAppName "darling-ai"
-          #define MyAppVersion "5.0.0"
-          #define MyAppPublisher "darling"
-          #define MyAppExeName "darling_ai.exe"
-          [Setup]
-          AppId={{8F3A2B1E-4C5D-7E8F-9A0B-1C2D3E4F5A6B}}
-          AppName={#MyAppName}
-          AppVersion={#MyAppVersion}
-          AppPublisher={#MyAppPublisher}
-          AppVerName=darling-ai {#MyAppVersion}
-          DefaultDirName={autopf}\darling-ai
-          DefaultGroupName=darling-ai
-          AllowNoIcons=yes
-          DisableProgramGroupPage=yes
-          OutputDir=.
-          OutputBaseFilename=darling-ai-5.0.0-setup
-          Compression=lzma2
-          SolidCompression=yes
-          WizardStyle=modern
-          UninstallDisplayIcon={app}\{#MyAppExeName}
-          ArchitecturesInstallIn64BitMode=x64compatible
-          PrivilegesRequired=lowest
-          PrivilegesRequiredOverridesAllowed=dialog
-          CloseApplications=yes
-          [Languages]
-          $langLine
-          [Tasks]
-          Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional tasks:"; Flags: checkedonce
-          [Files]
-          Source: "dist\darling-ai-5.0.0\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
-          [Icons]
-          Name: "{group}\darling-ai"; Filename: "{app}\{#MyAppExeName}"
-          Name: "{group}\Uninstall darling-ai"; Filename: "{uninstallexe}"
-          Name: "{commondesktop}\darling-ai"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-          [Run]
-          Filename: "{app}\{#MyAppExeName}"; Description: "Launch darling-ai"; Flags: nowait postinstall skipifsilent
-          [UninstallDelete]
-          Type: filesandordirs; Name: "{app}\*"
-          Type: dirifempty; Name: "{app}"
-          [Code]
-          procedure KillAppProcesses;
-          var R: Integer;
-          begin
-            Exec('taskkill.exe', '/F /IM darling_ai.exe /T', '', SW_HIDE, ewWaitUntilTerminated, R);
-            Exec('taskkill.exe', '/F /IM darling-backend.exe /T', '', SW_HIDE, ewWaitUntilTerminated, R);
-            Sleep(600);
-          end;
-          function PrepareToInstall(var NeedsRestart: Boolean): String;
-          begin Result := ''; KillAppProcesses; end;
-          function InitializeUninstall(): Boolean;
-          begin Result := True; KillAppProcesses; end;
-          "@
-          $iss | Out-File -FilePath "build-installer.iss" -Encoding UTF8
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build-installer.iss
-        shell: pwsh
-
-      - name: Upload windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: darling-ai-5.0.0-windows
-          path: |
-            darling-ai-5.0.0-portable.zip
-            darling-ai-5.0.0-setup.exe
-
-      - name: Release upload (Windows)
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            darling-ai-5.0.0-portable.zip
-            darling-ai-5.0.0-setup.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-linux:
+  # ============================================================
+  # Arch Linux 专属发行版：构建 Flutter Linux 产物 + Python 后端，
+  # 在 Arch 容器内用 makepkg 打成 .pkg.tar.zst（pacman 专属格式）
+  # ============================================================
+  build-arch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -184,6 +43,25 @@ jobs:
           if [ ! -d linux ]; then flutter create --platforms=linux .; fi
           sed -i 's/set(BINARY_NAME "app")/set(BINARY_NAME "darling_ai")/' linux/CMakeLists.txt
           sed -i 's/gtk_window_set_title(window, "app")/gtk_window_set_title(window, "darling-ai")/' linux/runner/my_application.cc || true
+          # 注入 desktop_multi_window 子窗口插件注册回调（多窗口必需）
+          python3 - <<'PYEOF'
+          import re
+          p = 'linux/runner/my_application.cc'
+          src = open(p, encoding='utf-8').read()
+          if 'desktop_multi_window_plugin_set_window_created_callback' not in src:
+              # 加 include
+              src = src.replace(
+                  '#include "my_application.h"',
+                  '#include "my_application.h"\n#include "desktop_multi_window/desktop_multi_window_plugin.h"',
+              )
+              # 在 fl_register_plugins 后注册子窗口回调
+              src = src.replace(
+                  'fl_register_plugins(FL_PLUGIN_REGISTRY(view));',
+                  'fl_register_plugins(FL_PLUGIN_REGISTRY(view));\n  desktop_multi_window_plugin_set_window_created_callback([](FlPluginRegistry* registry) { fl_register_plugins(registry); });',
+              )
+              open(p, 'w', encoding='utf-8').write(src)
+          print('my_application.cc patched' if 'desktop_multi_window_plugin_set_window_created_callback' in src else 'NO-CHANGE')
+          PYEOF
           flutter build linux --release
 
       - name: Build Python backend
@@ -192,102 +70,45 @@ jobs:
           pyinstaller --onefile --name darling-backend --noconsole bridge_server.py \
             --collect-all requests
 
-      - name: Download Node24 + install dsh runtime (offline bundle)
+      - name: Assemble Arch bundle
         run: |
-          RT="$GITHUB_WORKSPACE/runtime-bundle"
-          mkdir -p $RT/node $RT/dsh
-          curl -sL -o node24.tar.xz "https://nodejs.org/dist/v24.10.0/node-v24.10.0-linux-x64.tar.xz"
-          mkdir -p _node24
-          tar -xf node24.tar.xz -C _node24
-          cp -r _node24/node-v24.10.0-linux-x64/* $RT/node/
-          cd $RT/dsh
-          $RT/node/bin/node $RT/node/lib/node_modules/npm/bin/npm-cli.js init -y >/dev/null 2>&1
-          $RT/node/bin/node $RT/node/lib/node_modules/npm/bin/npm-cli.js install @deepseek-ai/dsh@0.2.1-rc.2 --no-audit --no-fund 2>&1 | tail -1
-          cd -
-          rm -rf _node24 node24.tar.xz
+          BUNDLE="bundle/darling-ai-bundle"
+          mkdir -p "$BUNDLE/backend" "$BUNDLE/plugins"
+          cp -r app/build/linux/x64/release/bundle/* "$BUNDLE/"
+          cp backend/dist/darling-backend "$BUNDLE/backend/"
+          cp backend/plugins/*.json "$BUNDLE/plugins/" 2>/dev/null || true
+          cp assets/* "$BUNDLE/" 2>/dev/null || true
+          # 关闭主窗口时保持常驻的最小配置
+          echo '{"daemon":true}' > "$BUNDLE/daemon.json"
+          tar -czf archlinux/darling-ai-bundle.tar.gz -C bundle darling-ai-bundle
 
-      - name: Assemble tar.gz
+      - name: Build Arch package (.pkg.tar.zst)
         run: |
-          DIST=dist/darling-ai-5.0.0
-          rm -rf dist
-          mkdir -p $DIST/backend $DIST/plugins
-          cp -r app/build/linux/x64/release/bundle/. $DIST/
-          cp backend/dist/darling-backend $DIST/backend/
-          chmod +x $DIST/backend/darling-backend
-          cp backend/plugins/*.json $DIST/plugins/ 2>/dev/null || true
-          cp -r "$GITHUB_WORKSPACE/runtime-bundle" $DIST/runtime
-          chmod +x $DIST/runtime/node/bin/node
-          du -sh $DIST
-          tar czf darling-ai-5.0.0-linux-x64.tar.gz dist/
+          # makepkg 不允许 root 运行：容器内建普通用户
+          docker run --rm \
+            -v "$PWD/archlinux:/work:Z" \
+            -w /work \
+            docker.io/archlinux/archlinux:base-devel bash -lc "
+              pacman -Sy --noconfirm --needed >/dev/null 2>&1
+              useradd -m builder 2>/dev/null || true
+              chown -R builder:builder /work
+              sudo -u builder makepkg -f --noconfirm 2>&1 | tail -20
+            "
+          ls -lh archlinux/*.pkg.tar.zst
 
-      - name: Build deb package (all runtime deps bundled, offline install)
-        run: |
-          DIST=dist/darling-ai-5.0.0
-          PKG=darling-ai_5.0.0_amd64
-          rm -rf $PKG
-          mkdir -p $PKG/DEBIAN $PKG/usr/share/darling-ai $PKG/usr/bin $PKG/usr/share/applications
-          # 应用本体（Flutter bundle 自带全部 Flutter 库；backend 为 PyInstaller onefile，自带 Python 解释器）
-          cp -r $DIST/. $PKG/usr/share/darling-ai/
-          # 启动命令：darling-ai
-          cat > $PKG/usr/bin/darling-ai <<'EOS'
-          #!/bin/sh
-          exec /usr/share/darling-ai/darling_ai "$@"
-          EOS
-          chmod +x $PKG/usr/bin/darling-ai
-          # 桌面入口
-          cat > $PKG/usr/share/applications/darling-ai.desktop <<'EOS'
-          [Desktop Entry]
-          Name=darling-ai
-          Comment=DARLING-AI desktop AI assistant
-          Exec=/usr/share/darling-ai/darling_ai
-          Type=Application
-          Categories=Utility;
-          EOS
-          # control：仅声明最基础的 GTK 系统库（绝大多数发行版自带，无需联网装 Python/Flutter）
-          cat > $PKG/DEBIAN/control <<'EOS'
-          Package: darling-ai
-          Version: 5.0.0
-          Section: utils
-          Priority: optional
-          Architecture: amd64
-          Maintainer: darling
-          Depends: libgtk-3-0 (>= 3.24)
-          Description: DARLING-AI desktop AI assistant
-          EOS
-          chmod +x $PKG/usr/share/darling-ai/darling_ai
-          chmod +x $PKG/usr/share/darling-ai/backend/darling-backend
-          chmod 644 $PKG/usr/share/applications/darling-ai.desktop
-          dpkg-deb --build --root-owner-group $PKG darling-ai-5.0.0-amd64.deb
-
-      - name: Verify deb package (install + dependency check)
-        run: |
-          echo "===== dpkg-deb info ====="
-          dpkg-deb --info darling-ai-5.0.0-amd64.deb
-          echo "===== contents (head) ====="
-          dpkg-deb --contents darling-ai-5.0.0-amd64.deb | head -20
-          echo "===== actually install ====="
-          sudo dpkg -i darling-ai-5.0.0-amd64.deb
-          which darling-ai
-          dpkg -s darling-ai | grep -E "Package|Version|Status"
-          echo "===== dependency check (ldd) ====="
-          ldd /usr/share/darling-ai/darling_ai 2>&1 | grep -i "not found" && { echo "GUI LIBS MISSING"; exit 1; } || echo "GUI libs OK"
-          ldd /usr/share/darling-ai/backend/darling-backend 2>&1 | grep -i "not found" && { echo "BACKEND LIBS MISSING"; exit 1; } || echo "Backend libs OK"
-          echo "===== tar.gz lib check ====="
-          tar tzf darling-ai-5.0.0-linux-x64.tar.gz | head -10
-
-      - name: Upload linux artifact
+      - name: Upload arch artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: darling-ai-5.0.0-linux
+          name: darling-ai-darling-os-4.1.9
           path: |
-            darling-ai-5.0.0-linux-x64.tar.gz
-            darling-ai-5.0.0-amd64.deb
+            archlinux/*.pkg.tar.zst
+            archlinux/darling-ai-bundle.tar.gz
 
-      - name: Release upload (Linux)
+      - name: Release upload (Arch)
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            darling-ai-5.0.0-linux-x64.tar.gz
-            darling-ai-5.0.0-amd64.deb
+            archlinux/*.pkg.tar.zst
+            archlinux/darling-ai-bundle.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

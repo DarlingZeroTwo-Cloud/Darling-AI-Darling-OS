@@ -1,0 +1,17 @@
+[Unit]
+Description=Darling AI for Darling OS
+Documentation=https://github.com/DarlingZeroTwo-Cloud/Darling-AI-Darling-OS
+# 图形会话就绪后启动；Hyprland 桌面下正常工作
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/darling-ai
+Restart=always
+RestartSec=3
+# 后台保护：防止被桌面环境误杀
+KillMode=control-group
+
+[Install]
+WantedBy=default.target
