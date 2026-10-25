@@ -7,6 +7,7 @@ pkgdesc="Darling AI for Darling OS：悬浮球快速 AI 对话助手（官方模
 arch=('x86_64')
 url="https://github.com/DarlingZeroTwo-Cloud/Darling-AI-Darling-OS"
 license=('MIT')
+options=('!debug')
 depends=('gtk3' 'python' 'python-requests' 'tesseract' 'tesseract-data-chi_sim' 'grim' 'hyprland')
 optdepends=('dsh: DeepSeek Harness 本地内核（可选安装）')
 source=("darling-ai-bundle.tar.gz" "darling-ai-launcher" "darling-ai-toggle" "darling-ai.desktop" "darling-ai.service" "hyprland-darling-ai.conf" "darling-ai.svg")
