@@ -14,9 +14,10 @@ noextract=()
 md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
-  # 主程序 + 后端 + 资源
+  # 主程序 + 后端 + 资源（bundle 解包后内容上移一层，避免 darling-ai-bundle/ 多余层级）
   install -d "$pkgdir/usr/lib/darling-ai"
-  tar -xzf "$srcdir/darling-ai-bundle.tar.gz" -C "$pkgdir/usr/lib/darling-ai/"
+  tar -xzf "$srcdir/darling-ai-bundle.tar.gz" -C "$srcdir/"
+  cp -r "$srcdir/darling-ai-bundle/"* "$pkgdir/usr/lib/darling-ai/"
 
   # 启动器
   install -Dm755 "$srcdir/darling-ai-launcher" "$pkgdir/usr/bin/darling-ai"
